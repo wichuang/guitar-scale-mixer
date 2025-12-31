@@ -1,0 +1,183 @@
+.scale-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 20px;
+    width: 360px;
+    transition: border-color 0.2s ease;
+}
+
+.scale-panel:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.panel-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    font-weight: 500;
+}
+
+.scale-number {
+    color: var(--accent);
+    font-weight: 700;
+    margin-left: 4px;
+}
+
+.root-badge {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 12px;
+    border: 1px solid var(--accent);
+}
+
+.controls-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.control-group.small {
+    flex: 0.35;
+}
+
+.control-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+}
+
+.dropdown {
+    background: var(--bg-elevated);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 32px;
+}
+
+.dropdown:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dropdown:focus {
+    border-color: var(--accent);
+}
+
+.scale-grid {
+    display: grid;
+    gap: 2px;
+    background: var(--bg-black);
+    padding: 2px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.grid-cell {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #000;
+    border: none;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+/* Toggle row */
+.toggle-cell {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    height: 24px;
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.toggle-cell.on {
+    color: var(--accent);
+}
+
+.toggle-cell.off {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.toggle-cell:hover {
+    background: var(--bg-card);
+}
+
+.degree-cell {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    height: 26px;
+    font-size: 10px;
+    border-radius: 3px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.degree-cell.disabled {
+    opacity: 0.3;
+}
+
+.note-cell {
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid transparent;
+}
+
+.note-cell:hover:not(:disabled) {
+    transform: scale(1.03);
+}
+
+.note-cell.disabled {
+    cursor: default;
+    border-style: dashed;
+}
+
+.interval-cell {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    height: 24px;
+    font-size: 9px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.interval-cell.disabled {
+    opacity: 0.3;
+}
