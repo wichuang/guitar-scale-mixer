@@ -1,14 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import Fretboard from './components/Fretboard';
-import ScalePanel from './components/ScalePanel';
-import GuitarSelector from './components/GuitarSelector';
-import ScaleCountSelector from './components/ScaleCountSelector';
-import DisplayModeSelector from './components/DisplayModeSelector';
+import LiveMode from './components/LiveMode';
+import ScalePanelCompact from './components/ScalePanelCompact';
 import SettingsPage from './components/SettingsPage';
 import { usePresets, useAutoSave, getInitialState } from './hooks/usePresets';
+import { usePitchDetection } from './hooks/usePitchDetection';
 import './App.css';
 
-// Background images for each guitar type (use base URL for Vite)
 const getBackgroundPath = (name) => `${import.meta.env.BASE_URL}backgrounds/${name}.png`;
 
 const GUITAR_BACKGROUNDS = {
@@ -21,7 +19,14 @@ const GUITAR_BACKGROUNDS = {
   'distortion_guitar': getBackgroundPath('distortion_guitar'),
 };
 
-// Default state
+const GUITAR_OPTIONS = [
+  { value: 'acoustic_guitar_nylon', label: 'Nylon' },
+  { value: 'acoustic_guitar_steel', label: 'Steel' },
+  { value: 'electric_guitar_clean', label: 'Clean' },
+  { value: 'electric_guitar_jazz', label: 'Jazz' },
+  { value: 'distortion_guitar', label: 'Distort' },
+];
+
 const DEFAULT_STATE = {
   scaleCount: 2,
   displayMode: 'notes',
@@ -34,39 +39,25 @@ const DEFAULT_STATE = {
 };
 
 function App() {
-  // Settings page visibility
+  // Mode: 'scale' or 'live'
+  const [mode, setMode] = useState('scale');
   const [showSettings, setShowSettings] = useState(false);
-
-  // Initialize state from localStorage or defaults
   const initialState = useMemo(() => getInitialState(DEFAULT_STATE), []);
 
-  // Scale count (1, 2, or 3)
   const [scaleCount, setScaleCount] = useState(initialState.scaleCount);
-
-  // Display mode: 'notes' or 'intervals'
   const [displayMode, setDisplayMode] = useState(initialState.displayMode);
-
-  // Scale states with enabled notes tracking
   const [scales, setScales] = useState(initialState.scales);
-
-  // Guitar instrument
   const [guitarType, setGuitarType] = useState(initialState.guitarType);
 
-  // Presets management
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
+  const pitchDetection = usePitchDetection();
 
-  // Current state for auto-save and preset operations
   const currentState = useMemo(() => ({
-    scaleCount,
-    displayMode,
-    guitarType,
-    scales
+    scaleCount, displayMode, guitarType, scales
   }), [scaleCount, displayMode, guitarType, scales]);
 
-  // Auto-save current state
   useAutoSave(currentState, true);
 
-  // Update a specific scale field
   const updateScale = (index, field, value) => {
     setScales(prev => {
       const newScales = [...prev];
@@ -78,37 +69,7 @@ function App() {
     });
   };
 
-  // Toggle a specific note in a scale
-  const toggleNote = (scaleIndex, noteName, allNotes) => {
-    setScales(prev => {
-      const newScales = prev.map((scale, idx) => {
-        if (idx !== scaleIndex) return scale;
-
-        const current = scale.enabledNotes;
-        let enabledArray;
-        if (current === null || current === undefined) {
-          enabledArray = allNotes.filter(n => n !== noteName);
-        } else {
-          if (current.includes(noteName)) {
-            enabledArray = current.filter(n => n !== noteName);
-          } else {
-            enabledArray = [...current, noteName];
-          }
-        }
-
-        return { ...scale, enabledNotes: enabledArray };
-      });
-
-      return newScales;
-    });
-  };
-
-  // Handle save preset
-  const handleSavePreset = (name) => {
-    savePreset(name, currentState);
-  };
-
-  // Handle load preset
+  const handleSavePreset = (name) => savePreset(name, currentState);
   const handleLoadPreset = (id) => {
     const state = loadPreset(id);
     if (state) {
@@ -124,72 +85,119 @@ function App() {
   const backgroundImage = GUITAR_BACKGROUNDS[guitarType];
 
   return (
-    <div
-      className="app"
-      style={{
-        backgroundImage: `url(${backgroundImage})`,
-      }}
-    >
-      {/* Background overlay */}
+    <div className="app" style={{ backgroundImage: `url(${backgroundImage})` }}>
       <div className="app-overlay" />
 
-      {/* Content */}
       <div className="app-content">
-        {/* Header */}
-        <header className="app-header">
-          <h1 className="app-title">Scale Mixer</h1>
-          <p className="app-subtitle">Interactive Guitar Scale Visualization</p>
-        </header>
+        {/* Top Navigation */}
+        <nav className="top-nav">
+          <div className="nav-left">
+            <h1 className="logo">Scale Mixer</h1>
 
-        {/* Controls Row */}
-        <div className="controls-bar">
-          <GuitarSelector
-            currentGuitar={guitarType}
-            onGuitarChange={setGuitarType}
-          />
-          <ScaleCountSelector
-            count={scaleCount}
-            onCountChange={setScaleCount}
-          />
-          <DisplayModeSelector
-            mode={displayMode}
-            onModeChange={setDisplayMode}
-          />
-          <button
-            className="settings-btn"
-            onClick={() => setShowSettings(true)}
-            title="Settings & Presets"
-          >
-            ⚙️
-          </button>
-        </div>
+            {/* Mode Toggle */}
+            <div className="mode-toggle">
+              <button
+                className={`mode-btn ${mode === 'scale' ? 'active' : ''}`}
+                onClick={() => setMode('scale')}
+              >
+                📚 Scales
+              </button>
+              <button
+                className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
+                onClick={() => setMode('live')}
+              >
+                🎸 Live
+              </button>
+            </div>
+          </div>
 
-        {/* Fretboard */}
-        <Fretboard
-          scales={activeScales}
-          guitarType={guitarType}
-          displayMode={displayMode}
-        />
+          <div className="nav-right">
+            <button className="icon-btn" onClick={() => setShowSettings(true)} title="Settings">
+              ⚙️
+            </button>
+          </div>
+        </nav>
 
-        {/* Scale Panels */}
-        <div className="main-content">
-          {activeScales.map((scaleData, index) => (
-            <ScalePanel
-              key={index}
-              scaleIndex={index}
-              root={scaleData.root}
-              scale={scaleData.scale}
-              enabledNotes={scaleData.enabledNotes}
-              onRootChange={(value) => updateScale(index, 'root', value)}
-              onScaleChange={(value) => updateScale(index, 'scale', value)}
-              onToggleNote={(noteName, allNotes) => toggleNote(index, noteName, allNotes)}
+        {/* Scale Mode */}
+        {mode === 'scale' && (
+          <div className="scale-mode">
+            {/* Controls */}
+            <div className="controls-card">
+              <div className="control-section">
+                <label className="section-label">Scales</label>
+                <div className="btn-group">
+                  {[1, 2, 3].map(n => (
+                    <button
+                      key={n}
+                      className={`sm-btn ${scaleCount === n ? 'active' : ''}`}
+                      onClick={() => setScaleCount(n)}
+                    >{n}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="control-section">
+                <label className="section-label">Display</label>
+                <div className="btn-group">
+                  <button
+                    className={`sm-btn ${displayMode === 'notes' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('notes')}
+                  >ABC</button>
+                  <button
+                    className={`sm-btn ${displayMode === 'intervals' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('intervals')}
+                  >123</button>
+                </div>
+              </div>
+
+              <div className="control-section">
+                <label className="section-label">Sound</label>
+                <select
+                  className="sm-select"
+                  value={guitarType}
+                  onChange={(e) => setGuitarType(e.target.value)}
+                >
+                  {GUITAR_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Scale Selectors */}
+            <div className="scales-row">
+              {activeScales.map((s, i) => (
+                <ScalePanelCompact
+                  key={i}
+                  index={i}
+                  root={s.root}
+                  scale={s.scale}
+                  onRootChange={(v) => updateScale(i, 'root', v)}
+                  onScaleChange={(v) => updateScale(i, 'scale', v)}
+                />
+              ))}
+            </div>
+
+            {/* Fretboard */}
+            <Fretboard
+              scales={activeScales}
               guitarType={guitarType}
+              displayMode={displayMode}
             />
-          ))}
-        </div>
+          </div>
+        )}
+
+        {/* Live Mode */}
+        {mode === 'live' && (
+          <LiveMode
+            pitchDetection={pitchDetection}
+            displayMode={displayMode}
+            onDisplayModeChange={setDisplayMode}
+            scales={activeScales}
+          />
+        )}
       </div>
 
-      {/* Settings Page */}
       {showSettings && (
         <SettingsPage
           presets={presets}

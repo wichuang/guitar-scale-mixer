@@ -1,15 +1,13 @@
 .fretboard-container {
   width: 100%;
-  padding: 0 20px 20px;
   overflow: hidden;
 }
 
 .fretboard-wrapper {
   background: var(--bg-card);
   border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  padding: 16px;
-  margin: 0 20px;
+  border-radius: 8px;
+  padding: 10px;
 }
 
 /* Header with legend and jump controls */
@@ -221,6 +219,27 @@
 
 .note-marker.multi-scale {
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.25);
+}
+
+/* Detected note from live input */
+.note-marker.detected {
+  animation: pulse-detected 0.3s ease-in-out infinite;
+  box-shadow: 0 0 20px #4caf50, 0 0 40px #4caf50;
+  z-index: 10;
+}
+
+@keyframes pulse-detected {
+
+  0%,
+  100% {
+    transform: scale(1.3);
+    box-shadow: 0 0 20px #4caf50, 0 0 40px #4caf50;
+  }
+
+  50% {
+    transform: scale(1.5);
+    box-shadow: 0 0 30px #4caf50, 0 0 60px #4caf50;
+  }
 }
 
 .note-marker.disabled {
