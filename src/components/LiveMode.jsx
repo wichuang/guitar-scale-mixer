@@ -7,7 +7,7 @@ import {
 } from '../data/scaleData';
 import './LiveMode.css';
 
-function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales }) {
+function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fretCount }) {
     const {
         isListening, devices, selectedDevice, setSelectedDevice,
         detectedNote, detectedOctave, detectedFrequency, centsDeviation, volume, noteHistory,
@@ -22,14 +22,15 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales }) 
         const updateFretWidth = () => {
             if (containerRef.current) {
                 const containerWidth = containerRef.current.offsetWidth - 24;
-                const width = Math.max(32, Math.floor(containerWidth / 22));
+                const count = Math.max(12, fretCount || 15);
+                const width = Math.max(32, Math.floor(containerWidth / (count + 0.5)));
                 setFretWidth(width);
             }
         };
         updateFretWidth();
         window.addEventListener('resize', updateFretWidth);
         return () => window.removeEventListener('resize', updateFretWidth);
-    }, []);
+    }, [fretCount]);
 
     const fretMarkers = [3, 5, 7, 9, 12, 15, 17, 19, 21];
     const doubleDotFrets = [12];
@@ -44,7 +45,8 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales }) 
         const noteIdx = NOTES_ORDER.indexOf(noteName);
         if (rootIdx === -1 || noteIdx === -1) return '?';
         const semitones = (noteIdx - rootIdx + 12) % 12;
-        return INTERVAL_NAMES[semitones];
+        const interval = INTERVAL_NAMES[semitones];
+        return interval === '1' ? 'R' : interval;
     };
 
     return (
@@ -172,7 +174,7 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales }) 
                     <div className="live-fretboard">
                         {/* Fret numbers */}
                         <div className="lf-numbers">
-                            {Array.from({ length: NUM_FRETS + 1 }, (_, fret) => (
+                            {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
                                 <div key={fret} className="lf-num" style={{ width: fretWidth }}>
                                     <span className={fretMarkers.includes(fret) ? 'marked' : ''}>{fret}</span>
                                     {fretMarkers.includes(fret) && !doubleDotFrets.includes(fret) && <div className="dot" />}
@@ -187,7 +189,7 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales }) 
                             return (
                                 <div key={stringIdx} className="lf-string">
                                     <div className="string-line" style={{ height: thickness }} />
-                                    {Array.from({ length: NUM_FRETS + 1 }, (_, fret) => {
+                                    {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => {
                                         const midiNote = openMidi + fret;
                                         const noteName = getNoteName(midiNote);
                                         const isDetected = detectedNote === noteName;
@@ -199,11 +201,12 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales }) 
                                         }
 
                                         const displayText = displayMode === 'intervals' ? getInterval(noteName) : noteName;
+                                        const isRoot = displayText === 'R';
 
                                         return (
                                             <div key={fret} className="lf-cell" style={{ width: fretWidth }}>
                                                 <div
-                                                    className={`lf-marker ${isDetected ? 'detected' : 'trail'}`}
+                                                    className={`lf-marker ${isDetected ? 'detected' : 'trail'} ${isRoot ? 'is-root' : ''}`}
                                                     style={{ opacity: isDetected ? 1 : (1 - trailIdx * 0.2) }}
                                                 >
                                                     {displayText}
@@ -217,7 +220,7 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales }) 
 
                         {/* Fret lines */}
                         <div className="lf-lines">
-                            {Array.from({ length: NUM_FRETS + 1 }, (_, fret) => (
+                            {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
                                 <div key={fret} className={`lf-line ${fret === 0 ? 'nut' : ''}`} style={{ width: fretWidth }} />
                             ))}
                         </div>

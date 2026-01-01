@@ -4,6 +4,8 @@ import './SettingsPage.css';
 function SettingsPage({
     presets,
     currentState,
+    fretCount,
+    onFretCountChange,
     onSavePreset,
     onLoadPreset,
     onDeletePreset,
@@ -11,6 +13,9 @@ function SettingsPage({
 }) {
     const [newPresetName, setNewPresetName] = useState('');
     const [showSaveInput, setShowSaveInput] = useState(false);
+
+    // 產生 12 到 22 的選項
+    const fretOptions = Array.from({ length: 11 }, (_, i) => i + 12);
 
     const handleSave = () => {
         if (newPresetName.trim()) {
@@ -38,6 +43,23 @@ function SettingsPage({
                 <div className="settings-header">
                     <h2>設定 / Presets</h2>
                     <button className="close-btn" onClick={onClose}>✕</button>
+                </div>
+
+                {/* Fretboard Settings */}
+                <div className="settings-section">
+                    <h3>顯示設定</h3>
+                    <div className="setting-control">
+                        <label>琴格數量 (Fretboard Frets):</label>
+                        <select
+                            className="setting-select"
+                            value={fretCount}
+                            onChange={(e) => onFretCountChange(Number(e.target.value))}
+                        >
+                            {fretOptions.map(num => (
+                                <option key={num} value={num}>{num} Frets</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 {/* Save new preset */}
@@ -80,7 +102,7 @@ function SettingsPage({
                                         <span className="preset-name">{preset.name}</span>
                                         <span className="preset-date">{formatDate(preset.createdAt)}</span>
                                         <span className="preset-details">
-                                            {preset.state.scaleCount} scales • {preset.state.guitarType.replace(/_/g, ' ')}
+                                            {preset.state.scaleCount} scales • {preset.state.fretCount || 15} frets • {preset.state.guitarType.replace(/_/g, ' ')}
                                         </span>
                                     </div>
                                     <div className="preset-actions">
@@ -110,6 +132,7 @@ function SettingsPage({
                         <p><strong>Guitar:</strong> {currentState.guitarType.replace(/_/g, ' ')}</p>
                         <p><strong>Display:</strong> {currentState.displayMode === 'notes' ? 'Notes (ABC)' : 'Intervals (123)'}</p>
                         <p><strong>Scales:</strong> {currentState.scaleCount}</p>
+                        <p><strong>Frets:</strong> {currentState.fretCount}</p>
                         {currentState.scales.slice(0, currentState.scaleCount).map((s, i) => (
                             <p key={i} className="scale-info">
                                 Scale {i + 1}: {s.root} {s.scale.replace(/-/g, ' ')}

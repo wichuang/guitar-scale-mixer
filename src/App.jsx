@@ -10,6 +10,7 @@ import RegisterPage from './pages/RegisterPage';
 import { usePresets, useAutoSave, getInitialState } from './hooks/usePresets';
 import { usePitchDetection } from './hooks/usePitchDetection';
 import { useAuth } from './contexts/AuthContext';
+import { getScaleNotes } from './data/scaleData';
 import './App.css';
 
 const getBackgroundPath = (name) => `${import.meta.env.BASE_URL}backgrounds/${name}.png`;
@@ -36,6 +37,7 @@ const DEFAULT_STATE = {
   scaleCount: 2,
   displayMode: 'notes',
   guitarType: 'acoustic_guitar_nylon',
+  fretCount: 15,
   scales: [
     { root: 'A', scale: 'harmonic-minor', enabledNotes: null },
     { root: 'A', scale: 'minor-pentatonic', enabledNotes: null },
@@ -53,6 +55,7 @@ function MainContent() {
   const [displayMode, setDisplayMode] = useState(initialState.displayMode);
   const [scales, setScales] = useState(initialState.scales);
   const [guitarType, setGuitarType] = useState(initialState.guitarType);
+  const [fretCount, setFretCount] = useState(initialState.fretCount || 15);
 
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
   const pitchDetection = usePitchDetection();
@@ -60,8 +63,8 @@ function MainContent() {
   const navigate = useNavigate();
 
   const currentState = useMemo(() => ({
-    scaleCount, displayMode, guitarType, scales
-  }), [scaleCount, displayMode, guitarType, scales]);
+    scaleCount, displayMode, guitarType, scales, fretCount
+  }), [scaleCount, displayMode, guitarType, scales, fretCount]);
 
   useAutoSave(currentState, true);
 
@@ -76,6 +79,25 @@ function MainContent() {
     });
   };
 
+  const toggleNote = (index, note) => {
+    setScales(prev => {
+      const newScales = [...prev];
+      const scale = newScales[index];
+      // 如果還沒有自定義過，預設是全部開啟
+      const currentNotes = scale.enabledNotes || getScaleNotes(scale.root, scale.scale);
+
+      let nextNotes;
+      if (currentNotes.includes(note)) {
+        nextNotes = currentNotes.filter(n => n !== note);
+      } else {
+        nextNotes = [...currentNotes, note];
+      }
+
+      newScales[index] = { ...scale, enabledNotes: nextNotes };
+      return newScales;
+    });
+  };
+
   const handleSavePreset = (name) => savePreset(name, currentState);
   const handleLoadPreset = (id) => {
     const state = loadPreset(id);
@@ -84,6 +106,7 @@ function MainContent() {
       setDisplayMode(state.displayMode);
       setGuitarType(state.guitarType);
       setScales(state.scales);
+      setFretCount(state.fretCount || 15);
       setShowSettings(false);
     }
   };
@@ -194,8 +217,10 @@ function MainContent() {
                   index={i}
                   root={s.root}
                   scale={s.scale}
+                  enabledNotes={s.enabledNotes}
                   onRootChange={(v) => updateScale(i, 'root', v)}
                   onScaleChange={(v) => updateScale(i, 'scale', v)}
+                  onToggleNote={(note) => toggleNote(i, note)}
                 />
               ))}
             </div>
@@ -205,6 +230,7 @@ function MainContent() {
               scales={activeScales}
               guitarType={guitarType}
               displayMode={displayMode}
+              fretCount={fretCount}
             />
           </div>
         )}
@@ -216,6 +242,7 @@ function MainContent() {
             displayMode={displayMode}
             onDisplayModeChange={setDisplayMode}
             scales={activeScales}
+            fretCount={fretCount}
           />
         )}
       </div>
@@ -224,6 +251,8 @@ function MainContent() {
         <SettingsPage
           presets={presets}
           currentState={currentState}
+          fretCount={fretCount}
+          onFretCountChange={setFretCount}
           onSavePreset={handleSavePreset}
           onLoadPreset={handleLoadPreset}
           onDeletePreset={deletePreset}

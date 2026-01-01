@@ -46,7 +46,7 @@ export default function RegisterPage() {
             <div className="auth-page">
                 <div className="auth-card">
                     <div className="auth-header">
-                        <h1>🎸 Scale Mixer</h1>
+                        <h1>SCALE MIXER</h1>
                         <h2>✅ 註冊成功！</h2>
                     </div>
                     <div className="auth-success">
@@ -62,7 +62,7 @@ export default function RegisterPage() {
         <div className="auth-page">
             <div className="auth-card">
                 <div className="auth-header">
-                    <h1>🎸 Scale Mixer</h1>
+                    <h1>SCALE MIXER</h1>
                     <h2>建立帳號</h2>
                 </div>
 

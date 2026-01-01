@@ -14,36 +14,20 @@ const ROLE_HIERARCHY = {
 }
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null)
-    const [profile, setProfile] = useState(null)
-    const [loading, setLoading] = useState(true)
+    // 暫時繞過驗證：預設為已登入狀態，權限為 developer
+    const [user, setUser] = useState({ id: 'guest-id', email: 'guest@example.com' })
+    const [profile, setProfile] = useState({
+        id: 'guest-profile-id',
+        display_name: 'Guest Developer',
+        role: 'developer'
+    })
+    const [loading, setLoading] = useState(false)
 
+    /* 註釋掉原本的驗證邏輯
     useEffect(() => {
-        // 取得目前 session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null)
-            if (session?.user) {
-                fetchProfile(session.user.id)
-            } else {
-                setLoading(false)
-            }
-        })
-
-        // 監聽認證狀態變化
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                setUser(session?.user ?? null)
-                if (session?.user) {
-                    await fetchProfile(session.user.id)
-                } else {
-                    setProfile(null)
-                    setLoading(false)
-                }
-            }
-        )
-
-        return () => subscription.unsubscribe()
+        // ... 原本的邏輯 ...
     }, [])
+    */
 
     // 取得使用者 profile
     const fetchProfile = async (userId) => {

@@ -431,6 +431,16 @@
     pointer-events: none;
 }
 
+.lf-marker.is-root {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-weight: 900;
+}
+
+.lf-marker.is-root.detected {
+    box-shadow: 0 0 20px #ffffff, 0 0 40px #ffffff !important;
+}
+
 .lf-line {
     border-right: 1px solid rgba(255, 255, 255, 0.1);
 }

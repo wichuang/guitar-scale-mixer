@@ -24,13 +24,10 @@ const BW_COLORS = [
     { bg: '#333333', text: '#ffffff', border: '#76ff03' },   // Scale 3 - dark gray
 ];
 
-// Visible frets options (12-22)
-const VISIBLE_FRETS_OPTIONS = [12, 15, 17, 19, 22];
-
-function Fretboard({ scales, guitarType, displayMode }) {
+// Visible frets (controlled from Settings)
+function Fretboard({ scales, guitarType, displayMode, fretCount }) {
     const { playNote, isLoading } = useAudio(guitarType);
     const [activeNote, setActiveNote] = useState(null);
-    const [visibleFrets, setVisibleFrets] = useState(12);
     const scrollRef = useRef(null);
     const containerRef = useRef(null);
     const [fretWidth, setFretWidth] = useState(60);
@@ -42,7 +39,9 @@ function Fretboard({ scales, guitarType, displayMode }) {
         const updateFretWidth = () => {
             if (containerRef.current) {
                 const containerWidth = containerRef.current.offsetWidth - 32;
-                const width = Math.max(40, Math.floor(containerWidth / visibleFrets));
+                // 確保 fretCount 有效，最小為 12
+                const count = Math.max(12, fretCount || 15);
+                const width = Math.max(30, Math.floor(containerWidth / (count + 0.5)));
                 setFretWidth(width);
             }
         };
@@ -50,7 +49,7 @@ function Fretboard({ scales, guitarType, displayMode }) {
         updateFretWidth();
         window.addEventListener('resize', updateFretWidth);
         return () => window.removeEventListener('resize', updateFretWidth);
-    }, [visibleFrets]);
+    }, [fretCount]);
 
     // Get scale notes for each scale
     const scaleNotesArray = scales.map(s => getScaleNotes(s.root, s.scale));
@@ -94,7 +93,9 @@ function Fretboard({ scales, guitarType, displayMode }) {
         if (!isIntervalMode) return noteName;
         const scale = scales[scaleIdx];
         if (!scale) return noteName;
-        return getIntervalForNote(noteName, scale.root, scale.scale) || noteName;
+        const interval = getIntervalForNote(noteName, scale.root, scale.scale);
+        if (interval === '1') return 'R';
+        return interval || noteName;
     };
 
     return (
@@ -121,28 +122,14 @@ function Fretboard({ scales, guitarType, displayMode }) {
                             </div>
                         )}
                     </div>
-
-                    {/* Visible frets selector */}
-                    <div className="frets-selector">
-                        <span className="selector-label">View:</span>
-                        {VISIBLE_FRETS_OPTIONS.map(num => (
-                            <button
-                                key={num}
-                                className={`frets-btn ${visibleFrets === num ? 'active' : ''}`}
-                                onClick={() => setVisibleFrets(num)}
-                            >
-                                {num === 22 ? 'All' : num}
-                            </button>
-                        ))}
-                    </div>
                 </div>
 
-                {/* Scrollable fretboard */}
-                <div className="fretboard-scroll" ref={scrollRef}>
+                {/* Fretboard content */}
+                <div className="fretboard-main">
                     <div className="fretboard">
                         {/* Fret numbers */}
                         <div className="fret-numbers">
-                            {Array.from({ length: NUM_FRETS + 1 }, (_, fret) => (
+                            {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
                                 <div
                                     key={fret}
                                     className="fret-number-cell"
@@ -175,7 +162,7 @@ function Fretboard({ scales, guitarType, displayMode }) {
                                         style={{ height: `${stringThickness}px` }}
                                     />
 
-                                    {Array.from({ length: NUM_FRETS + 1 }, (_, fret) => {
+                                    {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => {
                                         const midiNote = openMidi + fret;
                                         const noteName = getNoteName(midiNote);
                                         const { inScales, isRootOf } = getNoteScaleInfo(noteName);
@@ -201,9 +188,15 @@ function Fretboard({ scales, guitarType, displayMode }) {
                                         // Choose colors based on mode
                                         let bgColor, textColor, borderColor;
                                         if (isIntervalMode) {
-                                            bgColor = BW_COLORS[primaryScaleIdx].bg;
-                                            textColor = BW_COLORS[primaryScaleIdx].text;
-                                            borderColor = isRoot ? BW_COLORS[isRootOf[0]].border : 'transparent';
+                                            if (isRoot) {
+                                                bgColor = '#ffffff';
+                                                textColor = '#000000';
+                                                borderColor = '#ffffff';
+                                            } else {
+                                                bgColor = BW_COLORS[primaryScaleIdx].bg;
+                                                textColor = BW_COLORS[primaryScaleIdx].text;
+                                                borderColor = 'transparent';
+                                            }
                                         } else {
                                             bgColor = SCALE_COLORS[primaryScaleIdx].bg;
                                             textColor = '#fff';
@@ -244,7 +237,7 @@ function Fretboard({ scales, guitarType, displayMode }) {
 
                         {/* Fret lines */}
                         <div className="fret-lines">
-                            {Array.from({ length: NUM_FRETS + 1 }, (_, fret) => (
+                            {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
                                 <div
                                     key={fret}
                                     className={`fret-line ${fret === 0 ? 'nut' : ''}`}
@@ -253,10 +246,6 @@ function Fretboard({ scales, guitarType, displayMode }) {
                             ))}
                         </div>
                     </div>
-                </div>
-
-                <div className="scroll-hint">
-                    ← Scroll for more frets →
                 </div>
             </div>
         </div>
