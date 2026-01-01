@@ -75,13 +75,19 @@ export function AuthProvider({ children }) {
 
     // 註冊
     const signUp = async (email, password, displayName) => {
+        // 動態獲取目前的跳轉網址，確保支援 GitHub Pages 的子路徑
+        const currentOrigin = window.location.origin;
+        const currentPathname = window.location.pathname;
+        const redirectTo = `${currentOrigin}${currentPathname.replace(/\/register\/?$/, '/login')}`;
+
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: {
                     display_name: displayName
-                }
+                },
+                emailRedirectTo: redirectTo
             }
         })
         return { data, error }
