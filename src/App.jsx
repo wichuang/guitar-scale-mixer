@@ -1,10 +1,15 @@
 import { useState, useMemo } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import Fretboard from './components/Fretboard';
 import LiveMode from './components/LiveMode';
 import ScalePanelCompact from './components/ScalePanelCompact';
 import SettingsPage from './components/SettingsPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import { usePresets, useAutoSave, getInitialState } from './hooks/usePresets';
 import { usePitchDetection } from './hooks/usePitchDetection';
+import { useAuth } from './contexts/AuthContext';
 import './App.css';
 
 const getBackgroundPath = (name) => `${import.meta.env.BASE_URL}backgrounds/${name}.png`;
@@ -38,8 +43,8 @@ const DEFAULT_STATE = {
   ]
 };
 
-function App() {
-  // Mode: 'scale' or 'live'
+// Main App Content (Protected)
+function MainContent() {
   const [mode, setMode] = useState('scale');
   const [showSettings, setShowSettings] = useState(false);
   const initialState = useMemo(() => getInitialState(DEFAULT_STATE), []);
@@ -51,6 +56,8 @@ function App() {
 
   const { presets, savePreset, deletePreset, loadPreset } = usePresets();
   const pitchDetection = usePitchDetection();
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const currentState = useMemo(() => ({
     scaleCount, displayMode, guitarType, scales
@@ -79,6 +86,11 @@ function App() {
       setScales(state.scales);
       setShowSettings(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
   };
 
   const activeScales = scales.slice(0, scaleCount);
@@ -112,8 +124,18 @@ function App() {
           </div>
 
           <div className="nav-right">
+            {/* User Info */}
+            {user && (
+              <div className="user-info">
+                <span className="user-name">{profile?.display_name || user.email}</span>
+                <span className="user-role">{profile?.role || 'student'}</span>
+              </div>
+            )}
             <button className="icon-btn" onClick={() => setShowSettings(true)} title="Settings">
               ⚙️
+            </button>
+            <button className="icon-btn" onClick={handleSignOut} title="登出">
+              🚪
             </button>
           </div>
         </nav>
@@ -209,6 +231,23 @@ function App() {
         />
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <MainContent />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   );
 }
 
