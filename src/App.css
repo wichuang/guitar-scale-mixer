@@ -60,6 +60,28 @@
   gap: 16px;
   padding: 0 40px 16px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Settings button */
+.settings-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent-gold);
+  transform: rotate(45deg);
 }
 
 /* Main content */

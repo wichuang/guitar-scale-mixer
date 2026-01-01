@@ -77,3 +77,27 @@ export function getNoteColor(noteName) {
 export function getNoteTextColor(noteName) {
     return ['A', 'E', 'C', 'D#', 'F#'].includes(noteName) ? '#000' : '#fff';
 }
+
+// Get interval name for a note within a scale
+export function getIntervalForNote(noteName, root, scaleType) {
+    const scale = SCALES[scaleType];
+    if (!scale) return null;
+
+    const rootIndex = getNoteIndex(root);
+    const noteIndex = getNoteIndex(noteName);
+    const interval = ((noteIndex - rootIndex) % 12 + 12) % 12;
+
+    const intervalIdx = scale.intervals.indexOf(interval);
+    if (intervalIdx === -1) return null;
+
+    // Return simplified interval (just the number for display)
+    const intervalName = scale.intervalNames[intervalIdx];
+    // Extract just the number part: "1P" -> "1", "3m" -> "♭3", "3M" -> "3"
+    const num = intervalName.replace(/[PMdA]/g, '');
+    if (intervalName.includes('m') || intervalName.includes('d')) {
+        return '♭' + num;
+    } else if (intervalName.includes('A')) {
+        return '♯' + num;
+    }
+    return num;
+}

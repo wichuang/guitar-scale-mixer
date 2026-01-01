@@ -5,21 +5,29 @@ import {
     getNoteName,
     getScaleNotes,
     isNoteInScale,
+    getIntervalForNote,
 } from '../data/scaleData';
 import { useAudio } from '../hooks/useAudio';
 import './Fretboard.css';
 
-// High contrast scale colors
+// High contrast scale colors for color mode
 const SCALE_COLORS = [
     { bg: '#2196f3', border: '#ffd700' },      // Scale 1 - bright blue with gold root
     { bg: '#ff9800', border: '#00e5ff' },      // Scale 2 - orange with cyan root  
     { bg: '#e91e63', border: '#76ff03' },      // Scale 3 - pink with lime root
 ];
 
+// Black & white colors for interval mode
+const BW_COLORS = [
+    { bg: '#ffffff', text: '#000000', border: '#ffd700' },   // Scale 1 - white
+    { bg: '#888888', text: '#ffffff', border: '#00e5ff' },   // Scale 2 - gray
+    { bg: '#333333', text: '#ffffff', border: '#76ff03' },   // Scale 3 - dark gray
+];
+
 // Visible frets options (12-22)
 const VISIBLE_FRETS_OPTIONS = [12, 15, 17, 19, 22];
 
-function Fretboard({ scales, guitarType }) {
+function Fretboard({ scales, guitarType, displayMode }) {
     const { playNote, isLoading } = useAudio(guitarType);
     const [activeNote, setActiveNote] = useState(null);
     const [visibleFrets, setVisibleFrets] = useState(12);
@@ -27,11 +35,13 @@ function Fretboard({ scales, guitarType }) {
     const containerRef = useRef(null);
     const [fretWidth, setFretWidth] = useState(60);
 
+    const isIntervalMode = displayMode === 'intervals';
+
     // Calculate fret width based on container and visible frets
     useEffect(() => {
         const updateFretWidth = () => {
             if (containerRef.current) {
-                const containerWidth = containerRef.current.offsetWidth - 32; // padding
+                const containerWidth = containerRef.current.offsetWidth - 32;
                 const width = Math.max(40, Math.floor(containerWidth / visibleFrets));
                 setFretWidth(width);
             }
@@ -79,8 +89,16 @@ function Fretboard({ scales, guitarType }) {
         return { inScales, isRootOf };
     };
 
+    // Get display text for a note
+    const getDisplayText = (noteName, scaleIdx) => {
+        if (!isIntervalMode) return noteName;
+        const scale = scales[scaleIdx];
+        if (!scale) return noteName;
+        return getIntervalForNote(noteName, scale.root, scale.scale) || noteName;
+    };
+
     return (
-        <div className="fretboard-container" ref={containerRef}>
+        <div className={`fretboard-container ${isIntervalMode ? 'bw-mode' : ''}`} ref={containerRef}>
             <div className="fretboard-wrapper">
                 {/* Header */}
                 <div className="fretboard-header">
@@ -89,7 +107,10 @@ function Fretboard({ scales, guitarType }) {
                             <div key={idx} className="legend-item">
                                 <div
                                     className="legend-marker"
-                                    style={{ backgroundColor: SCALE_COLORS[idx].bg }}
+                                    style={{
+                                        backgroundColor: isIntervalMode ? BW_COLORS[idx].bg : SCALE_COLORS[idx].bg,
+                                        border: isIntervalMode ? '1px solid #666' : 'none'
+                                    }}
                                 />
                                 <span>Scale {idx + 1}</span>
                             </div>
@@ -177,15 +198,24 @@ function Fretboard({ scales, guitarType }) {
                                         const isRoot = isRootOf.length > 0;
                                         const inMultiple = enabledInScales.length > 1;
 
-                                        const bgColor = SCALE_COLORS[primaryScaleIdx].bg;
-                                        const borderColor = isRoot
-                                            ? SCALE_COLORS[isRootOf[0]].border
-                                            : 'transparent';
+                                        // Choose colors based on mode
+                                        let bgColor, textColor, borderColor;
+                                        if (isIntervalMode) {
+                                            bgColor = BW_COLORS[primaryScaleIdx].bg;
+                                            textColor = BW_COLORS[primaryScaleIdx].text;
+                                            borderColor = isRoot ? BW_COLORS[isRootOf[0]].border : 'transparent';
+                                        } else {
+                                            bgColor = SCALE_COLORS[primaryScaleIdx].bg;
+                                            textColor = '#fff';
+                                            borderColor = isRoot ? SCALE_COLORS[isRootOf[0]].border : 'transparent';
+                                        }
 
                                         let markerClass = 'note-marker';
                                         if (isActive) markerClass += ' active';
                                         if (isRoot) markerClass += ' root';
                                         if (inMultiple) markerClass += ' multi-scale';
+
+                                        const displayText = getDisplayText(noteName, primaryScaleIdx);
 
                                         return (
                                             <div
@@ -198,12 +228,12 @@ function Fretboard({ scales, guitarType }) {
                                                     style={{
                                                         backgroundColor: bgColor,
                                                         borderColor: borderColor,
-                                                        color: '#fff',
+                                                        color: textColor,
                                                     }}
                                                     onClick={() => handleNoteClick(midiNote, stringIdx, noteName)}
                                                     title={`${noteName} (Fret ${fret})`}
                                                 >
-                                                    {noteName}
+                                                    {displayText}
                                                 </button>
                                             </div>
                                         );
