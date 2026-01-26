@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import Fretboard from './components/Fretboard';
 import LiveMode from './components/LiveMode';
+import ReadMode from './components/ReadMode';
 import ScalePanelCompact from './components/ScalePanelCompact';
 import SettingsPage from './components/SettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -143,6 +144,12 @@ function MainContent() {
               >
                 🎸 Live
               </button>
+              <button
+                className={`mode-btn ${mode === 'read' ? 'active' : ''}`}
+                onClick={() => setMode('read')}
+              >
+                📖 Read
+              </button>
             </div>
           </div>
 
@@ -242,6 +249,14 @@ function MainContent() {
             displayMode={displayMode}
             onDisplayModeChange={setDisplayMode}
             scales={activeScales}
+            fretCount={fretCount}
+          />
+        )}
+
+        {/* Read Mode */}
+        {mode === 'read' && (
+          <ReadMode
+            guitarType={guitarType}
             fretCount={fretCount}
           />
         )}

@@ -1,0 +1,203 @@
+.read-fretboard-container {
+    padding: 0 16px;
+}
+
+/* 把位指示 */
+.position-indicator {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+    padding: 10px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.position-range {
+    padding: 4px 10px;
+    background: rgba(33, 150, 243, 0.3);
+    border-radius: 6px;
+    font-size: 12px;
+    color: #64b5f6;
+}
+
+/* 指板容器 */
+.read-fretboard {
+    position: relative;
+    background: linear-gradient(180deg, #8b6914 0%, #a67c00 40%, #8b6914 100%);
+    border-radius: 10px;
+    padding: 10px 16px 16px;
+    overflow-x: auto;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 格數標記 */
+.fret-numbers {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.fret-number-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.fret-number-cell.in-position .fret-number {
+    color: #64b5f6;
+    font-weight: bold;
+}
+
+.fret-number {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    transition: all 0.2s;
+}
+
+.fret-number.marked {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: bold;
+}
+
+.fret-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.fret-dots-double {
+    display: flex;
+    gap: 4px;
+}
+
+/* 弦 */
+.string-row {
+    display: flex;
+    position: relative;
+    height: 28px;
+    align-items: center;
+}
+
+.string-line {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    background: linear-gradient(180deg, #e0e0e0 0%, #bdbdbd 50%, #9e9e9e 100%);
+    border-radius: 1px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    z-index: 1;
+}
+
+/* 格子 */
+.fret-space {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    position: relative;
+    z-index: 2;
+    transition: background 0.2s;
+}
+
+.fret-space.in-position {
+    background: rgba(33, 150, 243, 0.08);
+}
+
+/* 音符標記 */
+.note-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s;
+    z-index: 3;
+}
+
+.note-marker.has-note {
+    background: rgba(76, 175, 80, 0.8);
+    color: white;
+    border-color: rgba(76, 175, 80, 1);
+}
+
+.note-marker.has-note:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.5);
+}
+
+.note-marker.current {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    color: white;
+    border-color: #ff9800;
+    transform: scale(1.2);
+    box-shadow: 0 4px 16px rgba(255, 152, 0, 0.6);
+    animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+    from {
+        box-shadow: 0 4px 16px rgba(255, 152, 0, 0.6);
+    }
+
+    to {
+        box-shadow: 0 6px 24px rgba(255, 152, 0, 0.8);
+    }
+}
+
+/* 格線 */
+.fret-lines {
+    display: flex;
+    position: absolute;
+    top: 40px;
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    pointer-events: none;
+}
+
+.fret-line {
+    height: 100%;
+    border-left: 2px solid rgba(139, 105, 20, 0.6);
+    transition: border-color 0.2s;
+}
+
+.fret-line.in-position {
+    border-left-color: rgba(33, 150, 243, 0.4);
+}
+
+.fret-line.nut {
+    border-left-width: 6px;
+    border-left-color: #f5f5f5;
+}
+
+/* 響應式 */
+@media (max-width: 768px) {
+    .read-fretboard-container {
+        padding: 0 8px;
+    }
+
+    .read-fretboard {
+        padding: 8px 12px 12px;
+    }
+
+    .note-marker {
+        width: 22px;
+        height: 22px;
+        font-size: 10px;
+    }
+
+    .string-row {
+        height: 24px;
+    }
+}
