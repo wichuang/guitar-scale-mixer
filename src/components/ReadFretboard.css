@@ -126,9 +126,17 @@
 }
 
 .note-marker.has-note {
-    background: rgba(76, 175, 80, 0.8);
+    background: #d32f2f;
+    /* Red */
     color: white;
-    border-color: rgba(76, 175, 80, 1);
+    border-color: #b71c1c;
+}
+
+.note-marker.root-note {
+    background: #43a047;
+    /* Green */
+    color: white;
+    border-color: #2e7d32;
 }
 
 .note-marker.has-note:hover {

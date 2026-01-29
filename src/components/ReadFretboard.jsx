@@ -1,18 +1,23 @@
 import { useMemo } from 'react';
 import { STRING_TUNINGS, getNoteName } from '../data/scaleData';
-import { getBestPosition, GUITAR_POSITIONS } from '../data/jianpuParser';
+import { calculate3NPSPositions, get3NPSInfo } from '../utils/get3NPSPositions';
 import './ReadFretboard.css';
 
-function ReadFretboard({ notes, currentNoteIndex, position, fretCount, onNoteClick }) {
-    const positionInfo = GUITAR_POSITIONS[position] || GUITAR_POSITIONS[1];
-
-    // 計算所有音符的指板位置
+function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick }) {
+    // 使用 3NPS 演算法計算所有音符的指板位置
     const notePositions = useMemo(() => {
-        return notes.map(note => ({
+        const positions = calculate3NPSPositions(notes);
+        return notes.map((note, idx) => ({
             ...note,
-            position: getBestPosition(note.midiNote, position),
+            position: positions[idx],
         }));
-    }, [notes, position]);
+    }, [notes]);
+
+    // 3NPS 模式資訊
+    const positions3NPS = useMemo(() =>
+        calculate3NPSPositions(notes), [notes]);
+    const modeInfo = useMemo(() =>
+        get3NPSInfo(positions3NPS), [positions3NPS]);
 
     // 當前播放音符的位置
     const currentPosition = currentNoteIndex >= 0 && currentNoteIndex < notePositions.length
@@ -29,10 +34,10 @@ function ReadFretboard({ notes, currentNoteIndex, position, fretCount, onNoteCli
 
     return (
         <div className="read-fretboard-container">
-            {/* 把位指示 */}
-            <div className="position-indicator">
-                <span>🎸 {positionInfo.name}</span>
-                <span className="position-range">格 {positionInfo.start} - {positionInfo.end}</span>
+            {/* 3NPS 模式指示 */}
+            <div className="position-indicator mode-3nps">
+                <span>🎸 {modeInfo.description}</span>
+                <span className="position-range">每弦 3 音</span>
             </div>
 
             {/* 指板主體 */}
@@ -40,11 +45,14 @@ function ReadFretboard({ notes, currentNoteIndex, position, fretCount, onNoteCli
                 {/* 格數標記 */}
                 <div className="fret-numbers">
                     {Array.from({ length: visibleFrets + 1 }, (_, fret) => {
-                        const inPosition = fret >= positionInfo.start && fret <= positionInfo.end;
+                        // 檢查這個格位是否有音符
+                        const hasNoteAtFret = notePositions.some(
+                            np => np.position?.fret === fret
+                        );
                         return (
                             <div
                                 key={fret}
-                                className={`fret-number-cell ${inPosition ? 'in-position' : ''}`}
+                                className={`fret-number-cell ${hasNoteAtFret ? 'has-note' : ''}`}
                                 style={{ width: fretWidth }}
                             >
                                 <span className={`fret-number ${fretMarkers.includes(fret) ? 'marked' : ''}`}>
@@ -66,7 +74,7 @@ function ReadFretboard({ notes, currentNoteIndex, position, fretCount, onNoteCli
 
                 {/* 弦 */}
                 {STRING_TUNINGS.map((openMidi, stringIdx) => {
-                    const stringThickness = 1 + (5 - stringIdx) * 0.4;
+                    const stringThickness = 1 + stringIdx * 0.4;
 
                     return (
                         <div key={stringIdx} className="string-row">
@@ -87,13 +95,11 @@ function ReadFretboard({ notes, currentNoteIndex, position, fretCount, onNoteCli
                                 const isCurrent = currentPosition?.string === stringIdx &&
                                     currentPosition?.fret === fret;
 
-                                const inPosition = fret >= positionInfo.start && fret <= positionInfo.end;
-
                                 if (!noteAtPosition && !isCurrent) {
                                     return (
                                         <div
                                             key={fret}
-                                            className={`fret-space ${inPosition ? 'in-position' : ''}`}
+                                            className="fret-space"
                                             style={{ width: fretWidth }}
                                         />
                                     );
@@ -102,11 +108,11 @@ function ReadFretboard({ notes, currentNoteIndex, position, fretCount, onNoteCli
                                 return (
                                     <div
                                         key={fret}
-                                        className={`fret-space ${inPosition ? 'in-position' : ''}`}
+                                        className="fret-space"
                                         style={{ width: fretWidth }}
                                     >
                                         <button
-                                            className={`note-marker ${isCurrent ? 'current' : ''} ${noteAtPosition ? 'has-note' : ''}`}
+                                            className={`note-marker ${isCurrent ? 'current' : ''} ${noteAtPosition ? 'has-note' : ''} ${noteAtPosition?.jianpu === '1' ? 'root-note' : ''}`}
                                             onClick={() => {
                                                 if (noteAtPosition) {
                                                     onNoteClick(noteAtPosition.index);
@@ -125,16 +131,13 @@ function ReadFretboard({ notes, currentNoteIndex, position, fretCount, onNoteCli
 
                 {/* 格線 */}
                 <div className="fret-lines">
-                    {Array.from({ length: visibleFrets + 1 }, (_, fret) => {
-                        const inPosition = fret >= positionInfo.start && fret <= positionInfo.end;
-                        return (
-                            <div
-                                key={fret}
-                                className={`fret-line ${fret === 0 ? 'nut' : ''} ${inPosition ? 'in-position' : ''}`}
-                                style={{ width: fretWidth }}
-                            />
-                        );
-                    })}
+                    {Array.from({ length: visibleFrets + 1 }, (_, fret) => (
+                        <div
+                            key={fret}
+                            className={`fret-line ${fret === 0 ? 'nut' : ''}`}
+                            style={{ width: fretWidth }}
+                        />
+                    ))}
                 </div>
             </div>
         </div>
@@ -142,3 +145,4 @@ function ReadFretboard({ notes, currentNoteIndex, position, fretCount, onNoteCli
 }
 
 export default ReadFretboard;
+

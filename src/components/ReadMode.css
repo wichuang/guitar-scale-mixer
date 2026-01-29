@@ -132,6 +132,24 @@
     color: rgba(255, 255, 255, 0.7);
 }
 
+/* 3NPS 模式標籤 */
+.setting-row.mode-info {
+    background: rgba(76, 175, 80, 0.15);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.mode-badge {
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 /* 辨識結果 */
 .result-section {
     display: flex;
@@ -262,11 +280,11 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    max-height: 100px;
-    overflow-y: auto;
     padding: 8px;
     background: rgba(0, 0, 0, 0.2);
     border-radius: 8px;
+    overflow: visible;
+    position: relative;
 }
 
 .note-chip {
@@ -320,7 +338,135 @@
     border-color: rgba(156, 39, 176, 0.6);
 }
 
-/* 播放控制 */
+/* 區隔線 */
+.note-chip.separator {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 20px;
+    min-width: 20px;
+    padding: 6px 4px;
+}
+
+/* 音符包裝器 - 用於編輯選單定位 */
+.note-chip-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.note-chip-wrapper.selected .note-chip {
+    box-shadow: 0 0 0 2px #4caf50, 0 4px 12px rgba(76, 175, 80, 0.4);
+    transform: scale(1.05);
+}
+
+/* 編輯選單 */
+.note-menu {
+    position: fixed;
+    z-index: 1000;
+    background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 12px;
+    min-width: 220px;
+    max-width: 280px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+
+
+.menu-group {
+    margin-bottom: 8px;
+}
+
+.menu-label {
+    display: block;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.menu-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.menu-btn {
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.menu-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.menu-btn.active {
+    background: linear-gradient(135deg, #4caf50, #388e3c);
+    border-color: #4caf50;
+}
+
+.menu-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 10px 0;
+}
+
+.insert-row {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.insert-row span {
+    min-width: 24px;
+}
+
+.insert-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    border-radius: 4px;
+    color: #ffc107;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.insert-btn:hover {
+    background: rgba(255, 193, 7, 0.4);
+    transform: scale(1.1);
+}
+
+.delete-note-btn {
+    width: 100%;
+    padding: 8px;
+    background: rgba(244, 67, 54, 0.2);
+    border: 1px solid rgba(244, 67, 54, 0.4);
+    border-radius: 6px;
+    color: #f44336;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.delete-note-btn:hover {
+    background: rgba(244, 67, 54, 0.4);
+}
+
+
 .playback-controls {
     display: flex;
     gap: 10px;
@@ -645,4 +791,201 @@
     .dialog {
         min-width: 280px;
     }
+
+    .note-editor-area {
+        flex-direction: column;
+    }
+
+    .editor-panel {
+        width: 100%;
+        max-width: none;
+    }
+}
+
+/* 辨識結果擴大版 */
+.result-section.expanded {
+    width: 100%;
+}
+
+.result-section.expanded textarea {
+    width: 100%;
+    min-height: 80px;
+    font-size: 14px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* 音符編輯區 - 獨立全寬區域 */
+.note-editor-area {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+/* 左側：編輯面板 */
+.editor-panel {
+    width: 280px;
+    min-width: 280px;
+    background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.editor-panel h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+}
+
+.selected-note-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(76, 175, 80, 0.2);
+    border-radius: 8px;
+    border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.selected-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.selected-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #4caf50;
+}
+
+.editor-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.editor-label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.editor-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.editor-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 60px;
+}
+
+.editor-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.editor-btn.active {
+    background: linear-gradient(135deg, #4caf50, #388e3c);
+    border-color: #4caf50;
+    color: white;
+}
+
+.editor-insert-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.editor-insert-row span {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    width: 24px;
+}
+
+.no-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+}
+
+.no-selection p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* 右側：音符列表區 */
+.notes-list-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.notes-list-area label {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.notes-list-area .notes-display {
+    flex: 1;
+    min-height: 80px;
+    max-height: none;
+}
+
+/* Sharp/Flat 音符樣式 */
+.note-chip.sharp {
+    border-color: #ff9800;
+    background: rgba(255, 152, 0, 0.2);
+}
+
+.note-chip.flat {
+    border-color: #9c27b0;
+    background: rgba(156, 39, 176, 0.2);
+}
+
+/* 禁用按鈕樣式 */
+.editor-btn:disabled,
+.insert-btn:disabled,
+.delete-note-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.editor-btn:disabled:hover,
+.insert-btn:disabled:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: none;
+}
+
+/* 未選擇狀態的提示 */
+.selected-note-info .selected-value:empty::after,
+.selected-note-info .selected-value:contains('未選擇') {
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: normal;
 }

@@ -47,6 +47,7 @@ export function useScores() {
                 text: data.text,           // 簡譜文字
                 notes: data.notes,         // 解析後的音符
                 key: data.key,             // 調號
+                scaleType: data.scaleType, // 音階類型
                 position: data.position,   // 預設把位
                 tempo: data.tempo,         // 速度
             }
