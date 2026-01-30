@@ -3,7 +3,7 @@
  * Refactored to support Scale Patterns and Start String selection
  */
 
-import { STRING_TUNINGS, SCALES, getNoteIndex } from '../data/scaleData';
+import { STRING_TUNINGS, SCALES, getNoteIndex } from '../data/scaleData.js';
 // KEY_OFFSETS import removed as we use getNoteIndex logic in getRootMidi
 // Actually KEY_OFFSETS is in jianpuParser.js but not exported?
 // Wait, check jianpuParser.js. It IS NOT exported?
@@ -30,13 +30,18 @@ const SCALE_TYPE_MAP = {
     'Major': 'major',
     'Minor': 'aeolian', // Map Minor to Natural Minor (Aeolian)
     'HarmonicMinor': 'harmonic-minor',
-    'MelodicMinor': 'melodic-minor'
+    'MelodicMinor': 'melodic-minor',
+    'Dorian': 'dorian',
+    'Phrygian': 'phrygian',
+    'Lydian': 'lydian',
+    'Mixolydian': 'mixolydian',
+    'Locrian': 'locrian'
 };
 
 /**
  * Generate ideal 3NPS positions for the scale
  */
-function generate3NPSMap(startStringIdx, key, scaleType) {
+export function generate3NPSMap(startStringIdx, key, scaleType) {
     const map = [];
     const mappedType = SCALE_TYPE_MAP[scaleType] || scaleType.toLowerCase();
     const scale = SCALES[mappedType] || SCALES['major']; // Fallback to major, not 'Major'
@@ -110,37 +115,72 @@ export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', sca
 
     // Generate Static Map
     const map = generate3NPSMap(startStringIdx, key, scaleType);
+    if (!map || map.length === 0) return notes.map(() => null);
 
-    // Find Root Fret to keep "center of gravity"
-    const rootEntry = map[0]; // First note is Root
-    const targetCenterFret = rootEntry ? rootEntry.fret + 2 : 5; // Approx center
+    // --- Smart Octave Alignment ---
+    // User Input (Jianpu) usually defaults to Octave 4 (Middle C range).
+    // 3NPS Patterns on Low Strings (StartString 5 or 6) are usually Octave 2 or 3.
+    // We need to find the "Octave Shift" to align the USER's notes to the MAP's range.
+
+    // 1. Find the first valid note in user input
+    const firstNote = notes.find(n => n && !n.isSeparator && n.midiNote);
+
+    // 2. Find the root (or closest note) in the Map
+    // Ideally, the first note of the scale should match the first note of the map (if it's the root).
+    // Let's compare "Note Names" or "Midi % 12".
+
+    let octaveShift = 0;
+
+    if (firstNote) {
+        const inputMidi = firstNote.midiNote;
+
+        // Find a matching pitch class in the map's start (first 7 notes)
+        // to determine the target octave.
+        // If exact match not found, we just align "approximate average pitch"
+
+        const mapStartMidi = map[0].midi; // The lowest note in the map (Root)
+
+        // Calculate difference in octaves
+        // We want inputMidi + shift ≈ mapStartMidi
+        // round to nearest 12
+        const diff = mapStartMidi - inputMidi;
+        octaveShift = Math.round(diff / 12) * 12;
+    }
+
+    // Find Root Fret to keep "center of gravity" for fallback
+    const rootEntry = map[0];
+    const targetCenterFret = rootEntry ? rootEntry.fret + 2 : 5;
 
     return notes.map((note) => {
         if (!note || note.isSeparator) return null;
         if (!note.midiNote) return null;
 
-        // 1. Try exact match in Map
-        const match = map.find(m => m.midi === note.midiNote);
+        // Apply shift
+        const targetMidi = note.midiNote + octaveShift;
+
+        // 1. Try exact match in Map (using shifted midi)
+        const match = map.find(m => m.midi === targetMidi);
         if (match) {
-            return { string: match.string, fret: match.fret };
+            return { string: match.string, fret: match.fret, midi: targetMidi };
         }
 
-        // 2. Fallback: Find any position closest to Center Fret
-        // Using existing logic concept
+        // 2. Fallback: Find closest position for shifted midi
+        // If specific note is not in strict 3NPS map (e.g. chromatic passing tone)
+        // we map it to fretboard anyway.
         let bestPos = null;
         let minDist = 999;
 
         for (let s = 0; s < 6; s++) {
-            const f = note.midiNote - STRING_TUNINGS[s];
+            const f = targetMidi - STRING_TUNINGS[s];
             if (f >= 0 && f <= 22) {
                 const dist = Math.abs(f - targetCenterFret);
-                // Tie-breaker: prefer startString or adjacent?
-                // Prefer strings closer to startStringIdx?
-                // weight the distance slightly for string difference?
-
+                // Debug 2#
+                if (notes.some(n => n && n.displayStr === '2#') && targetMidi % 12 === 0) { // C note
+                    // console.log(`[DEBUG] Check Pos: String ${s} Fret ${f} for Midi ${targetMidi} (Dist ${dist})`);
+                }
                 if (dist < minDist) {
                     minDist = dist;
-                    bestPos = { string: s, fret: f };
+                    bestPos = { string: s, fret: f, midi: targetMidi };
                 }
             }
         }

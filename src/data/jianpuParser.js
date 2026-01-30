@@ -1,27 +1,30 @@
 // 簡譜 (Jianpu) 解析器
 // 簡譜使用數字 1-7 表示音符，對應 Do Re Mi Fa Sol La Si
 
-import { NOTES, STRING_TUNINGS, getNoteName } from './scaleData';
+import { NOTES, STRING_TUNINGS, getNoteName, SCALES } from './scaleData.js';
 
 /**
  * 簡譜數字轉換對照表 (預設 C 調)
  * 1=C, 2=D, 3=E, 4=F, 5=G, 6=A, 7=B
  */
-/**
- * 簡譜數字轉換對照表 (對應不同音階)
- * 1-7 對應半音數
- */
-const SCALE_INTERVALS = {
-    'Major': [0, 2, 4, 5, 7, 9, 11],
-    'Minor': [0, 2, 3, 5, 7, 8, 10], // Natural Minor
-    'HarmonicMinor': [0, 2, 3, 5, 7, 8, 11],
-    'MelodicMinor': [0, 2, 3, 5, 7, 9, 11]
+
+// Map UI Scale Types to SCALES keys
+const SCALE_MAPPING = {
+    'Major': 'major',
+    'Minor': 'aeolian',
+    'HarmonicMinor': 'harmonic-minor',
+    'MelodicMinor': 'melodic-minor',
+    'Dorian': 'dorian',
+    'Phrygian': 'phrygian',
+    'Lydian': 'lydian',
+    'Mixolydian': 'mixolydian',
+    'Locrian': 'locrian'
 };
 
 /**
  * 根音偏移量 (半音)
  */
-const KEY_OFFSETS = {
+export const KEY_OFFSETS = {
     'C': 0, 'C#': 1, 'Db': 1,
     'D': 2, 'D#': 3, 'Eb': 3,
     'E': 4, 'Fb': 4,
@@ -42,18 +45,21 @@ const KEY_OFFSETS = {
  */
 export function jianpuToNote(jianpuNum, octaveOffset = 0, key = 'C', scaleType = 'Major') {
     // Check for accidental in input string
+    // Check for accidental in input string
     const str = String(jianpuNum);
     let accidental = 0;
-    if (str.includes('#')) accidental = 1;
-    if (str.includes('b')) accidental = -1;
+    if (str.includes('#') || str.includes('♯')) accidental = 1;
+    if (str.includes('b') || str.includes('♭')) accidental = -1;
 
     // Use only the number part for scale lookup
-    const cleanNum = parseInt(str.replace(/[#b]/g, ''));
+    const cleanNum = parseInt(str.replace(/[#b♯♭]/g, ''));
     if (isNaN(cleanNum) || cleanNum < 1 || cleanNum > 7) {
         return null;
     }
 
-    const intervals = SCALE_INTERVALS[scaleType] || SCALE_INTERVALS['Major'];
+    const mappedType = SCALE_MAPPING[scaleType] || 'major';
+    const scale = SCALES[mappedType] || SCALES['major'];
+    const intervals = scale.intervals;
     const baseSemitone = intervals[cleanNum - 1]; // 0-based index
     const keyOffset = KEY_OFFSETS[key] || 0;
     const totalSemitone = baseSemitone + keyOffset + accidental;
@@ -83,25 +89,18 @@ export function jianpuToNote(jianpuNum, octaveOffset = 0, key = 'C', scaleType =
 export function cleanJianpuText(text) {
     // 第一步：移除常見的非簡譜文字（中文標題、歌詞提示等）
     let cleaned = text
-        .replace(/[a-zA-Z]+/g, '') // 移除英文字母
+        .replace(/[a-ac-zA-Z]+/g, '') // 移除英文字母 (排除 b，因為 b 是降記號)
         .replace(/[\u4e00-\u9fff]+/g, '') // 移除中文字
         .replace(/[，。！？、；：""''（）【】《》]/g, '') // 移除中文標點
         .replace(/[,!?;:"'()[\]<>{}]/g, '') // 移除英文標點
-        .replace(/[89]/g, '') // 移除 8, 9（簡譜不使用 0是休止符）
+        .replace(/[89]/g, '') // 移除 8, 9
         .replace(/\n+/g, ' ') // 換行轉空格
         .replace(/\s+/g, ' ') // 多空格合併
         .trim();
 
-    // 第二步：只保留簡譜相關字符
-    // 1-7: 音符, 0: 休止符
-    // .: 高八度標記
-    // ·: 高八度標記（全形）
-    // _: 低八度標記
-    // ̣: 下加點（Unicode）
-    // -: 延長音
-    // |: 小節線
-    // 空格: 分隔
-    cleaned = cleaned.replace(/[^0-7\s.·_̣\-|#b]/g, '');
+    // 第二步：只保留簡譜相關字符及 Unicode 升降號
+    // 1-7, 0, ., _, -, |, #, b, ♯, ♭
+    cleaned = cleaned.replace(/[^0-7\s.·_̣\-|#b♯♭]/g, '');
 
     return cleaned;
 }
@@ -113,7 +112,7 @@ export function cleanJianpuText(text) {
  * @param {string} scaleType - 音階類型 (預設 'Major')
  * @returns {Array} - 解析後的音符陣列
  */
-export function parseJianpuText(text, key = 'C', scaleType = 'Major') {
+export function parseJianpuText(text, key = 'C', scaleType = 'Major', globalOctaveOffset = 0) {
     const notes = [];
     const cleaned = cleanJianpuText(text);
     const chars = cleaned.split('');
@@ -155,18 +154,28 @@ export function parseJianpuText(text, key = 'C', scaleType = 'Major') {
                 }
             }
 
-            // 檢查後面的升降記號 (#, b)
+            // 檢查後面的升降記號 (#, b, ♯, ♭)
             if (i + 1 < chars.length) {
                 const charNext = chars[i + 1];
-                if (charNext === '#' || charNext === 'b') {
-                    displayStr += charNext;
+                if (['#', 'b', '♯', '♭'].includes(charNext)) {
+                    // Normalize to #/b
+                    const normalized = (charNext === '♯') ? '#' : ((charNext === '♭') ? 'b' : charNext);
+
+                    // Note: We keep the original char for displayStr if we want WYSIWYG, 
+                    // but for now let's normalize displayStr too for consistency? 
+                    // Let's keep displayStr matching user input if possible, OR normalize it. 
+                    // Normalizing is safer for subsequent logic.
+                    displayStr += normalized;
                     i++;
                 }
             }
 
+            // Apply global offset
+            const finalOctaveOffset = octaveOffset + globalOctaveOffset;
+
             // Pass displayStr as input to jianpuToNote to handle accidentals
             const noteInput = displayStr.replace(/[._₋₌·]/g, ''); // Extract 1# or 1
-            const note = jianpuToNote(noteInput, octaveOffset, key, scaleType);
+            const note = jianpuToNote(noteInput, finalOctaveOffset, key, scaleType);
             if (note) {
                 notes.push({
                     ...note,

@@ -78,9 +78,26 @@ export function getNoteTextColor(noteName) {
     return ['A', 'E', 'C', 'D#', 'F#'].includes(noteName) ? '#000' : '#fff';
 }
 
+// Scale Type Mapping (UI -> SCALES key)
+export const SCALE_TYPES = {
+    'Major': 'major',
+    'Minor': 'aeolian',
+    'HarmonicMinor': 'harmonic-minor',
+    'MelodicMinor': 'melodic-minor',
+    'Dorian': 'dorian',
+    'Phrygian': 'phrygian',
+    'Lydian': 'lydian',
+    'Mixolydian': 'mixolydian',
+    'Locrian': 'locrian',
+    // Fallbacks
+    'major': 'major',
+    'minor': 'aeolian'
+};
+
 // Get interval name for a note within a scale
 export function getIntervalForNote(noteName, root, scaleType) {
-    const scale = SCALES[scaleType];
+    const mappedType = SCALE_TYPES[scaleType] || scaleType.toLowerCase();
+    const scale = SCALES[mappedType] || SCALES['major'];
     if (!scale) return null;
 
     const rootIndex = getNoteIndex(root);

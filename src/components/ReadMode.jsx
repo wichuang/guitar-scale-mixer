@@ -3,7 +3,6 @@ import Tesseract from 'tesseract.js';
 import { parseJianpuText, cleanJianpuText, notesToJianpuString, jianpuToNote } from '../data/jianpuParser';
 import { NOTES } from '../data/scaleData';
 import { useAudio } from '../hooks/useAudio';
-import { useScores } from '../hooks/useScores';
 import { calculate3NPSPositions } from '../utils/get3NPSPositions';
 import ReadFretboard from './ReadFretboard';
 import './ReadMode.css';
@@ -20,21 +19,64 @@ function ReadMode({ guitarType, fretCount }) {
     const [isPlaying, setIsPlaying] = useState(false);
     // 3NPS 模式：使用 startString 控制起始弦 (5=6弦, 4=5弦, 3=4弦)
     const [startString, setStartString] = useState(5);
+    const [octaveOffset, setOctaveOffset] = useState(-1); // Guitar Default: -1 Octave (Low Strings)
     const [tempo, setTempo] = useState(120); // BPM
     const [key, setKey] = useState('C');
     const [scaleType, setScaleType] = useState('Major'); // Major, Minor, etc.
-    const [scoreName, setScoreName] = useState('');
-    const [showSaveDialog, setShowSaveDialog] = useState(false);
-    const [showLoadDialog, setShowLoadDialog] = useState(false);
-    const [currentScoreId, setCurrentScoreId] = useState(null);
     const [selectedNoteIndex, setSelectedNoteIndex] = useState(-1);
     const [showNoteMenu, setShowNoteMenu] = useState(false);
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
     const fileInputRef = useRef(null);
+    const loadInputRef = useRef(null); // For loading JSON files
     const playTimeoutRef = useRef(null);
     const { playNote, isLoading: audioLoading } = useAudio(guitarType);
-    const { scores, saveScore, deleteScore, loadScore } = useScores();
+
+    // Session AutoSave key
+    const AUTOSAVE_KEY = 'guitar-mixer-readmode-autosave';
+
+    // Load Autosave on mount
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(AUTOSAVE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data) {
+                    // Only restore if fields exist
+                    if (data.text) {
+                        setEditableText(data.text);
+                        setRawText(data.text);
+                    }
+                    if (data.notes) setNotes(data.notes);
+                    if (data.key) setKey(data.key);
+                    if (data.scaleType) setScaleType(data.scaleType || data.key);
+                    if (data.tempo) setTempo(data.tempo);
+                    if (typeof data.startString === 'number') setStartString(data.startString);
+                    if (typeof data.octaveOffset === 'number') setOctaveOffset(data.octaveOffset);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load autosave', e);
+        }
+    }, []);
+
+    // Autosave on change
+    useEffect(() => {
+        // Debounce slightly to avoid excessive writes
+        const timer = setTimeout(() => {
+            const dataToSave = {
+                text: editableText,
+                notes: notes,
+                key: key,
+                scaleType: scaleType,
+                tempo: tempo,
+                startString: startString,
+                octaveOffset: octaveOffset
+            };
+            localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(dataToSave));
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [editableText, notes, key, scaleType, tempo, startString, octaveOffset]);
 
     // 處理檔案上傳
     const handleFileChange = (e) => {
@@ -101,8 +143,8 @@ function ReadMode({ guitarType, fretCount }) {
             const cleanedText = cleanJianpuText(text);
             setEditableText(cleanedText);
 
-            // 解析簡譜（傳入調號）
-            const parsedNotes = parseJianpuText(text, key, scaleType);
+            // 解析簡譜（傳入調號與八度偏移）
+            const parsedNotes = parseJianpuText(text, key, scaleType, octaveOffset);
             setNotes(parsedNotes);
         } catch (error) {
             console.error('OCR 錯誤:', error);
@@ -115,7 +157,7 @@ function ReadMode({ guitarType, fretCount }) {
 
     // 手動解析編輯後的文字
     const handleManualParse = () => {
-        const parsedNotes = parseJianpuText(editableText, key, scaleType);
+        const parsedNotes = parseJianpuText(editableText, key, scaleType, octaveOffset);
         setNotes(parsedNotes);
     };
 
@@ -142,6 +184,14 @@ function ReadMode({ guitarType, fretCount }) {
         }
     };
 
+    const togglePlay = () => {
+        if (isPlaying) {
+            pause();
+        } else {
+            play();
+        }
+    };
+
     // 計算 3NPS 位置（memoized）
     // 計算 3NPS 位置（memoized）
     const notePositions = useMemo(() =>
@@ -152,14 +202,29 @@ function ReadMode({ guitarType, fretCount }) {
         setNotes(prevNotes => prevNotes.map(note => {
             if (note.isSeparator || note.isRest || note.isExtension) return note;
 
-            // Recalculate based on current jianpu and octave
+            // Recalculate based on current jianpu and octave, PRESERVING ACCIDENTALS
             const octaveOffset = (note.octave || 4) - 4;
-            const noteData = jianpuToNote(note.jianpu, octaveOffset, key, scaleType);
+            // Construct input string that includes the accidental (e.g. "1#")
+            // Ensure accidentalStr is determined if missing but present in displayStr
+            let acc = note.accidentalStr || '';
+            if (!acc && note.displayStr) {
+                if (note.displayStr.includes('#')) acc = '#';
+                if (note.displayStr.includes('b')) acc = 'b';
+            }
+
+            const noteInput = String(note.jianpu) + acc;
+
+            if (note.jianpu === 2 && acc === '#') {
+                console.log('[DEBUG] Recalculating 2#: Input=', noteInput, ' Key=', key, ' Result=', jianpuToNote(noteInput, octaveOffset, key, scaleType));
+            }
+
+            const noteData = jianpuToNote(noteInput, octaveOffset, key, scaleType);
 
             if (noteData) {
                 return {
                     ...note,
                     ...noteData, // updates midiNote, noteName
+                    accidentalStr: acc // Ensure it is preserved
                 };
             }
             return note;
@@ -187,7 +252,10 @@ function ReadMode({ guitarType, fretCount }) {
         const pos = notePositions[currentNoteIndex];
 
         if (pos && !audioLoading) {
-            playNote(note.midiNote, pos.string);
+            // Priority: Play the note at the visual position (Calculated 3NPS position)
+            // This ensures audio matches the "shifted" octave on the fretboard.
+            const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : note.midiNote);
+            playNote(targetMidi, pos.string);
         }
 
         const interval = (60 / tempo) * 1000; // 毫秒
@@ -208,57 +276,140 @@ function ReadMode({ guitarType, fretCount }) {
         const note = notes[index];
         const pos = notePositions[index];
         if (pos && !audioLoading) {
-            playNote(note.midiNote, pos.string);
+            const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : note.midiNote);
+            playNote(targetMidi, pos.string);
         }
     };
 
-    // 儲存樂譜
-    const handleSaveScore = () => {
-        if (!scoreName.trim()) {
-            alert('請輸入樂譜名稱');
-            return;
-        }
+    // 儲存檔案 (Save to File)
+    const handleSaveFile = async () => {
         if (!editableText.trim()) {
             alert('沒有可儲存的簡譜內容');
             return;
         }
 
-        saveScore(scoreName.trim(), {
-            text: editableText,
-            notes: notes,
-            key: key,
-            scaleType: scaleType,
-            tempo: tempo,
-        });
+        const scoreData = {
+            name: 'GuitarScore', // Helper name, mostly unused in file content logic but good for structure
+            data: {
+                text: editableText,
+                notes: notes,
+                key: key,
+                scaleType: scaleType,
+                tempo: tempo,
+                startString: startString,
+                octaveOffset: octaveOffset
+            }
+        };
 
-        setScoreName('');
-        setShowSaveDialog(false);
-        alert('樂譜已儲存！');
-    };
+        const strData = JSON.stringify(scoreData, null, 2);
 
-    // 載入樂譜
-    const handleLoadScore = (id) => {
-        const data = loadScore(id);
-        if (data) {
-            setEditableText(data.text || '');
-            setNotes(data.notes || []);
-            setKey(data.key || 'C');
-            setScaleType(data.scaleType || 'Major');
-            setTempo(data.tempo || 120);
-            setCurrentScoreId(id);
-            setRawText(data.text || ''); // 顯示編輯區
-            setShowLoadDialog(false);
-        }
-    };
-
-    // 刪除樂譜
-    const handleDeleteScore = (id, name) => {
-        if (confirm(`確定要刪除「${name}」嗎？`)) {
-            deleteScore(id);
-            if (currentScoreId === id) {
-                setCurrentScoreId(null);
+        // Try File System Access API
+        if (window.showSaveFilePicker) {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: `guitar_score_${new Date().toISOString().slice(0, 10)}.json`,
+                    types: [{
+                        description: 'Guitar Mixer Score',
+                        accept: { 'application/json': ['.json'] },
+                    }],
+                });
+                const writable = await handle.createWritable();
+                await writable.write(strData);
+                await writable.close();
+                alert('檔案儲存成功！');
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return; // User cancelled
+                console.warn('File Picker failed, falling back to download', err);
             }
         }
+
+        // Fallback: Download Link
+        const blob = new Blob([strData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        const now = new Date();
+        const timeStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+        const fileName = `GuitarScore_${timeStr}.json`;
+
+        a.href = url;
+        a.download = fileName;
+        a.setAttribute('download', fileName);
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
+    };
+
+    // 開啟檔案 (Open File)
+    const handleLoadFile = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const content = JSON.parse(ev.target.result);
+                // Support both { name, data: {...} } format AND direct data format if someone saved raw
+                const actualData = content.data ? content.data : content;
+
+                // Validate critical fields
+                if (actualData && (actualData.notes || actualData.text)) {
+                    setEditableText(actualData.text || '');
+                    setNotes(actualData.notes || []);
+                    setKey(actualData.key || 'C');
+                    setScaleType(actualData.scaleType || 'Major');
+                    setTempo(actualData.tempo || 120);
+                    if (typeof actualData.startString === 'number') setStartString(actualData.startString);
+                    if (typeof actualData.octaveOffset === 'number') setOctaveOffset(actualData.octaveOffset);
+                    alert('樂譜載入成功！');
+                } else {
+                    alert('載入失敗：檔案格式不符');
+                }
+            } catch (err) {
+                console.error('Load failed', err);
+                alert('載入失敗：無法解析檔案');
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // Reset input
+    };
+
+    // 複製當前狀態到剪貼簿 (Copy Current)
+    const handleCopyCurrentScore = () => {
+        const scoreData = {
+            name: 'GuitarScore_Copy',
+            data: {
+                text: editableText,
+                notes: notes,
+                key: key,
+                scaleType: scaleType,
+                tempo: tempo,
+                startString: startString,
+                octaveOffset: octaveOffset
+            }
+        };
+        const jsonStr = JSON.stringify(scoreData, null, 2);
+
+        navigator.clipboard.writeText(jsonStr).then(() => {
+            alert('✅ 樂譜資料已複製到剪貼簿！');
+        }).catch(err => {
+            const textArea = document.createElement("textarea");
+            textArea.value = jsonStr;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert('✅ 樂譜資料已複製到剪貼簿！');
+            } catch (err) {
+                alert('❌ 複製失敗');
+            }
+            document.body.removeChild(textArea);
+        });
     };
 
     // 同步更新 editableText
@@ -350,7 +501,9 @@ function ReadMode({ guitarType, fretCount }) {
         newNotes.splice(selectedNoteIndex, 0, newNote);
         setNotes(newNotes);
         syncEditableText(newNotes);
-        closeNoteMenu();
+        // Don't close menu, and since we inserted at 'selectedNoteIndex', 
+        // the new note takes that index. We don't need to change index, 
+        // just keep it to edit the *new* note.
     };
 
     // 在音符後插入
@@ -368,8 +521,9 @@ function ReadMode({ guitarType, fretCount }) {
         newNotes.splice(selectedNoteIndex + 1, 0, newNote);
         setNotes(newNotes);
         syncEditableText(newNotes);
-        syncEditableText(newNotes);
-        // closeNoteMenu(); // Don't close for rapid insertion
+
+        // Advance selection to the new note
+        setSelectedNoteIndex(selectedNoteIndex + 1);
     };
 
     // 在音符後插入符號 (0, -)
@@ -553,7 +707,8 @@ function ReadMode({ guitarType, fretCount }) {
                 ...currentNote,
                 midiNote: currentNote.midiNote - 1,
                 noteName: currentNote.noteName.replace('#', ''),
-                displayStr: (currentNote.displayStr || currentNote.jianpu).replace('#', '')
+                displayStr: (currentNote.displayStr || currentNote.jianpu).replace('#', ''),
+                accidentalStr: ''
             };
         } else {
             // 添加 sharp，移除 flat (如果有)
@@ -561,7 +716,8 @@ function ReadMode({ guitarType, fretCount }) {
                 ...currentNote,
                 midiNote: currentNote.midiNote + (hasFlat ? 2 : 1),
                 noteName: currentNote.noteName.replace('b', '') + '#',
-                displayStr: (currentNote.displayStr || currentNote.jianpu).replace('b', '') + '#'
+                displayStr: (currentNote.displayStr || currentNote.jianpu).replace('b', '') + '#',
+                accidentalStr: '#'
             };
         }
         setNotes(newNotes);
@@ -585,7 +741,8 @@ function ReadMode({ guitarType, fretCount }) {
                 ...currentNote,
                 midiNote: currentNote.midiNote + 1,
                 noteName: currentNote.noteName.replace('b', ''),
-                displayStr: (currentNote.displayStr || currentNote.jianpu).replace('b', '')
+                displayStr: (currentNote.displayStr || currentNote.jianpu).replace('b', ''),
+                accidentalStr: ''
             };
         } else {
             // 添加 flat，移除 sharp (如果有)
@@ -593,7 +750,8 @@ function ReadMode({ guitarType, fretCount }) {
                 ...currentNote,
                 midiNote: currentNote.midiNote - (hasSharp ? 2 : 1),
                 noteName: currentNote.noteName.replace('#', '') + 'b',
-                displayStr: (currentNote.displayStr || currentNote.jianpu).replace('#', '') + 'b'
+                displayStr: (currentNote.displayStr || currentNote.jianpu).replace('#', '') + 'b',
+                accidentalStr: 'b'
             };
         }
         setNotes(newNotes);
@@ -606,10 +764,58 @@ function ReadMode({ guitarType, fretCount }) {
             if (showNoteMenu) {
                 closeNoteMenu();
             }
+
         };
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
     }, [showNoteMenu]);
+
+    // --- Session Management (Autosave/Load) ---
+    // State for session data
+    const [sessionData, setSessionData] = useState(() => {
+        try {
+            const savedSession = localStorage.getItem('guitarMapSession');
+            return savedSession ? JSON.parse(savedSession) : null;
+        } catch (error) {
+            console.error("Failed to parse saved session from localStorage", error);
+            return null;
+        }
+    });
+
+    // Initialize state from sessionData on mount
+    useEffect(() => {
+        if (sessionData) {
+            if (sessionData.notes) setNotes(sessionData.notes);
+            if (sessionData.key) setKey(sessionData.key);
+            if (sessionData.scaleType) setScaleType(sessionData.scaleType);
+            if (sessionData.tempo) setTempo(sessionData.tempo);
+            if (sessionData.startString !== undefined) setStartString(sessionData.startString);
+            if (sessionData.octaveOffset !== undefined) setOctaveOffset(sessionData.octaveOffset);
+            // If rawText was saved, set it to trigger parsing
+            if (sessionData.rawText) {
+                setRawText(sessionData.rawText);
+                setEditableText(sessionData.editableText || sessionData.rawText);
+            }
+        }
+    }, []); // Run only once on mount
+
+    // Autosave session data to localStorage
+    useEffect(() => {
+        const currentSession = {
+            notes,
+            key,
+            scaleType,
+            tempo,
+            startString,
+            octaveOffset,
+            rawText, // Save rawText and editableText for manual input mode persistence
+            editableText,
+        };
+        localStorage.setItem('guitarMapSession', JSON.stringify(currentSession));
+    }, [notes, key, scaleType, tempo, startString, octaveOffset, rawText, editableText]);
+
+
+
 
     return (
         <div className="read-mode">
@@ -640,15 +846,28 @@ function ReadMode({ guitarType, fretCount }) {
                         hidden
                     />
 
-                    {image && (
+                    <div className="upload-actions">
+                        {imagePreview && (
+                            <button
+                                className="ocr-btn"
+                                onClick={handleOCR}
+                                disabled={isProcessing}
+                            >
+                                {isProcessing ? `辨識中...${ocrProgress} % ` : '🔍 開始辨識'}
+                            </button>
+                        )}
                         <button
-                            className="ocr-btn"
-                            onClick={handleOCR}
-                            disabled={isProcessing}
+                            className="manual-btn"
+                            onClick={() => {
+                                setRawText(' '); // Enable text area
+                                setEditableText('');
+                                setNotes([]);
+                                setCurrentNoteIndex(-1);
+                            }}
                         >
-                            {isProcessing ? `辨識中... ${ocrProgress}%` : '🔍 開始辨識'}
+                            ✏️ 手動輸入
                         </button>
-                    )}
+                    </div>
                 </div>
 
                 {/* 設定區 */}
@@ -667,6 +886,11 @@ function ReadMode({ guitarType, fretCount }) {
                         <select value={scaleType} onChange={(e) => setScaleType(e.target.value)}>
                             <option value="Major">Major (大調)</option>
                             <option value="Minor">Minor (小調)</option>
+                            <option value="Dorian">Dorian</option>
+                            <option value="Phrygian">Phrygian</option>
+                            <option value="Lydian">Lydian</option>
+                            <option value="Mixolydian">Mixolydian</option>
+                            <option value="Locrian">Locrian</option>
                             <option value="HarmonicMinor">Harmonic Minor</option>
                             <option value="MelodicMinor">Melodic Minor</option>
                         </select>
@@ -690,6 +914,18 @@ function ReadMode({ guitarType, fretCount }) {
                     </div>
 
                     <div className="setting-row">
+                        <label>音域</label>
+                        <select
+                            value={octaveOffset}
+                            onChange={(e) => setOctaveOffset(Number(e.target.value))}
+                        >
+                            <option value={-1}>低 (Low)</option>
+                            <option value={0}>中 (Mid)</option>
+                            <option value={1}>高 (High)</option>
+                        </select>
+                    </div>
+
+                    <div className="setting-row">
                         <label>速度</label>
                         <input
                             type="range"
@@ -705,11 +941,12 @@ function ReadMode({ guitarType, fretCount }) {
                 {/* 辨識結果顯示 */}
                 {rawText && (
                     <div className="result-section expanded">
-                        <label>辨識結果</label>
+                        <label>簡譜內容</label>
                         <textarea
                             value={editableText}
-                            readOnly
-                            placeholder="辨識後的簡譜內容"
+                            onChange={(e) => setEditableText(e.target.value)}
+                            onBlur={handleManualParse}
+                            placeholder="辨識後的簡譜內容 (可直接編輯，點擊外處更新)"
                             rows={10}
                         />
                     </div>
@@ -729,151 +966,178 @@ function ReadMode({ guitarType, fretCount }) {
             </div>
 
             {/* 音符編輯區 - 獨立全寬區域 */}
-            {notes.length > 0 && (
-                <div className="note-editor-area">
-                    {/* 左側：編輯面板 */}
-                    <div className="editor-panel">
-                        <h4>🎹 編輯面板</h4>
+            {
+                notes.length > 0 && (
+                    <div className="note-editor-area">
+                        {/* 左側：編輯面板 */}
+                        <div className="editor-panel">
+                            <h4>🎹 編輯面板</h4>
 
-                        {/* 選中音符資訊 */}
-                        <div className="selected-note-info">
-                            <span className="selected-label">選中音符：</span>
-                            <span className="selected-value">
-                                {selectedNoteIndex >= 0 && selectedNoteIndex < notes.length
-                                    ? (notes[selectedNoteIndex].isSeparator
-                                        ? '區隔線 |'
-                                        : `${notes[selectedNoteIndex].displayStr || notes[selectedNoteIndex].jianpu} (${notes[selectedNoteIndex].noteName}${notes[selectedNoteIndex].octave})`)
-                                    : '未選擇'
-                                }
-                            </span>
-                        </div>
-
-                        {/* 八度控制 */}
-                        <div className="editor-group">
-                            <span className="editor-label">八度</span>
-                            <div className="editor-buttons">
-                                <button
-                                    className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.octave === 5 ? 'active' : ''}`}
-                                    onClick={() => handleSetOctave(5)}
-                                    disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                >⬆️ 高</button>
-                                <button
-                                    className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.octave === 4 ? 'active' : ''}`}
-                                    onClick={() => handleSetOctave(4)}
-                                    disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                >中</button>
-                                <button
-                                    className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.octave === 3 ? 'active' : ''}`}
-                                    onClick={() => handleSetOctave(3)}
-                                    disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                >⬇️ 低</button>
+                            {/* 選中音符資訊 */}
+                            <div className="selected-note-info">
+                                <span className="selected-label">選中音符：</span>
+                                <span className="selected-value">
+                                    {selectedNoteIndex >= 0 && selectedNoteIndex < notes.length
+                                        ? (notes[selectedNoteIndex].isSeparator
+                                            ? '區隔線 |'
+                                            : `${notes[selectedNoteIndex].displayStr || notes[selectedNoteIndex].jianpu}(${notes[selectedNoteIndex].noteName}${notes[selectedNoteIndex].octave})`)
+                                        : '未選擇'
+                                    }
+                                </span>
                             </div>
-                        </div>
 
-                        {/* 升降音控制 */}
-                        <div className="editor-group">
-                            <span className="editor-label">升降音</span>
-                            <div className="editor-buttons">
-                                <button
-                                    className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.noteName?.includes('#') ? 'active' : ''}`}
-                                    onClick={handleToggleSharp}
-                                    disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                >♯ Sharp</button>
-                                <button
-                                    className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.noteName?.includes('b') ? 'active' : ''}`}
-                                    onClick={handleToggleFlat}
-                                    disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                >♭ Flat</button>
-                            </div>
-                        </div>
-
-                        {/* 插入音符 */}
-                        <div className="editor-group">
-                            <span className="editor-label">插入音符</span>
-                            <div className="editor-insert-row">
-                                <span>前：</span>
-                                {[1, 2, 3, 4, 5, 6, 7].map(n => (
+                            {/* 八度控制 */}
+                            <div className="editor-group">
+                                <span className="editor-label">八度</span>
+                                <div className="editor-buttons">
                                     <button
-                                        key={`b${n}`}
-                                        className="insert-btn"
-                                        onClick={() => handleInsertBefore(n)}
-                                        disabled={selectedNoteIndex < 0}
-                                    >{n}</button>
-                                ))}
-                            </div>
-                            <div className="editor-insert-row">
-                                <span>後：</span>
-                                {[1, 2, 3, 4, 5, 6, 7].map(n => (
+                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.octave === 5 ? 'active' : ''}`}
+                                        onClick={() => handleSetOctave(5)}
+                                        disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
+                                    >⬆️ 高</button>
                                     <button
-                                        key={`a${n}`}
-                                        className="insert-btn"
-                                        onClick={() => handleInsertAfter(n)}
-                                        disabled={selectedNoteIndex < 0}
-                                    >{n}</button>
-                                ))}
-                            </div>
-
-                            {/* 特殊符號插入 */}
-                            <div className="editor-insert-row" style={{ marginTop: '8px' }}>
-                                <span>符號：</span>
-                                <button className="insert-btn" onClick={() => handleInsertSymbol('0')}>0 (休止)</button>
-                                <button className="insert-btn" onClick={() => handleInsertSymbol('-')}>- (延音)</button>
-                                <button className="insert-btn" onClick={handleAddDot}>. (附點)</button>
-                            </div>
-                        </div>
-
-                        {/* 區隔線 */}
-                        <div className="editor-group">
-                            <span className="editor-label">區隔線</span>
-                            <div className="editor-buttons">
-                                <button
-                                    className="editor-btn"
-                                    onClick={() => handleAddSeparator(true)}
-                                    disabled={selectedNoteIndex < 0}
-                                >➕ 前面加 |</button>
-                                <button
-                                    className="editor-btn"
-                                    onClick={() => handleAddSeparator(false)}
-                                    disabled={selectedNoteIndex < 0}
-                                >➕ 後面加 |</button>
-                            </div>
-                        </div>
-
-                        {/* 刪除按鈕 */}
-                        <button
-                            className="delete-note-btn"
-                            onClick={handleDeleteNote}
-                            disabled={selectedNoteIndex < 0}
-                        >
-                            🗑️ 刪除此{selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.isSeparator ? '區隔線' : '音符'}
-                        </button>
-                    </div>
-
-                    {/* 右側：音符列表 */}
-                    <div className="notes-list-area">
-                        <label>🎵 音符列表 ({notes.length} 個) - 點擊音符進行編輯</label>
-                        <div className="notes-display">
-                            {notes.map((note, idx) => (
-                                <div
-                                    key={idx}
-                                    className={`note-chip-wrapper ${idx === selectedNoteIndex ? 'selected' : ''}`}
-                                    onClick={(e) => handleNoteSelect(idx, e)}
-                                >
-                                    <span
-                                        className={`note-chip ${idx === currentNoteIndex ? 'active' : ''} ${note.isSeparator ? 'separator' : ''} ${note.octave > 4 ? 'high' : ''} ${note.octave < 4 ? 'low' : ''} ${note.noteName?.includes('#') ? 'sharp' : ''} ${note.noteName?.includes('b') ? 'flat' : ''}`}
-                                        title={note.isSeparator ? '區隔線' : `${note.noteName}${note.octave}`}
-                                    >
-                                        {note.isSeparator ? '|' : (note.displayStr || note.jianpu)}
-                                        {!note.isSeparator && (
-                                            <small>{note.noteName}{note.octave !== 4 ? note.octave : ''}</small>
-                                        )}
-                                    </span>
+                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.octave === 4 ? 'active' : ''}`}
+                                        onClick={() => handleSetOctave(4)}
+                                        disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
+                                    >中</button>
+                                    <button
+                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.octave === 3 ? 'active' : ''}`}
+                                        onClick={() => handleSetOctave(3)}
+                                        disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
+                                    >⬇️ 低</button>
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* 升降音控制 */}
+                            <div className="editor-group">
+                                <span className="editor-label">升降音</span>
+                                <div className="editor-buttons">
+                                    <button
+                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.noteName?.includes('#') ? 'active' : ''}`}
+                                        onClick={handleToggleSharp}
+                                        disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
+                                    >♯ Sharp</button>
+                                    <button
+                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.noteName?.includes('b') ? 'active' : ''}`}
+                                        onClick={handleToggleFlat}
+                                        disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
+                                    >♭ Flat</button>
+                                </div>
+                            </div>
+
+                            {/* 插入音符 */}
+                            <div className="editor-group">
+                                <span className="editor-label">插入音符</span>
+                                <div className="editor-insert-row">
+                                    <span>前：</span>
+                                    {[1, 2, 3, 4, 5, 6, 7].map(n => (
+                                        <button
+                                            key={`b${n} `}
+                                            className="insert-btn"
+                                            onClick={() => handleInsertBefore(n)}
+                                            disabled={selectedNoteIndex < 0}
+                                        >{n}</button>
+                                    ))}
+                                </div>
+                                <div className="editor-insert-row">
+                                    <span>後：</span>
+                                    {[1, 2, 3, 4, 5, 6, 7].map(n => (
+                                        <button
+                                            key={`a${n} `}
+                                            className="insert-btn"
+                                            onClick={() => handleInsertAfter(n)}
+                                            disabled={selectedNoteIndex < 0}
+                                        >{n}</button>
+                                    ))}
+                                </div>
+
+                                {/* 特殊符號插入 */}
+                                <div className="editor-insert-row" style={{ marginTop: '8px' }}>
+                                    <span>符號：</span>
+                                    <button className="insert-btn" onClick={() => handleInsertSymbol('0')}>0 (休止)</button>
+                                    <button className="insert-btn" onClick={() => handleInsertSymbol('-')}>- (延音)</button>
+                                    <button className="insert-btn" onClick={handleAddDot}>. (附點)</button>
+                                </div>
+                            </div>
+
+                            {/* 區隔線 */}
+                            <div className="editor-group">
+                                <span className="editor-label">區隔線</span>
+                                <div className="editor-buttons">
+                                    <button
+                                        className="editor-btn"
+                                        onClick={() => handleAddSeparator(true)}
+                                        disabled={selectedNoteIndex < 0}
+                                    >➕ 前面加 |</button>
+                                    <button
+                                        className="editor-btn"
+                                        onClick={() => handleAddSeparator(false)}
+                                        disabled={selectedNoteIndex < 0}
+                                    >➕ 後面加 |</button>
+                                </div>
+                            </div>
+
+                            {/* 刪除按鈕 */}
+                            <button
+                                className="delete-note-btn"
+                                onClick={handleDeleteNote}
+                                disabled={selectedNoteIndex < 0}
+                            >
+                                🗑️ 刪除此{selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.isSeparator ? '區隔線' : '音符'}
+                            </button>
+                        </div>
+
+                        {/* 右側：音符列表 */}
+                        <div className="notes-list-area">
+                            <div className="section-header">
+                                <h3>🎵 音符列表 ({notes.filter(n => !n.isSeparator).length} 個) - 點擊音符進行編輯</h3>
+                            </div>
+                            <div className="notes-display">
+                                {notes.map((note, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`note-chip-wrapper ${idx === selectedNoteIndex ? 'selected' : ''}`}
+                                        onClick={(e) => handleNoteSelect(idx, e)}
+                                    >
+                                        <span
+                                            className={`note-chip ${idx === currentNoteIndex ? 'active' : ''} ${note.isSeparator ? 'separator' : ''} ${note.octave > 4 ? 'high' : ''} ${note.octave < 4 ? 'low' : ''} ${note.noteName?.includes('#') ? 'sharp' : ''} ${note.noteName?.includes('b') ? 'flat' : ''}`}
+                                            title={note.isSeparator ? '區隔線' : `${note.noteName}${note.octave} `}
+                                        >
+                                            {note.isSeparator ? '|' : (note.displayStr || note.jianpu)}
+                                            {!note.isSeparator && (
+                                                <small>{note.noteName}{note.octave !== 4 ? note.octave : ''}</small>
+                                            )}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Play Controls - Moved here */}
+                            <div className="controls-bar" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                                <button
+                                    className={`control-btn play ${isPlaying ? 'active' : ''}`}
+                                    onClick={togglePlay}
+                                    disabled={audioLoading}
+                                    title={isPlaying ? "停止播放" : "播放樂譜"}
+                                    style={{
+                                        padding: '8px 24px',
+                                        fontSize: '16px',
+                                        background: isPlaying ? '#f44336' : '#4caf50',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}
+                                >
+                                    {audioLoading ? '⏳' : (isPlaying ? '⏹ 停止' : '▶ 播放')}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )
+                )
             }
 
             {/* 指板顯示 */}
@@ -882,102 +1146,49 @@ function ReadMode({ guitarType, fretCount }) {
                 currentNoteIndex={currentNoteIndex}
                 fretCount={fretCount}
                 onNoteClick={handleNoteClick}
+                startString={startString}
+                musicKey={key}
+                scaleType={scaleType}
             />
 
             {/* 儲存/載入按鈕 */}
             <div className="score-actions">
                 <button
                     className="score-btn save"
-                    onClick={() => setShowSaveDialog(true)}
-                    disabled={!editableText.trim()}
+                    onClick={handleSaveFile}
+                    title="儲存為 .json 檔案"
                 >
-                    💾 儲存樂譜
+                    💾 儲存檔案 (Save)
                 </button>
                 <button
                     className="score-btn load"
-                    onClick={() => setShowLoadDialog(true)}
+                    onClick={() => loadInputRef.current?.click()}
+                    title="開啟 .json 檔案"
                 >
-                    📂 載入樂譜 {scores.length > 0 && `(${scores.length})`}
+                    📂 開啟檔案 (Open)
                 </button>
+                <button
+                    className="score-btn copy"
+                    style={{
+                        background: '#FF9800',
+                        color: 'white'
+                    }}
+                    onClick={handleCopyCurrentScore}
+                    title="複製到剪貼簿"
+                >
+                    📋 複製 (Copy)
+                </button>
+                <input
+                    ref={loadInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleLoadFile}
+                    hidden
+                />
             </div>
-
-            {/* 儲存對話框 */}
-            {
-                showSaveDialog && (
-                    <div className="dialog-overlay" onClick={() => setShowSaveDialog(false)}>
-                        <div className="dialog" onClick={e => e.stopPropagation()}>
-                            <h3>💾 儲存樂譜</h3>
-                            <input
-                                type="text"
-                                placeholder="輸入樂譜名稱..."
-                                value={scoreName}
-                                onChange={e => setScoreName(e.target.value)}
-                                autoFocus
-                            />
-                            <div className="dialog-preview">
-                                <span>內容預覽：</span>
-                                <code>{editableText.slice(0, 50)}{editableText.length > 50 ? '...' : ''}</code>
-                            </div>
-                            <div className="dialog-actions">
-                                <button className="cancel-btn" onClick={() => setShowSaveDialog(false)}>
-                                    取消
-                                </button>
-                                <button className="confirm-btn" onClick={handleSaveScore}>
-                                    儲存
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* 載入對話框 */}
-            {
-                showLoadDialog && (
-                    <div className="dialog-overlay" onClick={() => setShowLoadDialog(false)}>
-                        <div className="dialog" onClick={e => e.stopPropagation()}>
-                            <h3>📂 載入樂譜</h3>
-                            {scores.length === 0 ? (
-                                <p className="no-scores">還沒有儲存的樂譜</p>
-                            ) : (
-                                <div className="scores-list">
-                                    {scores.map(score => (
-                                        <div key={score.id} className="score-item">
-                                            <div className="score-info">
-                                                <span className="score-name">{score.name}</span>
-                                                <span className="score-date">
-                                                    {new Date(score.createdAt).toLocaleDateString()}
-                                                </span>
-                                            </div>
-                                            <div className="score-actions-inline">
-                                                <button
-                                                    className="load-btn"
-                                                    onClick={() => handleLoadScore(score.id)}
-                                                >
-                                                    載入
-                                                </button>
-                                                <button
-                                                    className="delete-btn"
-                                                    onClick={() => handleDeleteScore(score.id, score.name)}
-                                                >
-                                                    🗑️
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            <div className="dialog-actions">
-                                <button className="cancel-btn" onClick={() => setShowLoadDialog(false)}>
-                                    關閉
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
         </div >
     );
+
 }
 
 export default ReadMode;

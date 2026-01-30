@@ -1,991 +1,337 @@
+/* Note Editor Layout Fixes */
+
+/* Main Container Layout */
 .read-mode {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 16px 0;
+    gap: 20px;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    color: #eee;
 }
 
-/* 控制面板 */
+/* Control Panel with Upload and Settings */
 .read-controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px;
-    padding: 0 16px;
-}
-
-/* 上傳區 */
-.upload-section {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 200px;
-    flex: 1;
-    max-width: 300px;
-}
-
-.upload-area {
-    border: 2px dashed rgba(255, 255, 255, 0.3);
+    gap: 20px;
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 12px;
     padding: 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: rgba(255, 255, 255, 0.05);
-    min-height: 150px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.upload-area:hover {
-    border-color: rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.upload-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.upload-icon {
-    font-size: 32px;
-}
-
-.upload-hint {
-    font-size: 12px;
-    opacity: 0.7;
-}
-
-.preview-image {
-    max-width: 100%;
-    max-height: 150px;
-    object-fit: contain;
-    border-radius: 8px;
-}
-
-.ocr-btn {
-    padding: 10px 20px;
-    background: linear-gradient(135deg, #2196f3, #1976d2);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.ocr-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
-}
-
-.ocr-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* 設定區 */
+/* Settings Section */
 .settings-section {
+    flex: 2;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    min-width: 180px;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 16px;
-    border-radius: 12px;
+    gap: 16px;
+    min-width: 300px;
 }
 
-.setting-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.setting-row label {
-    width: 50px;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.setting-row select {
-    flex: 1;
-    padding: 6px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.3);
-    color: white;
-    font-size: 13px;
-}
-
-.setting-row input[type="range"] {
-    flex: 1;
-    accent-color: #2196f3;
-}
-
-.setting-row span {
-    width: 60px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-/* 3NPS 模式標籤 */
-.setting-row.mode-info {
-    background: rgba(76, 175, 80, 0.15);
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(76, 175, 80, 0.3);
-}
-
-.mode-badge {
-    background: linear-gradient(135deg, #4CAF50, #2E7D32);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 500;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* 辨識結果 */
+/* Text Result Section (The missing input box) */
 .result-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex: 1;
-    min-width: 200px;
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .result-section label {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #999;
 }
 
 .result-section textarea {
-    padding: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.3);
-    color: white;
-    font-size: 14px;
-    font-family: monospace;
-    resize: vertical;
-    min-height: 60px;
-}
-
-.parse-btn {
-    align-self: flex-start;
-    padding: 6px 12px;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.parse-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-/* 八度標記工具 */
-.octave-tools {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-}
-
-.tool-label {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.octave-btn {
-    padding: 4px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
-}
-
-.octave-btn:hover {
-    transform: translateY(-1px);
-}
-
-.octave-btn.high {
-    border-color: rgba(33, 150, 243, 0.4);
-}
-
-.octave-btn.high:hover {
-    background: rgba(33, 150, 243, 0.2);
-}
-
-.octave-btn.low {
-    border-color: rgba(156, 39, 176, 0.4);
-}
-
-.octave-btn.low:hover {
-    background: rgba(156, 39, 176, 0.2);
-}
-
-.octave-btn.reset:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.edit-hint {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
-    margin: 4px 0;
-}
-
-.edit-hint code {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 1px 4px;
-    border-radius: 3px;
-    font-family: monospace;
-}
-
-.result-section label code {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 1px 4px;
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 12px;
-}
-
-/* 音符顯示 */
-.notes-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex: 1;
-    min-width: 200px;
-}
-
-.notes-section label {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.notes-display {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 8px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    overflow: visible;
-    position: relative;
-}
-
-.note-chip {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-size: 16px;
-    font-weight: bold;
-    color: white;
-    min-width: 36px;
-}
-
-.note-chip small {
-    font-size: 10px;
-    font-weight: normal;
-    opacity: 0.7;
-}
-
-.note-chip:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-}
-
-.note-chip.active {
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    border-color: #ff9800;
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
-}
-
-/* 高八度音符 - 藍色調 */
-.note-chip.high {
-    background: rgba(33, 150, 243, 0.3);
-    border-color: rgba(33, 150, 243, 0.6);
-}
-
-.note-chip.high.active {
-    background: linear-gradient(135deg, #2196f3, #1976d2);
-    border-color: #2196f3;
-}
-
-/* 低八度音符 - 紫色調 */
-.note-chip.low {
-    background: rgba(156, 39, 176, 0.3);
-    border-color: rgba(156, 39, 176, 0.6);
-}
-
-/* 區隔線 */
-.note-chip.separator {
+    width: 100%;
+    min-height: 100px;
     background: transparent;
     border: none;
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 20px;
-    min-width: 20px;
-    padding: 6px 4px;
+    color: #fff;
+    font-family: monospace;
+    font-size: 16px;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
 }
 
-/* 音符包裝器 - 用於編輯選單定位 */
-.note-chip-wrapper {
-    position: relative;
-    display: inline-block;
-}
-
-.note-chip-wrapper.selected .note-chip {
-    box-shadow: 0 0 0 2px #4caf50, 0 4px 12px rgba(76, 175, 80, 0.4);
-    transform: scale(1.05);
-}
-
-/* 編輯選單 */
-.note-menu {
-    position: fixed;
-    z-index: 1000;
-    background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+/* Note Editor Area (The weird side panel) */
+.note-editor-area {
+    display: flex;
+    gap: 20px;
+    background: rgba(30, 30, 30, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+/* Left Panel: Editor Controls */
+.editor-panel {
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 16px;
+    border-radius: 8px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.editor-panel h4 {
+    margin: 0;
+    margin-bottom: 10px;
+    color: #fff;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+/* Selected Note Info */
+.selected-note-info {
+    background: rgba(76, 175, 80, 0.2);
     padding: 12px;
-    min-width: 220px;
-    max-width: 280px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-    max-height: 400px;
-    overflow-y: auto;
+    border-radius: 6px;
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-
-
-.menu-group {
-    margin-bottom: 8px;
+.selected-label {
+    font-size: 14px;
+    color: #ccc;
 }
 
-.menu-label {
-    display: block;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 6px;
+.selected-value {
+    font-weight: bold;
+    color: #4caf50;
+    font-size: 16px;
+}
+
+/* Editor Groups */
+.editor-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.editor-label {
+    font-size: 12px;
+    color: #888;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
-.menu-row {
+.editor-buttons,
+.editor-insert-row {
     display: flex;
-    gap: 6px;
-    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
-.menu-btn {
-    padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
-    color: white;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.menu-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.menu-btn.active {
-    background: linear-gradient(135deg, #4caf50, #388e3c);
-    border-color: #4caf50;
-}
-
-.menu-divider {
-    height: 1px;
-    background: rgba(255, 255, 255, 0.1);
-    margin: 10px 0;
-}
-
-.insert-row {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.insert-row span {
-    min-width: 24px;
-}
-
-.insert-btn {
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    background: rgba(255, 193, 7, 0.2);
-    border: 1px solid rgba(255, 193, 7, 0.4);
-    border-radius: 4px;
-    color: #ffc107;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.insert-btn:hover {
-    background: rgba(255, 193, 7, 0.4);
-    transform: scale(1.1);
-}
-
+/* Editor Buttons */
+.editor-btn,
+.insert-btn,
 .delete-note-btn {
-    width: 100%;
-    padding: 8px;
-    background: rgba(244, 67, 54, 0.2);
-    border: 1px solid rgba(244, 67, 54, 0.4);
-    border-radius: 6px;
-    color: #f44336;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.delete-note-btn:hover {
-    background: rgba(244, 67, 54, 0.4);
-}
-
-
-.playback-controls {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.play-btn,
-.pause-btn,
-.stop-btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.play-btn {
-    background: linear-gradient(135deg, #4caf50, #388e3c);
-    color: white;
-}
-
-.play-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-}
-
-.pause-btn {
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    color: white;
-}
-
-.pause-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
-}
-
-.stop-btn {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    padding: 8px 12px;
     border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.stop-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-/* 儲存/載入按鈕區 */
-.score-actions {
-    display: flex;
-    gap: 12px;
-    padding: 16px;
-    justify-content: center;
-}
-
-.score-btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ccc;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 13px;
     transition: all 0.2s;
+    flex: 1;
+    text-align: center;
 }
 
-.score-btn.save {
-    background: linear-gradient(135deg, #4caf50, #388e3c);
+.editor-btn:hover:not(:disabled),
+.insert-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.editor-btn.active {
+    background: #2196f3;
+    border-color: #2196f3;
     color: white;
 }
 
-.score-btn.save:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-}
-
-.score-btn.save:disabled {
-    opacity: 0.5;
+.editor-btn:disabled,
+.insert-btn:disabled,
+.delete-note-btn:disabled {
+    opacity: 0.3;
     cursor: not-allowed;
 }
 
-.score-btn.load {
-    background: linear-gradient(135deg, #2196f3, #1976d2);
-    color: white;
+.delete-note-btn {
+    margin-top: auto;
+    background: rgba(244, 67, 54, 0.1);
+    border-color: rgba(244, 67, 54, 0.3);
+    color: #ff5252;
 }
 
-.score-btn.load:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+.delete-note-btn:hover:not(:disabled) {
+    background: rgba(244, 67, 54, 0.2);
+    border-color: #ff5252;
 }
 
-/* 對話框 */
-.dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    animation: fadeIn 0.2s ease;
-}
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
-.dialog {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 24px;
-    min-width: 320px;
-    max-width: 90vw;
-    max-height: 80vh;
-    overflow-y: auto;
-    animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.dialog h3 {
-    margin: 0 0 16px 0;
-    font-size: 18px;
-    color: white;
-}
-
-.dialog input[type="text"] {
-    width: 100%;
-    padding: 12px 16px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.3);
-    color: white;
-    font-size: 14px;
-    margin-bottom: 12px;
-    box-sizing: border-box;
-}
-
-.dialog input[type="text"]:focus {
-    outline: none;
-    border-color: #2196f3;
-}
-
-.dialog-preview {
-    padding: 12px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.dialog-preview code {
-    display: block;
-    margin-top: 6px;
-    font-family: monospace;
-    color: #64b5f6;
-}
-
-.dialog-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-}
-
-.cancel-btn {
-    padding: 10px 20px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    background: transparent;
-    color: white;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.cancel-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.confirm-btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #4caf50, #388e3c);
-    color: white;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.confirm-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-}
-
-/* 樂譜列表 */
-.no-scores {
-    text-align: center;
-    color: rgba(255, 255, 255, 0.5);
-    padding: 24px;
-}
-
-.scores-list {
-    max-height: 300px;
-    overflow-y: auto;
-    margin-bottom: 16px;
-}
-
-.score-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    margin-bottom: 8px;
-    transition: all 0.2s;
-}
-
-.score-item:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.score-info {
+/* Right Panel: Notes List */
+.notes-list-area {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 10px;
+    overflow: hidden;
 }
 
-.score-name {
-    font-weight: 600;
-    color: white;
+.notes-list-area label {
+    font-size: 14px;
+    color: #888;
 }
 
-.score-date {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-.score-actions-inline {
+.notes-display {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
+    align-content: flex-start;
+    overflow-y: auto;
+    min-height: 400px;
 }
 
-.load-btn {
-    padding: 6px 14px;
-    border: none;
+/* Note Chips */
+.note-chip-wrapper {
+    position: relative;
+    cursor: pointer;
+}
+
+.note-chip {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 44px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px;
-    background: linear-gradient(135deg, #2196f3, #1976d2);
+    font-size: 18px;
+    font-weight: 500;
+    color: #eee;
+    transition: all 0.15s;
+    user-select: none;
+    line-height: 1;
+}
+
+.note-chip small {
+    font-size: 10px;
+    color: #888;
+    margin-top: 2px;
+}
+
+/* Active/Selected States */
+.note-chip-wrapper.selected .note-chip {
+    background: rgba(33, 150, 243, 0.2);
+    border-color: #2196f3;
+    color: #fff;
+    transform: scale(1.1);
+    z-index: 2;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);
+}
+
+.note-chip.active {
+    /* Playing state */
+    background: #4caf50;
+    border-color: #4caf50;
     color: white;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
 }
 
-.load-btn:hover {
-    transform: translateY(-1px);
-}
-
-.delete-btn {
-    padding: 6px 10px;
-    border: 1px solid rgba(244, 67, 54, 0.4);
-    border-radius: 6px;
+.note-chip.separator {
     background: transparent;
-    color: #f44336;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
+    border: none;
+    color: #666;
+    min-width: 10px;
+    font-size: 20px;
 }
 
-.delete-btn:hover {
-    background: rgba(244, 67, 54, 0.2);
+/* Pitch Colors */
+.note-chip.high {
+    color: #ffeb3b;
 }
 
-/* 響應式 */
+.note-chip.low {
+    color: #ff9800;
+}
+
+.note-chip.sharp {
+    color: #f48fb1;
+}
+
+.note-chip.flat {
+    color: #80deea;
+}
+
+
+/* Responsive Adjustments */
 @media (max-width: 768px) {
-    .read-controls {
-        flex-direction: column;
-    }
-
-    .upload-section {
-        max-width: none;
-    }
-
-    .settings-section {
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-
-    .setting-row {
-        flex: 1;
-        min-width: 150px;
-    }
-
-    .score-actions {
-        flex-direction: column;
-    }
-
-    .dialog {
-        min-width: 280px;
-    }
-
     .note-editor-area {
         flex-direction: column;
     }
 
     .editor-panel {
         width: 100%;
-        max-width: none;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 }
 
-/* 辨識結果擴大版 */
-.result-section.expanded {
-    width: 100%;
-}
-
-.result-section.expanded textarea {
-    width: 100%;
-    min-height: 80px;
-    font-size: 14px;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-}
-
-/* 音符編輯區 - 獨立全寬區域 */
-.note-editor-area {
-    display: flex;
-    gap: 16px;
-    width: 100%;
-    padding: 16px;
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 12px;
-    margin-bottom: 16px;
-}
-
-/* 左側：編輯面板 */
-.editor-panel {
-    width: 280px;
-    min-width: 280px;
-    background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.editor-panel h4 {
-    margin: 0 0 8px 0;
-    font-size: 14px;
-    color: #fff;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 8px;
-}
-
-.selected-note-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(76, 175, 80, 0.2);
-    border-radius: 8px;
-    border: 1px solid rgba(76, 175, 80, 0.4);
-}
-
-.selected-label {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.selected-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: #4caf50;
-}
-
-.editor-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.editor-label {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.6);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.editor-buttons {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.editor-btn {
-    flex: 1;
-    padding: 8px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.15s;
-    min-width: 60px;
-}
-
-.editor-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.4);
-}
-
-.editor-btn.active {
-    background: linear-gradient(135deg, #4caf50, #388e3c);
-    border-color: #4caf50;
-    color: white;
-}
-
-.editor-insert-row {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-}
-
-.editor-insert-row span {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.6);
-    width: 24px;
-}
-
-.no-selection {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 32px 16px;
-    color: rgba(255, 255, 255, 0.5);
-    text-align: center;
-}
-
-.no-selection p {
-    margin: 0;
-    font-size: 14px;
-}
-
-/* 右側：音符列表區 */
+/* Notes List Area Styles */
 .notes-list-area {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-width: 0;
-}
-
-.notes-list-area label {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.notes-list-area .notes-display {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    padding: 12px;
     flex: 1;
-    min-height: 80px;
-    max-height: none;
+    /* Take remaining space if in flex container */
+    min-width: 0;
+    /* Prevent overflow */
 }
 
-/* Sharp/Flat 音符樣式 */
-.note-chip.sharp {
-    border-color: #ff9800;
-    background: rgba(255, 152, 0, 0.2);
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.note-chip.flat {
-    border-color: #9c27b0;
-    background: rgba(156, 39, 176, 0.2);
+.section-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #e0e0e0;
 }
 
-/* 禁用按鈕樣式 */
-.editor-btn:disabled,
-.insert-btn:disabled,
-.delete-note-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.editor-btn:disabled:hover,
-.insert-btn:disabled:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.2);
-    transform: none;
-}
-
-/* 未選擇狀態的提示 */
-.selected-note-info .selected-value:empty::after,
-.selected-note-info .selected-value:contains('未選擇') {
-    color: rgba(255, 255, 255, 0.5);
-    font-weight: normal;
+.controls-bar {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: flex-end;
 }

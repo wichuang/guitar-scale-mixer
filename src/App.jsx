@@ -37,7 +37,7 @@ const GUITAR_OPTIONS = [
 const DEFAULT_STATE = {
   scaleCount: 2,
   displayMode: 'notes',
-  guitarType: 'acoustic_guitar_nylon',
+  guitarType: 'acoustic_guitar_steel',
   fretCount: 15,
   scales: [
     { root: 'A', scale: 'harmonic-minor', enabledNotes: null },
