@@ -30,7 +30,7 @@ function ReadMode({ guitarType, fretCount }) {
     const fileInputRef = useRef(null);
     const loadInputRef = useRef(null); // For loading JSON files
     const playTimeoutRef = useRef(null);
-    const { playNote, isLoading: audioLoading } = useAudio(guitarType);
+    const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(guitarType);
 
     // Session AutoSave key
     const AUTOSAVE_KEY = 'guitar-mixer-readmode-autosave';
@@ -162,12 +162,22 @@ function ReadMode({ guitarType, fretCount }) {
     };
 
     // 播放控制
-    const play = useCallback(() => {
+    const play = useCallback(async () => {
         if (notes.length === 0) return;
+
+        // Resume Audio Context first to prevent latency/drop of first notes
+        if (resumeAudio) {
+            try {
+                await resumeAudio();
+            } catch (e) {
+                console.warn('Audio resume failed', e);
+            }
+        }
+
         setIsPlaying(true);
         // Start from selected note if valid, otherwise 0
         setCurrentNoteIndex(selectedNoteIndex >= 0 ? selectedNoteIndex : 0);
-    }, [notes, selectedNoteIndex]);
+    }, [notes, selectedNoteIndex, resumeAudio]);
 
     const pause = () => {
         setIsPlaying(false);

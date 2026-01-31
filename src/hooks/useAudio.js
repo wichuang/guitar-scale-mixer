@@ -110,9 +110,18 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         }
     }, [playNote]);
 
+    const resumeAudio = useCallback(async () => {
+        const ac = getAudioContext();
+        if (ac.state === 'suspended') {
+            await ac.resume();
+        }
+        return ac;
+    }, []);
+
     return {
         playNote,
         playNoteByName,
+        resumeAudio,
         isLoading,
         instruments: GUITAR_INSTRUMENTS
     };
