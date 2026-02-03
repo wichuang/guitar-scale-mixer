@@ -38,6 +38,14 @@ const ScoreDisplay = ({ notes, notePositions, timeSignature = '4/4', currentNote
             if (note.isRest || note.displayStr === '0') {
                 keys = ["b/4"];
                 duration = "qr";
+            } else if (notePositions[index] && typeof notePositions[index].midi === 'number') {
+                // Use Shifted MIDI from Position
+                const pos = notePositions[index];
+                const noteIndex = ((pos.midi % 12) + 12) % 12; // Handle negative midi safely
+                const octave = Math.floor(pos.midi / 12) - 1;
+                const names = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
+                const name = names[noteIndex] || 'b'; // Fallback to b just in case
+                keys = [`${name}/${octave}`];
             } else if (note.noteName) {
                 const keyStr = `${note.noteName.toLowerCase()}/${note.octave || 4}`;
                 keys = [keyStr];
