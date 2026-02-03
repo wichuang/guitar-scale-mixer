@@ -2,30 +2,31 @@
 
 import { useMemo } from 'react';
 import { STRING_TUNINGS, getNoteName, getNoteIndex, getIntervalForNote } from '../data/scaleData';
-import { calculate3NPSPositions, get3NPSInfo, generate3NPSMap } from '../utils/get3NPSPositions'; // Import generate3NPSMap
+import { calculate3NPSPositions, get3NPSInfo, generate3NPSMap } from '../data/jianpuParser';
 import './ReadFretboard.css';
 
-function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startString = 5, musicKey = 'C', scaleType = 'Major' }) {
+function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startString = 5, onStartStringChange, rangeOctave = 0, onRangeOctaveChange, musicKey = 'C', scaleType = 'Major', showScaleGuide = false }) {
     // 1. Calculate Score Note Positions
     const notePositions = useMemo(() => {
-        const positions = calculate3NPSPositions(notes, startString, musicKey, scaleType);
+        const positions = calculate3NPSPositions(notes, startString, musicKey, scaleType, rangeOctave);
         return notes.map((note, idx) => ({
             ...note,
             position: positions[idx],
             index: idx // Keep original index
         })).filter(n => n.position); // Filter out nulls for easier finding
-    }, [notes, startString, musicKey, scaleType]);
+    }, [notes, startString, musicKey, scaleType, rangeOctave]);
 
     // 2. Generate Full Scale Map (Background Pattern)
     const scaleMap = useMemo(() => {
+        if (!showScaleGuide) return []; // Don't compute if hidden
         return generate3NPSMap(startString, musicKey, scaleType);
-    }, [startString, musicKey, scaleType]);
+    }, [startString, musicKey, scaleType, showScaleGuide]);
 
-    // 3NPS 模式資訊
-    const positions3NPS = useMemo(() =>
-        calculate3NPSPositions(notes), [notes]);
-    const modeInfo = useMemo(() =>
-        get3NPSInfo(positions3NPS), [positions3NPS]);
+    // 3NPS 模式資訊 - Derive from notePositions (Visible Notes)
+    const modeInfo = useMemo(() => {
+        const positions = notePositions.map(n => n.position);
+        return get3NPSInfo(positions);
+    }, [notePositions]);
 
     // 當前播放音符的位置
     // Fix: Find by matching index (np.index), not array index (notePositions is filtered!)
@@ -44,8 +45,50 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
         <div className="read-fretboard-container">
             {/* 3NPS 模式指示 */}
             <div className="position-indicator mode-3nps">
-                <span>🎸 {modeInfo.description}</span>
-                <span className="position-range">每弦 3 音 (背景顯示全音階)</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>🎸 {modeInfo.description}</span>
+
+                    {/* Start String Selector */}
+                    <select
+                        value={startString}
+                        onChange={(e) => onStartStringChange && onStartStringChange(Number(e.target.value))}
+                        title="起始弦"
+                        style={{
+                            padding: '2px 4px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            background: 'rgba(0,0,0,0.5)',
+                            color: 'white',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <option value={5}>Start: 6th (E)</option>
+                        <option value={4}>Start: 5th (A)</option>
+                        <option value={3}>Start: 4th (D)</option>
+                    </select>
+
+                    {/* Range/Octave Selector */}
+                    <select
+                        value={rangeOctave}
+                        onChange={(e) => onRangeOctaveChange && onRangeOctaveChange(Number(e.target.value))}
+                        title="高低八度偏移"
+                        style={{
+                            padding: '2px 4px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            background: 'rgba(0,0,0,0.5)',
+                            color: 'white',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <option value={0}>Range: Normal</option>
+                        <option value={1}>Range: High (+8ve)</option>
+                        <option value={-1}>Range: Low (-8ve)</option>
+                    </select>
+                </div>
+                <span className="position-range">每弦 3 音 {showScaleGuide ? '(背景顯示全音階)' : ''}</span>
             </div>
 
             {/* 指板主體 */}
@@ -103,10 +146,10 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                     np => np.position?.string === stringIdx && np.position?.fret === fret
                                 );
 
-                                // 2. Check Scale Map Note (Background Pattern)
-                                const scaleNote = scaleMap.find(
+                                // 2. Check Scale Map Note (Background Pattern) - Only if enabled
+                                const scaleNote = showScaleGuide ? scaleMap.find(
                                     sm => sm.string === stringIdx && sm.fret === fret
-                                );
+                                ) : null;
 
                                 const isCurrent = currentPosition?.string === stringIdx &&
                                     currentPosition?.fret === fret;

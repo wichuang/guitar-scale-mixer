@@ -54,7 +54,9 @@ export function usePitchDetection() {
     // Get available audio input devices
     const refreshDevices = useCallback(async () => {
         try {
-            await navigator.mediaDevices.getUserMedia({ audio: true });
+            // We need to request permission to get labels, but we should close it immediately
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
             const allDevices = await navigator.mediaDevices.enumerateDevices();
             const audioInputs = allDevices.filter(d => d.kind === 'audioinput');
             setDevices(audioInputs);
@@ -62,6 +64,11 @@ export function usePitchDetection() {
             if (!selectedDevice && audioInputs.length > 0) {
                 setSelectedDevice(audioInputs[0].deviceId);
             }
+
+            // Stop the temporary stream to release the microphone!
+            stream.getTracks().forEach(track => track.stop());
+            // Stop the temporary stream to release the microphone!
+            stream.getTracks().forEach(track => track.stop());
         } catch (err) {
             console.error('Failed to get devices:', err);
         }

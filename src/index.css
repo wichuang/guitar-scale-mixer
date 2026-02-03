@@ -35,6 +35,30 @@ body {
   overflow-x: hidden;
 }
 
+/* Black Screen Mode (Chroma Key / CapCut Friendly) */
+.app-container.black-screen-mode {
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+.app-container.black-screen-mode .app-header {
+  background-color: #000000;
+  border-bottom: 1px solid #333;
+}
+
+.app-container.black-screen-mode .fretboard-container,
+.app-container.black-screen-mode .read-mode,
+.app-container.black-screen-mode .live-mode {
+  background-color: transparent !important;
+}
+
+/* Hide some decorative elements if needed */
+.app-container.black-screen-mode .scale-panel {
+  display: none;
+  /* Hide scale controls in scale mode for cleaner look? User might want to see fretboard only */
+}
+
+/* Ensure Fretboard has high contrast if needed, but it usually does */
 /* Custom scrollbar - minimal */
 ::-webkit-scrollbar {
   width: 6px;

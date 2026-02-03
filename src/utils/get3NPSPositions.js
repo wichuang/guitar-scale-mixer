@@ -110,7 +110,7 @@ export function generate3NPSMap(startStringIdx, key, scaleType) {
     return map;
 }
 
-export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', scaleType = 'Major') {
+export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', scaleType = 'Major', userOctaveShift = 0) {
     if (!notes || notes.length === 0) return [];
 
     // Generate Static Map
@@ -133,19 +133,22 @@ export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', sca
 
     if (firstNote) {
         const inputMidi = firstNote.midiNote;
-
-        // Find a matching pitch class in the map's start (first 7 notes)
-        // to determine the target octave.
-        // If exact match not found, we just align "approximate average pitch"
-
         const mapStartMidi = map[0].midi; // The lowest note in the map (Root)
 
-        // Calculate difference in octaves
-        // We want inputMidi + shift ≈ mapStartMidi
-        // round to nearest 12
+        // Auto-align input to map
         const diff = mapStartMidi - inputMidi;
         octaveShift = Math.round(diff / 12) * 12;
     }
+
+    // Apply User Manual Shift (in octaves * 12)
+    // defined in args as userOctaveShift
+    if (userOctaveShift) {
+        octaveShift += (userOctaveShift * 12);
+    }
+
+    // console.log(`[Calc3NPS] FirstNote:${firstNote?.midiNote} MapStart:${map[0]?.midi} AutoShift:${Math.round((map[0]?.midi - firstNote?.midiNote)/12)*12} UserShift:${userOctaveShift} FinalShift:${octaveShift}`);
+
+    // Find Root Fret to keep "center of gravity" for fallback
 
     // Find Root Fret to keep "center of gravity" for fallback
     const rootEntry = map[0];

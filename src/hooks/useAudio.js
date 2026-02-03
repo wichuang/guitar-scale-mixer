@@ -80,7 +80,7 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
     }, []);
 
     // Play a note
-    const playNote = useCallback((midiNote, stringIndex = 2) => {
+    const playNote = useCallback((midiNote, stringIndex = 2, options = {}) => {
         const ac = getAudioContext();
 
         if (!instrumentRef.current) {
@@ -89,11 +89,12 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         }
 
         const noteName = midiToNoteName(midiNote);
+        const gain = options.gain || 0.8;
 
         try {
             instrumentRef.current.play(noteName, ac.currentTime, {
-                duration: 2,
-                gain: 0.8,
+                duration: options.duration || 2,
+                gain: gain,
             });
         } catch (err) {
             console.error('Error playing note:', err);

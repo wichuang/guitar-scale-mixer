@@ -3,7 +3,7 @@
 }
 
 /* 把位指示 */
-.position-indicator {
+.read-fretboard-container .position-indicator {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -15,7 +15,7 @@
     color: rgba(255, 255, 255, 0.9);
 }
 
-.position-range {
+.read-fretboard-container .position-range {
     padding: 4px 10px;
     background: rgba(33, 150, 243, 0.3);
     border-radius: 6px;
@@ -26,7 +26,7 @@
 /* 指板容器 */
 .read-fretboard {
     position: relative;
-    background: linear-gradient(180deg, #8b6914 0%, #a67c00 40%, #8b6914 100%);
+    background: linear-gradient(180deg, #2c2c2c 0%, #1a1a1a 100%);
     border-radius: 10px;
     padding: 10px 16px 16px;
     overflow-x: auto;
@@ -34,55 +34,55 @@
 }
 
 /* 格數標記 */
-.fret-numbers {
+.read-fretboard .fret-numbers {
     display: flex;
     margin-bottom: 8px;
 }
 
-.fret-number-cell {
+.read-fretboard .fret-number-cell {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
 }
 
-.fret-number-cell.in-position .fret-number {
+.read-fretboard .fret-number-cell.in-position .fret-number {
     color: #64b5f6;
     font-weight: bold;
 }
 
-.fret-number {
+.read-fretboard .fret-number {
     font-size: 11px;
     color: rgba(255, 255, 255, 0.5);
     transition: all 0.2s;
 }
 
-.fret-number.marked {
+.read-fretboard .fret-number.marked {
     color: rgba(255, 255, 255, 0.8);
     font-weight: bold;
 }
 
-.fret-dot {
+.read-fretboard .fret-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.3);
 }
 
-.fret-dots-double {
+.read-fretboard .fret-dots-double {
     display: flex;
     gap: 4px;
 }
 
 /* 弦 */
-.string-row {
+.read-fretboard .string-row {
     display: flex;
     position: relative;
     height: 28px;
     align-items: center;
 }
 
-.string-line {
+.read-fretboard .string-line {
     position: absolute;
     top: 50%;
     left: 0;
@@ -95,7 +95,7 @@
 }
 
 /* 格子 */
-.fret-space {
+.read-fretboard .fret-space {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -105,12 +105,12 @@
     transition: background 0.2s;
 }
 
-.fret-space.in-position {
+.read-fretboard .fret-space.in-position {
     background: rgba(33, 150, 243, 0.08);
 }
 
 /* 音符標記 */
-.note-marker {
+.read-fretboard .note-marker {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -129,7 +129,7 @@
 }
 
 /* Score Notes (Active Melody) */
-.note-marker.has-note {
+.read-fretboard .note-marker.has-note {
     background: #d32f2f;
     /* Red */
     color: white;
@@ -137,21 +137,21 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.note-marker.root-note {
+.read-fretboard .note-marker.root-note {
     background: #43a047;
     /* Green */
     color: white;
     border-color: #2e7d32;
 }
 
-.note-marker.has-note:hover {
+.read-fretboard .note-marker.has-note:hover {
     transform: scale(1.15);
     box-shadow: 0 4px 12px rgba(76, 175, 80, 0.5);
     z-index: 10;
 }
 
 /* Current Playing Note */
-.note-marker.current {
+.read-fretboard .note-marker.current {
     background: linear-gradient(135deg, #ff9800, #f57c00);
     color: white;
     border-color: #ff9800;
@@ -162,14 +162,14 @@
 }
 
 /* Scale Ghost Notes (Background) */
-.note-marker.scale-ghost {
+.read-fretboard .note-marker.scale-ghost {
     background: rgba(255, 255, 255, 0.15);
     color: rgba(255, 255, 255, 0.8);
     border: 1px dashed rgba(255, 255, 255, 0.3);
     font-size: 10px;
 }
 
-.note-marker.scale-ghost:hover {
+.read-fretboard .note-marker.scale-ghost:hover {
     background: rgba(255, 255, 255, 0.3);
 }
 
@@ -184,7 +184,7 @@
 }
 
 /* 格線 */
-.fret-lines {
+.read-fretboard .fret-lines {
     display: flex;
     position: absolute;
     top: 40px;
@@ -194,17 +194,17 @@
     pointer-events: none;
 }
 
-.fret-line {
+.read-fretboard .fret-line {
     height: 100%;
     border-left: 2px solid rgba(139, 105, 20, 0.6);
     transition: border-color 0.2s;
 }
 
-.fret-line.in-position {
+.read-fretboard .fret-line.in-position {
     border-left-color: rgba(33, 150, 243, 0.4);
 }
 
-.fret-line.nut {
+.read-fretboard .fret-line.nut {
     border-left-width: 6px;
     border-left-color: #f5f5f5;
 }
@@ -219,13 +219,13 @@
         padding: 8px 12px 12px;
     }
 
-    .note-marker {
+    .read-fretboard .note-marker {
         min-width: 22px;
         height: 22px;
         font-size: 10px;
     }
 
-    .string-row {
+    .read-fretboard .string-row {
         height: 24px;
     }
 }

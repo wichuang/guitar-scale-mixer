@@ -1,7 +1,8 @@
+
 // 簡譜 (Jianpu) 解析器
 // 簡譜使用數字 1-7 表示音符，對應 Do Re Mi Fa Sol La Si
 
-import { NOTES, STRING_TUNINGS, getNoteName, SCALES } from './scaleData.js';
+import { NOTES, STRING_TUNINGS, SCALES } from './scaleData.js';
 
 /**
  * 簡譜數字轉換對照表 (預設 C 調)
@@ -9,7 +10,7 @@ import { NOTES, STRING_TUNINGS, getNoteName, SCALES } from './scaleData.js';
  */
 
 // Map UI Scale Types to SCALES keys
-const SCALE_MAPPING = {
+export const SCALE_MAPPING = {
     'Major': 'major',
     'Minor': 'aeolian',
     'HarmonicMinor': 'harmonic-minor',
@@ -39,19 +40,15 @@ export const KEY_OFFSETS = {
  * @param {string|number} jianpuNum - 簡譜數字 (1-7)
  * @param {number} octaveOffset - 八度偏移 (-1=低八度, 0=中央, 1=高八度)
  * @param {string} key - 調號 (預設 'C')
- * @param {string} key - 調號 (預設 'C')
  * @param {string} scaleType - 音階類型 (預設 'Major')
  * @returns {object|null} - { noteName, octave, midiNote }
  */
 export function jianpuToNote(jianpuNum, octaveOffset = 0, key = 'C', scaleType = 'Major') {
-    // Check for accidental in input string
-    // Check for accidental in input string
     const str = String(jianpuNum);
     let accidental = 0;
     if (str.includes('#') || str.includes('♯')) accidental = 1;
     if (str.includes('b') || str.includes('♭')) accidental = -1;
 
-    // Use only the number part for scale lookup
     const cleanNum = parseInt(str.replace(/[#b♯♭]/g, ''));
     if (isNaN(cleanNum) || cleanNum < 1 || cleanNum > 7) {
         return null;
@@ -67,50 +64,39 @@ export function jianpuToNote(jianpuNum, octaveOffset = 0, key = 'C', scaleType =
     // 中央 C = C4 = MIDI 60
     const baseOctave = 4 + octaveOffset;
     const midiNote = 60 + totalSemitone + (octaveOffset * 12);
-    const noteName = NOTES[(totalSemitone % 12 + 12) % 12];
 
-    // Construct simplified note name for display (e.g., C#)
-    // Note: noteName comes from NOTES array which handles enharmonics simply (C#).
+    // Calculate Note Name safely
+    const noteName = NOTES[(totalSemitone % 12 + 12) % 12];
 
     return {
         noteName,
         octave: baseOctave,
         midiNote,
-        jianpu: cleanNum, // Keep raw number
+        jianpu: cleanNum,
         accidentalStr: accidental === 1 ? '#' : (accidental === -1 ? 'b' : '')
     };
 }
 
 /**
  * 清理 OCR 識別結果，只保留簡譜相關字符
- * @param {string} text - OCR 識別的原始文字
- * @returns {string} - 清理後的文字
  */
 export function cleanJianpuText(text) {
-    // 第一步：移除常見的非簡譜文字（中文標題、歌詞提示等）
     let cleaned = text
-        .replace(/[a-ac-zA-Z]+/g, '') // 移除英文字母 (排除 b，因為 b 是降記號)
-        .replace(/[\u4e00-\u9fff]+/g, '') // 移除中文字
-        .replace(/[，。！？、；：""''（）【】《》]/g, '') // 移除中文標點
-        .replace(/[,!?;:"'()[\]<>{}]/g, '') // 移除英文標點
-        .replace(/[89]/g, '') // 移除 8, 9
-        .replace(/\n+/g, ' ') // 換行轉空格
-        .replace(/\s+/g, ' ') // 多空格合併
+        .replace(/[a-ac-zA-Z]+/g, '')
+        .replace(/[\u4e00-\u9fff]+/g, '')
+        .replace(/[，。！？、；：""''（）【】《》]/g, '')
+        .replace(/[,!?;:"'()[\]<>{}]/g, '')
+        .replace(/[89]/g, '')
+        .replace(/\n+/g, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
 
-    // 第二步：只保留簡譜相關字符及 Unicode 升降號
-    // 1-7, 0, ., _, -, |, #, b, ♯, ♭
-    cleaned = cleaned.replace(/[^0-7\s.·_̣\-|#b♯♭]/g, '');
-
+    cleaned = cleaned.replace(/[^0-7\s.·_̣\-|#b♯♭()[\]{}:=>]/g, '');
     return cleaned;
 }
 
 /**
  * 解析 OCR 識別的簡譜文字
- * @param {string} text - OCR 識別的文字
- * @param {string} key - 調號 (預設 'C')
- * @param {string} scaleType - 音階類型 (預設 'Major')
- * @returns {Array} - 解析後的音符陣列
  */
 export function parseJianpuText(text, key = 'C', scaleType = 'Major', globalOctaveOffset = 0) {
     const notes = [];
@@ -125,12 +111,11 @@ export function parseJianpuText(text, key = 'C', scaleType = 'Major', globalOcta
             let octaveOffset = 0;
             let displayStr = char;
 
-            // 檢查前面的低八度標記
             if (i > 0) {
                 const prevChar = chars[i - 1];
                 if (prevChar === '_' || prevChar === '̣') {
                     octaveOffset = -1;
-                    displayStr = '₋' + char; // 低八度顯示
+                    displayStr = '₋' + char;
                 }
                 if (i > 1 && chars[i - 2] === '_' && prevChar === '_') {
                     octaveOffset = -2;
@@ -138,14 +123,12 @@ export function parseJianpuText(text, key = 'C', scaleType = 'Major', globalOcta
                 }
             }
 
-            // 檢查後面的高八度標記
             if (i + 1 < chars.length) {
                 const nextChar = chars[i + 1];
                 if (nextChar === '.' || nextChar === '·') {
                     octaveOffset = 1;
                     displayStr = char + '·';
-                    i++; // 跳過點
-
+                    i++;
                     if (i + 1 < chars.length && (chars[i + 1] === '.' || chars[i + 1] === '·')) {
                         octaveOffset = 2;
                         displayStr = char + '··';
@@ -154,27 +137,17 @@ export function parseJianpuText(text, key = 'C', scaleType = 'Major', globalOcta
                 }
             }
 
-            // 檢查後面的升降記號 (#, b, ♯, ♭)
             if (i + 1 < chars.length) {
                 const charNext = chars[i + 1];
                 if (['#', 'b', '♯', '♭'].includes(charNext)) {
-                    // Normalize to #/b
                     const normalized = (charNext === '♯') ? '#' : ((charNext === '♭') ? 'b' : charNext);
-
-                    // Note: We keep the original char for displayStr if we want WYSIWYG, 
-                    // but for now let's normalize displayStr too for consistency? 
-                    // Let's keep displayStr matching user input if possible, OR normalize it. 
-                    // Normalizing is safer for subsequent logic.
                     displayStr += normalized;
                     i++;
                 }
             }
 
-            // Apply global offset
             const finalOctaveOffset = octaveOffset + globalOctaveOffset;
-
-            // Pass displayStr as input to jianpuToNote to handle accidentals
-            const noteInput = displayStr.replace(/[._₋₌·]/g, ''); // Extract 1# or 1
+            const noteInput = displayStr.replace(/[._₋₌·]/g, '');
             const note = jianpuToNote(noteInput, finalOctaveOffset, key, scaleType);
             if (note) {
                 notes.push({
@@ -185,7 +158,6 @@ export function parseJianpuText(text, key = 'C', scaleType = 'Major', globalOcta
                 });
             }
         } else if (char === '0') {
-            // 休止符
             notes.push({
                 index: notes.length,
                 jianpu: '0',
@@ -195,7 +167,6 @@ export function parseJianpuText(text, key = 'C', scaleType = 'Major', globalOcta
                 octave: 4
             });
         } else if (char === '-') {
-            // 延長音
             notes.push({
                 index: notes.length,
                 jianpu: '-',
@@ -205,47 +176,42 @@ export function parseJianpuText(text, key = 'C', scaleType = 'Major', globalOcta
                 octave: 4
             });
         } else if (char === '|') {
-            // 小節線
             notes.push({
                 index: notes.length,
                 isSeparator: true,
                 displayStr: '|',
                 jianpu: '|'
             });
+        } else if (['(', ')', '[', ']', '{', '}', ':', '=', '>', '_'].includes(char)) {
+            notes.push({
+                index: notes.length,
+                isSymbol: true,
+                displayStr: char,
+                jianpu: char
+            });
         }
         i++;
     }
-
     return notes;
 }
 
 /**
  * 將音符陣列轉換為簡譜文字
- * @param {Array} notes - 音符陣列
- * @returns {string}
  */
 export function notesToJianpuString(notes) {
     return notes.map(n => {
-        // 區隔線
         if (n.isSeparator) return '|';
         if (n.isRest) return '0';
         if (n.isExtension) return '-';
-
-        // Check if displayStr explicitly contains accidental (e.g. 1#)
-        // If displayStr is available and valid for this note, prefer it
+        if (n.isSymbol) return n.displayStr;
         if (n.displayStr) return n.displayStr;
 
         let str = n.jianpu || '';
-        // 高八度
         if (n.octave === 5) str = str + '.';
         if (n.octave === 6) str = str + '..';
-        // 低八度
         if (n.octave === 3) str = '_' + str;
         if (n.octave === 2) str = '__' + str;
-
-        // Append accidental if stored in note (custom prop)
         if (n.accidentalStr) str += n.accidentalStr;
-
         return str;
     }).join(' ');
 }
@@ -270,32 +236,24 @@ export const GUITAR_POSITIONS = {
 
 /**
  * 計算音符在指定把位的指板位置
- * @param {number} midiNote - MIDI 音符號
- * @param {number} position - 把位 (1-12)
- * @returns {Array} - 可能的指板位置 [{ string, fret }]
  */
 export function getPositionsForNote(midiNote, position = 1) {
     const pos = GUITAR_POSITIONS[position] || GUITAR_POSITIONS[1];
     const positions = [];
 
-    // 遍歷 6 弦找出可能的位置
     STRING_TUNINGS.forEach((openNote, stringIdx) => {
         const fret = midiNote - openNote;
-
-        // 檢查是否在有效範圍內
         if (fret >= 0 && fret <= 22) {
-            // 優先選擇在把位範圍內的位置
             const inPosition = fret >= pos.start && fret <= pos.end;
             positions.push({
                 string: stringIdx,
                 fret,
                 inPosition,
-                stringName: ['E', 'B', 'G', 'D', 'A', 'E'][stringIdx],
+                stringName: ['E', 'B', 'G', 'D', 'A', 'E'][stringIdx], // 0=HighE
             });
         }
     });
 
-    // 按優先級排序：把位內 > 格數接近把位起點
     positions.sort((a, b) => {
         if (a.inPosition !== b.inPosition) {
             return a.inPosition ? -1 : 1;
@@ -308,11 +266,147 @@ export function getPositionsForNote(midiNote, position = 1) {
 
 /**
  * 獲取音符在指板上的最佳位置
- * @param {number} midiNote - MIDI 音符號
- * @param {number} position - 把位
- * @returns {object|null} - 最佳位置 { string, fret }
  */
 export function getBestPosition(midiNote, position = 1) {
     const positions = getPositionsForNote(midiNote, position);
     return positions.length > 0 ? positions[0] : null;
+}
+
+/**
+ * 計算 3NPS (每弦三音) 系統的指板位置
+ */
+export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', scaleType = 'Major', userOctaveShift = 0) {
+    if (!notes || notes.length === 0) return [];
+
+    // Generate Static Map
+    const map = generate3NPSMap(startStringIdx, key, scaleType);
+    if (!map || map.length === 0) return notes.map(() => null);
+
+    // --- Smart Octave Alignment ---
+    // User Input (Jianpu) usually defaults to Octave 4 (Middle C range).
+    // 3NPS Patterns on Low Strings are usually Octave 2 or 3.
+    // 1. Find the first valid note in user input
+    const firstNote = notes.find(n => n && !n.isSeparator && n.midiNote);
+
+    let octaveShift = 0;
+
+    if (firstNote) {
+        const inputMidi = firstNote.midiNote;
+        const mapStartMidi = map[0].midi; // The lowest note in the map (Root)
+
+        // Auto-align input to map
+        const diff = mapStartMidi - inputMidi;
+        octaveShift = Math.round(diff / 12) * 12;
+    }
+
+    // Apply User Manual Shift (in octaves * 12)
+    if (userOctaveShift) {
+        octaveShift += (userOctaveShift * 12);
+    }
+
+    // Find Root Fret to keep "center of gravity" for fallback
+    const rootEntry = map[0];
+    const targetCenterFret = rootEntry ? rootEntry.fret + 2 : 5;
+
+    return notes.map((note) => {
+        if (!note || note.isSeparator) return null;
+        if (!note.midiNote) return null;
+
+        // Apply shift
+        const targetMidi = note.midiNote + octaveShift;
+
+        // 1. Try exact match in Map (using shifted midi)
+        // Note: The MAP is static. If User shifts OUT of the map, this match fails.
+        const match = map.find(m => m.midi === targetMidi);
+        if (match) {
+            return { string: match.string, fret: match.fret, midi: targetMidi };
+        }
+
+        // 2. Fallback: Find closest position for shifted midi
+        // This handles cases where user shifts HIGH/LOW out of the static map box.
+        let bestPos = null;
+        let minDist = 999;
+
+        for (let s = 0; s < 6; s++) {
+            const f = targetMidi - STRING_TUNINGS[s];
+            if (f >= 0 && f <= 24) { // Allow up to 24 frets
+                const dist = Math.abs(f - targetCenterFret);
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestPos = { string: s, fret: f, midi: targetMidi };
+                }
+            }
+        }
+
+        return bestPos;
+    });
+}
+
+/**
+ * 獲取 3NPS 模式資訊
+ */
+export function get3NPSInfo(positions) {
+    if (!positions || positions.length === 0) return { description: '3NPS' };
+    const valid = positions.filter(p => p !== null && p.fret !== undefined);
+    if (valid.length === 0) return { description: '3NPS' };
+
+    const frets = valid.map(p => p.fret);
+    const min = Math.min(...frets);
+    const max = Math.max(...frets);
+    return { minFret: min, maxFret: max, description: `3NPS (Range: ${min}-${max})` };
+}
+
+/**
+ * Generate 3NPS Scale Map for background display
+ */
+export function generate3NPSMap(startStringIdx = 5, key = 'C', scaleType = 'Major') {
+    const map = [];
+    const openMidi = STRING_TUNINGS[startStringIdx];
+
+    // Safety check for invalid string index
+    if (openMidi === undefined) return [];
+
+    const keyIndex = NOTES.indexOf(key);
+    if (keyIndex === -1) return [];
+
+    const openName = NOTES[((openMidi % 12) + 12) % 12];
+    const openIndex = NOTES.indexOf(openName);
+
+    let diff = keyIndex - openIndex;
+    if (diff < 0) diff += 12;
+
+    const rootOnStringMidi = openMidi + diff;
+
+    const mappedType = SCALE_MAPPING[scaleType] || 'major';
+    const scale = SCALES[mappedType] || SCALES['major'];
+    if (!scale) return [];
+
+    const intervals = scale.intervals;
+
+    let scaleDegreeIndex = 0;
+
+    // Iterate through strings from bottom (StartString) up to top (0)
+    for (let s = startStringIdx; s >= 0; s--) {
+        const stringOpenMidi = STRING_TUNINGS[s];
+
+        for (let n = 0; n < 3; n++) {
+            const loopDegree = scaleDegreeIndex % 7;
+            const octaves = Math.floor(scaleDegreeIndex / 7);
+            const inte = intervals[loopDegree];
+
+            const targetMidi = rootOnStringMidi + inte + (octaves * 12);
+            const fret = targetMidi - stringOpenMidi;
+
+            if (fret >= 0 && fret <= 24) {
+                map.push({
+                    string: s,
+                    fret: fret,
+                    midi: targetMidi,
+                    isMap: true
+                });
+            }
+            scaleDegreeIndex++;
+        }
+    }
+    return map;
 }

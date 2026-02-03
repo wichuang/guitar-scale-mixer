@@ -6,6 +6,7 @@ import ReadMode from './components/ReadMode';
 import ScalePanelCompact from './components/ScalePanelCompact';
 import SettingsPage from './components/SettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import YouTubeSync from './components/YouTubeSync';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { usePresets, useAutoSave, getInitialState } from './hooks/usePresets';
@@ -62,6 +63,10 @@ function MainContent() {
   const pitchDetection = usePitchDetection();
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+
+  // New features state
+  const [showYouTube, setShowYouTube] = useState(false);
+  const [blackScreenMode, setBlackScreenMode] = useState(false);
 
   const currentState = useMemo(() => ({
     scaleCount, displayMode, guitarType, scales, fretCount
@@ -121,135 +126,177 @@ function MainContent() {
   const backgroundImage = GUITAR_BACKGROUNDS[guitarType];
 
   return (
-    <div className="app" style={{ backgroundImage: `url(${backgroundImage})` }}>
+    <div className={`app ${blackScreenMode ? 'black-screen-mode' : ''}`} style={{ backgroundImage: blackScreenMode ? 'none' : `url(${backgroundImage})` }}>
       <div className="app-overlay" />
 
       <div className="app-content">
         {/* Top Navigation */}
-        <nav className="top-nav">
-          <div className="nav-left">
-            <h1 className="logo">Scale Mixer</h1>
+        {!blackScreenMode && (
+          <nav className="top-nav">
+            <div className="nav-left">
+              <h1 className="logo">Scale Mixer</h1>
 
-            {/* Mode Toggle */}
-            <div className="mode-toggle">
-              <button
-                className={`mode-btn ${mode === 'scale' ? 'active' : ''}`}
-                onClick={() => setMode('scale')}
-              >
-                📚 Scales
+              {/* Mode Toggle */}
+              <div className="mode-toggle">
+                <button
+                  className={`mode-btn ${mode === 'scale' ? 'active' : ''}`}
+                  onClick={() => setMode('scale')}
+                >
+                  📚 Scales
+                </button>
+                <button
+                  className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
+                  onClick={() => setMode('live')}
+                >
+                  🎸 Live
+                </button>
+                <button
+                  className={`mode-btn ${mode === 'read' ? 'active' : ''}`}
+                  onClick={() => setMode('read')}
+                >
+                  📖 Read
+                </button>
+              </div>
+            </div>
+
+            <div className="nav-right">
+              {/* New Features: YouTube & Black BG */}
+              <div style={{ display: 'flex', gap: '8px', marginRight: '16px', borderRight: '1px solid #444', paddingRight: '16px' }}>
+                <button
+                  className={`icon-btn ${showYouTube ? 'active' : ''}`}
+                  onClick={() => setShowYouTube(!showYouTube)}
+                  title="Toggle YouTube Video"
+                >
+                  📺
+                </button>
+                <button
+                  className={`icon-btn ${blackScreenMode ? 'active' : ''}`}
+                  onClick={() => setBlackScreenMode(!blackScreenMode)}
+                  title="Black Screen Mode (For CapCut)"
+                  style={{ color: blackScreenMode ? '#ff5555' : 'inherit' }}
+                >
+                  ⬛ BG
+                </button>
+              </div>
+
+              {/* User Info */}
+              {user && (
+                <div className="user-info">
+                  <span className="user-name">{profile?.display_name || user.email}</span>
+                  <span className="user-role">{profile?.role || 'student'}</span>
+                </div>
+              )}
+              <button className="icon-btn" onClick={() => setShowSettings(true)} title="Settings">
+                ⚙️
               </button>
-              <button
-                className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
-                onClick={() => setMode('live')}
-              >
-                🎸 Live
-              </button>
-              <button
-                className={`mode-btn ${mode === 'read' ? 'active' : ''}`}
-                onClick={() => setMode('read')}
-              >
-                📖 Read
+              <button className="icon-btn" onClick={handleSignOut} title="登出">
+                🚪
               </button>
             </div>
-          </div>
+          </nav>
+        )}
 
-          <div className="nav-right">
-            {/* User Info */}
-            {user && (
-              <div className="user-info">
-                <span className="user-name">{profile?.display_name || user.email}</span>
-                <span className="user-role">{profile?.role || 'student'}</span>
-              </div>
-            )}
-            <button className="icon-btn" onClick={() => setShowSettings(true)} title="Settings">
-              ⚙️
-            </button>
-            <button className="icon-btn" onClick={handleSignOut} title="登出">
-              🚪
+        {/* Floating Controls for Black Screen Mode */}
+        {blackScreenMode && (
+          <div style={{ position: 'fixed', top: '10px', right: '10px', zIndex: 9999 }}>
+            <button
+              className="icon-btn active"
+              onClick={() => setBlackScreenMode(false)}
+              style={{ background: '#333', color: '#ff5555', border: '1px solid #555' }}
+            >
+              ❌ Exit
             </button>
           </div>
-        </nav>
+        )}
 
         {/* Scale Mode */}
         {mode === 'scale' && (
           <div className="scale-mode">
-            {/* Controls */}
-            <div className="controls-card">
-              <div className="control-section">
-                <label className="section-label">Scales</label>
-                <div className="btn-group">
-                  {[1, 2, 3].map(n => (
+
+            {/* Controls - Only show if not black screen */}
+            {!blackScreenMode && (
+              <div className="controls-card">
+                <div className="control-section">
+                  <label className="section-label">Scales</label>
+                  <div className="btn-group">
+                    {[1, 2, 3].map(n => (
+                      <button
+                        key={n}
+                        className={`sm-btn ${scaleCount === n ? 'active' : ''}`}
+                        onClick={() => setScaleCount(n)}
+                      >{n}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="control-section">
+                  <label className="section-label">Display</label>
+                  <div className="btn-group">
                     <button
-                      key={n}
-                      className={`sm-btn ${scaleCount === n ? 'active' : ''}`}
-                      onClick={() => setScaleCount(n)}
-                    >{n}</button>
-                  ))}
+                      className={`sm-btn ${displayMode === 'notes' ? 'active' : ''}`}
+                      onClick={() => setDisplayMode('notes')}
+                    >ABC</button>
+                    <button
+                      className={`sm-btn ${displayMode === 'intervals' ? 'active' : ''}`}
+                      onClick={() => setDisplayMode('intervals')}
+                    >123</button>
+                  </div>
+                </div>
+
+                <div className="control-section">
+                  <label className="section-label">Sound</label>
+                  <select
+                    className="sm-select"
+                    value={guitarType}
+                    onChange={(e) => setGuitarType(e.target.value)}
+                  >
+                    {GUITAR_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-
-              <div className="control-section">
-                <label className="section-label">Display</label>
-                <div className="btn-group">
-                  <button
-                    className={`sm-btn ${displayMode === 'notes' ? 'active' : ''}`}
-                    onClick={() => setDisplayMode('notes')}
-                  >ABC</button>
-                  <button
-                    className={`sm-btn ${displayMode === 'intervals' ? 'active' : ''}`}
-                    onClick={() => setDisplayMode('intervals')}
-                  >123</button>
-                </div>
-              </div>
-
-              <div className="control-section">
-                <label className="section-label">Sound</label>
-                <select
-                  className="sm-select"
-                  value={guitarType}
-                  onChange={(e) => setGuitarType(e.target.value)}
-                >
-                  {GUITAR_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            )}
 
             {/* Scale Selectors */}
-            <div className="scales-row">
-              {activeScales.map((s, i) => (
-                <ScalePanelCompact
-                  key={i}
-                  index={i}
-                  root={s.root}
-                  scale={s.scale}
-                  enabledNotes={s.enabledNotes}
-                  onRootChange={(v) => updateScale(i, 'root', v)}
-                  onScaleChange={(v) => updateScale(i, 'scale', v)}
-                  onToggleNote={(note) => toggleNote(i, note)}
-                />
-              ))}
-            </div>
+            {!blackScreenMode && (
+              <div className="scales-row">
+                {activeScales.map((s, i) => (
+                  <ScalePanelCompact
+                    key={i}
+                    index={i}
+                    root={s.root}
+                    scale={s.scale}
+                    enabledNotes={s.enabledNotes}
+                    onRootChange={(v) => updateScale(i, 'root', v)}
+                    onScaleChange={(v) => updateScale(i, 'scale', v)}
+                    onToggleNote={(note) => toggleNote(i, note)}
+                  />
+                ))}
+              </div>
+            )}
 
-            {/* Fretboard */}
-            <Fretboard
-              scales={activeScales}
-              guitarType={guitarType}
-              displayMode={displayMode}
-              fretCount={fretCount}
-            />
+            {/* Fretboard - Always visible */}
+            <div className="fretboard-container">
+              <Fretboard
+                scales={activeScales}
+                guitarType={guitarType}
+                displayMode={displayMode}
+                fretCount={fretCount}
+              />
+            </div>
           </div>
         )}
 
         {/* Live Mode */}
         {mode === 'live' && (
           <LiveMode
+            guitarType={guitarType}
+            scales={activeScales}
+            fretCount={fretCount}
             pitchDetection={pitchDetection}
             displayMode={displayMode}
             onDisplayModeChange={setDisplayMode}
-            scales={activeScales}
-            fretCount={fretCount}
           />
         )}
 
@@ -258,9 +305,12 @@ function MainContent() {
           <ReadMode
             guitarType={guitarType}
             fretCount={fretCount}
+            pitchDetection={pitchDetection}
           />
         )}
       </div>
+
+      <YouTubeSync isOpen={showYouTube} onClose={() => setShowYouTube(false)} />
 
       {showSettings && (
         <SettingsPage

@@ -30,19 +30,19 @@
   text-transform: uppercase;
 }
 
-.legend-item {
+.fretboard-legend .legend-item {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.legend-marker {
+.fretboard-legend .legend-marker {
   width: 16px;
   height: 10px;
   border-radius: 2px;
 }
 
-.legend-item.loading {
+.fretboard-legend .legend-item.loading {
   color: var(--accent-gold);
   font-style: italic;
 }
@@ -84,7 +84,7 @@
 }
 
 /* Fret numbers row */
-.fret-numbers {
+.fretboard .fret-numbers {
   display: flex;
   position: absolute;
   top: 4px;
@@ -92,7 +92,7 @@
   right: 0;
 }
 
-.fret-number-cell {
+.fretboard .fret-number-cell {
   width: 48px;
   flex-shrink: 0;
   display: flex;
@@ -101,40 +101,40 @@
   gap: 1px;
 }
 
-.fret-number {
+.fretboard .fret-number {
   color: var(--text-muted);
   font-size: 8px;
   font-weight: 500;
   opacity: 0.4;
 }
 
-.fret-number.marked {
+.fretboard .fret-number.marked {
   opacity: 1;
   color: var(--text-secondary);
 }
 
 /* Fret dot markers */
-.fret-dot {
+.fretboard .fret-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
 }
 
-.fret-dots-double {
+.fretboard .fret-dots-double {
   display: flex;
   gap: 3px;
 }
 
 /* String rows */
-.string-row {
+.fretboard .string-row {
   display: flex;
   position: relative;
   height: 24px;
   align-items: center;
 }
 
-.string-line {
+.fretboard .string-line {
   position: absolute;
   left: 0;
   right: 0;
@@ -142,7 +142,7 @@
   z-index: 1;
 }
 
-.fret-space {
+.fretboard .fret-space {
   width: 48px;
   flex-shrink: 0;
   display: flex;
@@ -152,7 +152,7 @@
   z-index: 2;
 }
 
-.note-marker {
+.fretboard .note-marker {
   width: 30px;
   height: 20px;
   border-radius: 6px;
@@ -167,27 +167,27 @@
   font-family: inherit;
 }
 
-.note-marker:hover {
+.fretboard .note-marker:hover {
   transform: scale(1.12);
 }
 
-.note-marker.active {
+.fretboard .note-marker.active {
   transform: scale(1.2);
 }
 
-.note-marker.root {
+.fretboard .note-marker.root {
   box-shadow: 0 0 6px currentColor;
   font-weight: 900;
   /* 更粗的文字 */
   font-size: 11px;
 }
 
-.note-marker.multi-scale {
+.fretboard .note-marker.multi-scale {
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.25);
 }
 
 /* Detected note from live input */
-.note-marker.detected {
+.fretboard .note-marker.detected {
   animation: pulse-detected 0.3s ease-in-out infinite;
   box-shadow: 0 0 20px #4caf50, 0 0 40px #4caf50;
   z-index: 10;
@@ -207,12 +207,12 @@
   }
 }
 
-.note-marker.disabled {
+.fretboard .note-marker.disabled {
   opacity: 0.25;
 }
 
 /* Fret lines */
-.fret-lines {
+.fretboard .fret-lines {
   position: absolute;
   top: 32px;
   bottom: 0;
@@ -222,13 +222,13 @@
   z-index: 0;
 }
 
-.fret-line {
+.fretboard .fret-line {
   width: 48px;
   flex-shrink: 0;
   border-right: 1px solid rgba(120, 100, 80, 0.25);
 }
 
-.fret-line.nut {
+.fretboard .fret-line.nut {
   border-right: 3px solid rgba(200, 180, 150, 0.5);
 }
 
@@ -245,4 +245,31 @@
     margin: 0 10px;
     padding: 12px;
   }
+}
+
+/* Black Screen Mode Overrides for Chroma Key */
+:global(.black-screen-mode) .fretboard-wrapper,
+:global(.black-screen-mode) .fretboard {
+  background: #000000 !important;
+  border-color: #333 !important;
+}
+
+:global(.black-screen-mode) .fretboard-legend {
+  display: none !important;
+}
+
+:global(.black-screen-mode) .fret-line {
+  border-right-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+:global(.black-screen-mode) .string-line {
+  background: rgba(255, 255, 255, 0.4) !important;
+}
+
+:global(.black-screen-mode) .fret-dot {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+:global(.black-screen-mode) .fret-number {
+  display: none !important;
 }

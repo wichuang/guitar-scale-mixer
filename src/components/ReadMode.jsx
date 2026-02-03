@@ -1,11 +1,26 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import Tesseract from 'tesseract.js';
-import { parseJianpuText, cleanJianpuText, notesToJianpuString, jianpuToNote } from '../data/jianpuParser';
+import {
+    parseJianpuText,
+    cleanJianpuText,
+    notesToJianpuString,
+    jianpuToNote,
+    calculate3NPSPositions
+} from '../data/jianpuParser';
 import { NOTES } from '../data/scaleData';
 import { useAudio } from '../hooks/useAudio';
-import { calculate3NPSPositions } from '../utils/get3NPSPositions';
 import ReadFretboard from './ReadFretboard';
+import ScoreDisplay from './ScoreDisplay';
 import './ReadMode.css';
+
+// Timer Helper
+const formatTime = (seconds) => {
+    if (!seconds && seconds !== 0) return '0:00.00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 100);
+    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+};
 
 function ReadMode({ guitarType, fretCount }) {
     const [image, setImage] = useState(null);
@@ -17,15 +32,20 @@ function ReadMode({ guitarType, fretCount }) {
     const [editableText, setEditableText] = useState('');
     const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [playTime, setPlayTime] = useState(0);
     // 3NPS 模式：使用 startString 控制起始弦 (5=6弦, 4=5弦, 3=4弦)
     const [startString, setStartString] = useState(5);
+    const [rangeOctave, setRangeOctave] = useState(0); // 0=Normal, 1=+8ve, -1=-8ve
     const [octaveOffset, setOctaveOffset] = useState(-1); // Guitar Default: -1 Octave (Low Strings)
     const [tempo, setTempo] = useState(120); // BPM
+    const [timeSignature, setTimeSignature] = useState('4/4'); // Default 4/4
     const [key, setKey] = useState('C');
     const [scaleType, setScaleType] = useState('Major'); // Major, Minor, etc.
     const [selectedNoteIndex, setSelectedNoteIndex] = useState(-1);
     const [showNoteMenu, setShowNoteMenu] = useState(false);
+    const [hoverInfo, setHoverInfo] = useState(''); // Info bar text
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+    const [showScaleGuide, setShowScaleGuide] = useState(true); // User requested to restore Ghost notes
 
     const fileInputRef = useRef(null);
     const loadInputRef = useRef(null); // For loading JSON files
@@ -51,8 +71,10 @@ function ReadMode({ guitarType, fretCount }) {
                     if (data.key) setKey(data.key);
                     if (data.scaleType) setScaleType(data.scaleType || data.key);
                     if (data.tempo) setTempo(data.tempo);
+                    if (data.timeSignature) setTimeSignature(data.timeSignature);
                     if (typeof data.startString === 'number') setStartString(data.startString);
                     if (typeof data.octaveOffset === 'number') setOctaveOffset(data.octaveOffset);
+                    if (data.showScaleGuide !== undefined) setShowScaleGuide(data.showScaleGuide);
                 }
             }
         } catch (e) {
@@ -70,13 +92,15 @@ function ReadMode({ guitarType, fretCount }) {
                 key: key,
                 scaleType: scaleType,
                 tempo: tempo,
+                timeSignature: timeSignature,
                 startString: startString,
-                octaveOffset: octaveOffset
+                octaveOffset: octaveOffset,
+                showScaleGuide: showScaleGuide
             };
             localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(dataToSave));
         }, 1000);
         return () => clearTimeout(timer);
-    }, [editableText, notes, key, scaleType, tempo, startString, octaveOffset]);
+    }, [editableText, notes, key, scaleType, tempo, timeSignature, startString, octaveOffset, showScaleGuide]);
 
     // 處理檔案上傳
     const handleFileChange = (e) => {
@@ -176,7 +200,9 @@ function ReadMode({ guitarType, fretCount }) {
 
         setIsPlaying(true);
         // Start from selected note if valid, otherwise 0
-        setCurrentNoteIndex(selectedNoteIndex >= 0 ? selectedNoteIndex : 0);
+        const startIndex = selectedNoteIndex >= 0 ? selectedNoteIndex : 0;
+        setCurrentNoteIndex(startIndex);
+        if (startIndex === 0) setPlayTime(0);
     }, [notes, selectedNoteIndex, resumeAudio]);
 
     const pause = () => {
@@ -189,6 +215,7 @@ function ReadMode({ guitarType, fretCount }) {
     const stop = () => {
         setIsPlaying(false);
         setCurrentNoteIndex(-1);
+        setPlayTime(0);
         if (playTimeoutRef.current) {
             clearTimeout(playTimeoutRef.current);
         }
@@ -205,7 +232,7 @@ function ReadMode({ guitarType, fretCount }) {
     // 計算 3NPS 位置（memoized）
     // 計算 3NPS 位置（memoized）
     const notePositions = useMemo(() =>
-        calculate3NPSPositions(notes, startString, key, scaleType), [notes, startString, key, scaleType]);
+        calculate3NPSPositions(notes, startString, key, scaleType, rangeOctave), [notes, startString, key, scaleType, rangeOctave]);
 
     // 當調號或音階改變時，更新所有音符的音高
     useEffect(() => {
@@ -241,48 +268,88 @@ function ReadMode({ guitarType, fretCount }) {
         }));
     }, [key, scaleType]);
 
+    // Beat tracking for accents
+    const beatCounterRef = useRef(0);
+    const lastNoteIndexRef = useRef(-1);
+
     // 播放邏輯
     useEffect(() => {
         if (!isPlaying || currentNoteIndex < 0 || currentNoteIndex >= notes.length) {
             if (currentNoteIndex >= notes.length) {
                 setIsPlaying(false);
                 setCurrentNoteIndex(-1);
+                setPlayTime(0); // Reset timer
+                beatCounterRef.current = 0; // Reset beat
             }
             return;
         }
 
+        // Detect manual navigation/jumps to reset beat if needed
+        if (currentNoteIndex !== lastNoteIndexRef.current + 1) {
+            // Logic to handle jumps? For now, maybe not strict.
+            // But let's keep beat continuity or reset? 
+            // Better to let it flow unless configured.
+        }
+        lastNoteIndexRef.current = currentNoteIndex;
+
         const note = notes[currentNoteIndex];
 
-        // Skip separators immediately without pause
+        // Ensure separator resets beat count to 0 (so next note is beat 1)
         if (note.isSeparator) {
+            beatCounterRef.current = 0;
+            setCurrentNoteIndex(prev => prev + 1);
+            return;
+        }
+
+        // Skip symbols without sound but don't reset beat?
+        // Actually symbols might denote duration changes (which we aren't handling fully yet)
+        if (note.isSymbol) {
             setCurrentNoteIndex(prev => prev + 1);
             return;
         }
 
         const pos = notePositions[currentNoteIndex];
 
+        // Determine Accent
+        // Simple logic: Increment beat counter
+        // Gets numerator from timeSignature string "4/4" -> 4
+        const beatsPerBar = parseInt(timeSignature.split('/')[0]) || 4;
+
+        let isAccent = false;
+        // Check if this is the first beat
+        if (beatCounterRef.current % beatsPerBar === 0) {
+            isAccent = true;
+        }
+
         if (pos && !audioLoading) {
             // Priority: Play the note at the visual position (Calculated 3NPS position)
-            // This ensures audio matches the "shifted" octave on the fretboard.
             const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : note.midiNote);
-            playNote(targetMidi, pos.string);
+
+            // Play with accent if it's beat 1
+            playNote(targetMidi, pos.string, { gain: isAccent ? 1.3 : 0.7 });
         }
+
+        // Increment beat count for NEXT note
+        beatCounterRef.current++;
 
         const interval = (60 / tempo) * 1000; // 毫秒
         playTimeoutRef.current = setTimeout(() => {
             setCurrentNoteIndex(prev => prev + 1);
+            setPlayTime(prev => prev + (interval / 1000));
         }, interval);
+
 
         return () => {
             if (playTimeoutRef.current) {
                 clearTimeout(playTimeoutRef.current);
             }
         };
-    }, [isPlaying, currentNoteIndex, notes, notePositions, tempo, playNote, audioLoading]);
+    }, [isPlaying, currentNoteIndex, notes, notePositions, tempo, playNote, audioLoading, timeSignature]);
 
     // 點擊單個音符
     const handleNoteClick = (index) => {
         setCurrentNoteIndex(index);
+        beatCounterRef.current = 0; // Reset beat for manual play
         const note = notes[index];
         const pos = notePositions[index];
         if (pos && !audioLoading) {
@@ -537,7 +604,7 @@ function ReadMode({ guitarType, fretCount }) {
     };
 
     // 在音符後插入符號 (0, -)
-    const handleInsertSymbol = (symbol) => {
+    const handleInsertSymbol = (symbol, position = 'after') => {
         if (selectedNoteIndex < 0) return;
 
         let newNote = null;
@@ -557,17 +624,26 @@ function ReadMode({ guitarType, fretCount }) {
                 octave: 4,
                 index: 0
             };
+        } else {
+            // Generic symbols
+            newNote = {
+                jianpu: symbol,
+                displayStr: symbol,
+                isSymbol: true, // Mark as generic symbol
+                octave: 4,
+                index: 0
+            };
         }
 
         if (newNote) {
             const newNotes = [...notes];
-            newNotes.splice(selectedNoteIndex + 1, 0, newNote);
+            const insertIndex = position === 'after' ? selectedNoteIndex + 1 : selectedNoteIndex;
+            newNotes.splice(insertIndex, 0, newNote);
             setNotes(newNotes);
             syncEditableText(newNotes);
 
-            // Auto-select the new symbol? Maybe keep current selection or move next?
-            // Usually move next is good for typing.
-            setSelectedNoteIndex(selectedNoteIndex + 1);
+            // Auto-select the new symbol
+            setSelectedNoteIndex(insertIndex);
         }
     };
 
@@ -576,8 +652,10 @@ function ReadMode({ guitarType, fretCount }) {
         if (selectedNoteIndex < 0 || selectedNoteIndex >= notes.length) return;
 
         const oldNote = notes[selectedNoteIndex];
-        // Only update if it's a real note
-        if (oldNote.isSeparator || oldNote.isRest || oldNote.isExtension) return;
+        // Only update if it's a real note, rest, or symbol (allow rewriting placeholders)
+        // Keep separators and extensions (unless we want to allow rewriting extensions?)
+        // Let's protect separators and extensions for now.
+        if (oldNote.isSeparator || oldNote.isExtension) return;
 
         const noteData = jianpuToNote(newJianpuChar, (oldNote.octave || 4) - 4, key, scaleType);
         if (noteData) {
@@ -586,17 +664,12 @@ function ReadMode({ guitarType, fretCount }) {
                 ...oldNote,
                 ...noteData, // updates midiNote, noteName
                 jianpu: newJianpuChar,
-                displayStr: newJianpuChar + (oldNote.displayStr.includes('.') ? '.' : '') + (oldNote.displayStr.includes('_') ? '_' : '') // Preserve dots? 
-                // Wait, jianpuToNote doesn't return dot/underscore info.
-                // Best to reconstruct displayStr?
-                // Or let parse logic handle it?
-                // But we are editing the object directly.
-                // Let's simplified: assume octave dot is preserved by updating octave manually if needed
-                // But jianpuToNote uses octave param.
-                // We keep old octave.
+                displayStr: newJianpuChar + (oldNote.displayStr.includes('.') ? '.' : '') + (oldNote.displayStr.includes('_') ? '_' : ''),
+                isRest: false, // Ensure it's no longer a rest
+                isSymbol: false // Ensure it's no longer a symbol
             };
-            // Note: displayStr needs to be updated correctly.
-            // Simplified approximation:
+
+            // Reconstruct displayStr simplified
             let ds = newJianpuChar;
             if (oldNote.octave === 5) ds += '·';
             if (oldNote.octave === 6) ds += '··';
@@ -611,10 +684,6 @@ function ReadMode({ guitarType, fretCount }) {
 
     // Toggle Dot (Append .)
     const handleAddDot = () => {
-        // Since . means Octave Up in this parser, this button effectively acts as Octave Up?
-        // Or does user want a literal '.' in text?
-        // If I append '.', notesToJianpuString will likely output it if octave is high.
-        // Let's implementation: Increase Octave.
         handleSetOctave(Math.min((notes[selectedNoteIndex]?.octave || 4) + 1, 6));
     };
 
@@ -630,7 +699,6 @@ function ReadMode({ guitarType, fretCount }) {
                 }
             }
             // 0: Insert Rest (after?) or Change to Rest? User said "打數字...把該音符直接變所按數字".
-            // If I press 0, should it change to Rest? Probably.
             if (e.key === '0') {
                 if (selectedNoteIndex >= 0) {
                     // Change to Rest
@@ -651,6 +719,8 @@ function ReadMode({ guitarType, fretCount }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedNoteIndex, notes, key, scaleType]);
 
+
+
     // 添加區隔線
     const handleAddSeparator = (before = false) => {
         if (selectedNoteIndex < 0) return;
@@ -667,21 +737,24 @@ function ReadMode({ guitarType, fretCount }) {
     };
 
     // 標記八度
-    const handleSetOctave = (octave) => {
+    // 調整單一音符八度 (Relative)
+    const handleShiftOctave = (direction) => {
         if (selectedNoteIndex < 0 || selectedNoteIndex >= notes.length) return;
         const note = notes[selectedNoteIndex];
         if (note.isSeparator) return;
 
         const newNotes = [...notes];
         const currentNote = newNotes[selectedNoteIndex];
-        const oldOctave = currentNote.octave;
+        const oldOctave = currentNote.octave || 4;
+        const newOctave = Math.max(2, Math.min(6, oldOctave + direction)); // Limit 2-6
+
+        if (newOctave === oldOctave) return;
 
         // Reconstruct display string with new octave dots
         let newDisplay = String(currentNote.jianpu);
-        if (octave === 5) newDisplay += '.';
-        if (octave === 6) newDisplay += '..';
-        if (octave === 3) newDisplay = '_' + newDisplay;
-        if (octave === 2) newDisplay = '__' + newDisplay;
+        if (newOctave >= 5) newDisplay = newDisplay + '.'.repeat(newOctave - 4);
+        if (newOctave === 3) newDisplay = '_' + newDisplay;
+        if (newOctave === 2) newDisplay = '__' + newDisplay;
 
         // Preserve accidental
         const oldDisplay = currentNote.displayStr || String(currentNote.jianpu);
@@ -690,12 +763,42 @@ function ReadMode({ guitarType, fretCount }) {
 
         newNotes[selectedNoteIndex] = {
             ...currentNote,
-            octave: octave,
-            midiNote: currentNote.midiNote + (octave - oldOctave) * 12,
+            octave: newOctave,
+            midiNote: currentNote.midiNote + (newOctave - oldOctave) * 12,
             displayStr: newDisplay,
-            // Also update accidentalStr for consistency if needed, but displayStr is primary
             accidentalStr: oldDisplay.includes('#') ? '#' : (oldDisplay.includes('b') ? 'b' : '')
         };
+        setNotes(newNotes);
+        syncEditableText(newNotes);
+    };
+
+    // 全曲升降八度
+    const handleShiftAllOctaves = (direction) => {
+        const newNotes = notes.map(note => {
+            if (note.isSeparator || note.isRest || note.isExtension || note.isSymbol) return note;
+
+            const oldOctave = note.octave || 4;
+            const newOctave = Math.max(2, Math.min(6, oldOctave + direction)); // Limit 2-6
+
+            if (newOctave === oldOctave) return note;
+
+            // Reconstruct display
+            let newDisplay = String(note.jianpu);
+            if (newOctave >= 5) newDisplay = newDisplay + '.'.repeat(newOctave - 4);
+            if (newOctave === 3) newDisplay = '_' + newDisplay;
+            if (newOctave === 2) newDisplay = '__' + newDisplay;
+
+            if (note.accidentalStr) newDisplay += note.accidentalStr;
+            else if (note.displayStr?.includes('#')) newDisplay += '#';
+            else if (note.displayStr?.includes('b')) newDisplay += 'b';
+
+            return {
+                ...note,
+                octave: newOctave,
+                midiNote: note.midiNote + (newOctave - oldOctave) * 12,
+                displayStr: newDisplay
+            };
+        });
         setNotes(newNotes);
         syncEditableText(newNotes);
     };
@@ -906,33 +1009,41 @@ function ReadMode({ guitarType, fretCount }) {
                         </select>
                     </div>
 
+                    <div className="setting-row">
+                        <label>拍子</label>
+                        <select
+                            value={timeSignature}
+                            onChange={(e) => setTimeSignature(e.target.value)}
+                        >
+                            <option value="4/4">4/4</option>
+                            <option value="3/4">3/4</option>
+                            <option value="2/4">2/4</option>
+                            <option value="6/8">6/8</option>
+                            <option value="12/8">12/8</option>
+                        </select>
+                    </div>
+
                     <div className="setting-row mode-info">
                         <label>指法模式</label>
-                        <span className="mode-badge">🎸 3NPS</span>
-                    </div>
-
-                    <div className="setting-row">
-                        <label>起始弦</label>
-                        <select
-                            value={startString}
-                            onChange={(e) => setStartString(Number(e.target.value))}
-                        >
-                            <option value={5}>第 6 弦 (低音 E)</option>
-                            <option value={4}>第 5 弦 (A)</option>
-                            <option value={3}>第 4 弦 (D)</option>
-                        </select>
-                    </div>
-
-                    <div className="setting-row">
-                        <label>音域</label>
-                        <select
-                            value={octaveOffset}
-                            onChange={(e) => setOctaveOffset(Number(e.target.value))}
-                        >
-                            <option value={-1}>低 (Low)</option>
-                            <option value={0}>中 (Mid)</option>
-                            <option value={1}>高 (High)</option>
-                        </select>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            <span className="mode-badge">🎸 3NPS</span>
+                            <select
+                                value={startString}
+                                onChange={(e) => setStartString(Number(e.target.value))}
+                                style={{
+                                    padding: '4px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #444',
+                                    background: '#222',
+                                    color: 'white',
+                                    fontSize: '12px'
+                                }}
+                            >
+                                <option value={5}>根音在第 6 弦 (E)</option>
+                                <option value={4}>根音在第 5 弦 (A)</option>
+                                <option value={3}>根音在第 4 弦 (D)</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="setting-row">
@@ -945,6 +1056,18 @@ function ReadMode({ guitarType, fretCount }) {
                             onChange={(e) => setTempo(Number(e.target.value))}
                         />
                         <span>{tempo} BPM</span>
+                    </div>
+
+                    <div className="setting-row" style={{ marginTop: '5px' }}>
+                        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+                            <input
+                                type="checkbox"
+                                checked={showScaleGuide}
+                                onChange={(e) => setShowScaleGuide(e.target.checked)}
+                                style={{ width: '16px', height: '16px' }}
+                            />
+                            <span>顯示背景音階 (Ghost Notes)</span>
+                        </label>
                     </div>
                 </div>
 
@@ -996,96 +1119,115 @@ function ReadMode({ guitarType, fretCount }) {
                                 </span>
                             </div>
 
-                            {/* 八度控制 */}
+
+
+                            {/* 八度控制: Changed to Relative Shift */}
                             <div className="editor-group">
                                 <span className="editor-label">八度</span>
                                 <div className="editor-buttons">
                                     <button
-                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.octave === 5 ? 'active' : ''}`}
-                                        onClick={() => handleSetOctave(5)}
+                                        className="editor-btn"
+                                        onClick={() => handleShiftOctave(1)}
                                         disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                    >⬆️ 高</button>
+                                    >⬆️ +8度</button>
                                     <button
-                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.octave === 4 ? 'active' : ''}`}
-                                        onClick={() => handleSetOctave(4)}
+                                        className="editor-btn"
+                                        onClick={() => handleShiftOctave(-1)}
                                         disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                    >中</button>
+                                    >⬇️ -8度</button>
+                                </div>
+                                {/* Global Octave Shift */}
+                                <div className="editor-buttons" style={{ marginTop: '4px' }}>
                                     <button
-                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.octave === 3 ? 'active' : ''}`}
-                                        onClick={() => handleSetOctave(3)}
-                                        disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                    >⬇️ 低</button>
+                                        className="editor-btn secondary"
+                                        onClick={() => handleShiftAllOctaves(1)}
+                                        title="全曲升八度"
+                                    >
+                                        全+8
+                                    </button>
+                                    <button
+                                        className="editor-btn secondary"
+                                        onClick={() => handleShiftAllOctaves(-1)}
+                                        title="全曲降八度"
+                                    >
+                                        全-8
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* 升降音控制 */}
+
+
+
+                            {/* 插入音符 (改為插入空格) */}
                             <div className="editor-group">
-                                <span className="editor-label">升降音</span>
+                                <span className="editor-label">插入空格</span>
                                 <div className="editor-buttons">
                                     <button
-                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.noteName?.includes('#') ? 'active' : ''}`}
-                                        onClick={handleToggleSharp}
-                                        disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                    >♯ Sharp</button>
+                                        className="editor-btn"
+                                        onClick={() => handleInsertSymbol('0', 'before')}
+                                        disabled={selectedNoteIndex < 0}
+                                        onMouseEnter={() => setHoverInfo('在當前音符「前」插入空格 (休止符 0)')}
+                                        onMouseLeave={() => setHoverInfo('')}
+                                    >前</button>
                                     <button
-                                        className={`editor-btn ${selectedNoteIndex >= 0 && notes[selectedNoteIndex]?.noteName?.includes('b') ? 'active' : ''}`}
-                                        onClick={handleToggleFlat}
-                                        disabled={selectedNoteIndex < 0 || notes[selectedNoteIndex]?.isSeparator}
-                                    >♭ Flat</button>
-                                </div>
-                            </div>
-
-                            {/* 插入音符 */}
-                            <div className="editor-group">
-                                <span className="editor-label">插入音符</span>
-                                <div className="editor-insert-row">
-                                    <span>前：</span>
-                                    {[1, 2, 3, 4, 5, 6, 7].map(n => (
-                                        <button
-                                            key={`b${n} `}
-                                            className="insert-btn"
-                                            onClick={() => handleInsertBefore(n)}
-                                            disabled={selectedNoteIndex < 0}
-                                        >{n}</button>
-                                    ))}
-                                </div>
-                                <div className="editor-insert-row">
-                                    <span>後：</span>
-                                    {[1, 2, 3, 4, 5, 6, 7].map(n => (
-                                        <button
-                                            key={`a${n} `}
-                                            className="insert-btn"
-                                            onClick={() => handleInsertAfter(n)}
-                                            disabled={selectedNoteIndex < 0}
-                                        >{n}</button>
-                                    ))}
+                                        className="editor-btn"
+                                        onClick={() => handleInsertSymbol('0', 'after')}
+                                        disabled={selectedNoteIndex < 0}
+                                        onMouseEnter={() => setHoverInfo('在當前音符「後」插入空格 (休止符 0)')}
+                                        onMouseLeave={() => setHoverInfo('')}
+                                    >後</button>
                                 </div>
 
                                 {/* 特殊符號插入 */}
                                 <div className="editor-insert-row" style={{ marginTop: '8px' }}>
                                     <span>符號：</span>
-                                    <button className="insert-btn" onClick={() => handleInsertSymbol('0')}>0 (休止)</button>
-                                    <button className="insert-btn" onClick={() => handleInsertSymbol('-')}>- (延音)</button>
-                                    <button className="insert-btn" onClick={handleAddDot}>. (附點)</button>
+                                    {/* Basic Symbols */}
+                                    <button
+                                        className="editor-btn small"
+                                        onClick={() => handleInsertSymbol('0')}
+                                        disabled={selectedNoteIndex < 0}
+                                        onMouseEnter={() => setHoverInfo('插入休止符 (Rest 0)')}
+                                        onMouseLeave={() => setHoverInfo('')}
+                                    >0</button>
+                                    <button
+                                        className="editor-btn small"
+                                        onClick={() => handleInsertSymbol('-')}
+                                        disabled={selectedNoteIndex < 0}
+                                        onMouseEnter={() => setHoverInfo('插入延音線 (Extension -)')}
+                                        onMouseLeave={() => setHoverInfo('')}
+                                    >-</button>
+
+
+                                    {/* Advanced Symbols - Merged here */}
+                                    <button className="editor-btn small" onClick={() => handleInsertSymbol('(')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('圓滑線 / 連音開始 (Slur/Tie Start)')} onMouseLeave={() => setHoverInfo('')}>(</button>
+                                    <button className="editor-btn small" onClick={() => handleInsertSymbol(')')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('圓滑線 / 連音結束 (Slur/Tie End)')} onMouseLeave={() => setHoverInfo('')}>)</button>
+                                    <button className="editor-btn small" onClick={() => handleInsertSymbol(':')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('冒號 / 反覆記號 (Colon)')} onMouseLeave={() => setHoverInfo('')}>:</button>
+                                    <button className="editor-btn small" onClick={() => handleInsertSymbol('_')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('底線 / 八分音符 (Eighth)')} onMouseLeave={() => setHoverInfo('')}>_</button>
+                                    <button className="editor-btn small" onClick={() => handleInsertSymbol('=')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('雙底線 / 十六分音符 (Sixteenth)')} onMouseLeave={() => setHoverInfo('')}>=</button>
+                                    <button className="editor-btn small" onClick={() => handleInsertSymbol('>')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('重音 (Accent)')} onMouseLeave={() => setHoverInfo('')}>&gt;</button>
+                                    <button className="editor-btn small" onClick={() => handleInsertSymbol('[')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('三連音 / 群組開始 (Triplets / Tuplets Start)')} onMouseLeave={() => setHoverInfo('')}>[</button>
+                                    <button className="editor-btn small" onClick={() => handleInsertSymbol(']')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('三連音 / 群組結束 (Triplets / Tuplets End)')} onMouseLeave={() => setHoverInfo('')}>]</button>
+                                    <button className="editor-btn small" onClick={() => handleInsertSymbol('|')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('小節線 (Separator |)')} onMouseLeave={() => setHoverInfo('')}>|</button>
                                 </div>
                             </div>
 
-                            {/* 區隔線 */}
-                            <div className="editor-group">
-                                <span className="editor-label">區隔線</span>
-                                <div className="editor-buttons">
-                                    <button
-                                        className="editor-btn"
-                                        onClick={() => handleAddSeparator(true)}
-                                        disabled={selectedNoteIndex < 0}
-                                    >➕ 前面加 |</button>
-                                    <button
-                                        className="editor-btn"
-                                        onClick={() => handleAddSeparator(false)}
-                                        disabled={selectedNoteIndex < 0}
-                                    >➕ 後面加 |</button>
-                                </div>
+
+                            {/* 功能說明欄 (移動至此) */}
+                            <div className="editor-info-bar" style={{
+                                minHeight: '24px',
+                                margin: '8px 0',
+                                padding: '4px 8px',
+                                background: '#333',
+                                borderRadius: '4px',
+                                color: '#4caf50',
+                                fontSize: '0.9rem',
+                                display: 'flex',
+                                alignItems: 'center'
+                            }}>
+                                ℹ️ {hoverInfo || '滑鼠移至按鈕可查看說明'}
                             </div>
+
+
 
                             {/* 刪除按鈕 */}
                             <button
@@ -1111,11 +1253,11 @@ function ReadMode({ guitarType, fretCount }) {
                                     >
                                         <span
                                             className={`note-chip ${idx === currentNoteIndex ? 'active' : ''} ${note.isSeparator ? 'separator' : ''} ${note.octave > 4 ? 'high' : ''} ${note.octave < 4 ? 'low' : ''} ${note.noteName?.includes('#') ? 'sharp' : ''} ${note.noteName?.includes('b') ? 'flat' : ''}`}
-                                            title={note.isSeparator ? '區隔線' : `${note.noteName}${note.octave} `}
+                                            title={note.isSeparator ? '區隔線' : (note.noteName ? `${note.noteName}${note.octave}` : note.displayStr)}
                                         >
                                             {note.isSeparator ? '|' : (note.displayStr || note.jianpu)}
                                             {!note.isSeparator && (
-                                                <small>{note.noteName}{note.octave !== 4 ? note.octave : ''}</small>
+                                                <small>{note.noteName ? `${note.noteName}${note.octave !== 4 ? note.octave : ''}` : ''}</small>
                                             )}
                                         </span>
                                     </div>
@@ -1123,10 +1265,28 @@ function ReadMode({ guitarType, fretCount }) {
                             </div>
 
                             {/* Play Controls - Moved here */}
-                            <div className="controls-bar" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                            <div className="controls-bar" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px', gap: '12px' }}>
+                                {/* Timer Display */}
+                                <div style={{
+                                    background: '#111',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    fontFamily: 'monospace',
+                                    fontSize: '18px',
+                                    fontWeight: 'bold',
+                                    color: isPlaying ? '#4caf50' : '#666',
+                                    border: '1px solid #333',
+                                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)',
+                                    minWidth: '100px',
+                                    textAlign: 'center'
+                                }}>
+                                    {formatTime(playTime)}
+                                </div>
+
                                 <button
                                     className={`control-btn play ${isPlaying ? 'active' : ''}`}
                                     onClick={togglePlay}
+
                                     disabled={audioLoading}
                                     title={isPlaying ? "停止播放" : "播放樂譜"}
                                     style={{
@@ -1157,9 +1317,26 @@ function ReadMode({ guitarType, fretCount }) {
                 fretCount={fretCount}
                 onNoteClick={handleNoteClick}
                 startString={startString}
+                onStartStringChange={setStartString}
+                rangeOctave={rangeOctave}
+                onRangeOctaveChange={setRangeOctave}
                 musicKey={key}
                 scaleType={scaleType}
+                showScaleGuide={showScaleGuide}
             />
+
+            {/* Score Display (Music Notation & Tabs) */}
+            {notes.length > 0 && (
+                <div style={{ padding: '0 20px 20px 20px' }}>
+                    <h3 style={{ color: '#aaa', marginBottom: '10px' }}>🎼 五線譜/六線譜預覽</h3>
+                    <ScoreDisplay
+                        notes={notes}
+                        notePositions={notePositions}
+                        timeSignature={timeSignature}
+                        currentNoteIndex={currentNoteIndex}
+                    />
+                </div>
+            )}
 
             {/* 儲存/載入按鈕 */}
             <div className="score-actions">

@@ -5,7 +5,7 @@
 }
 
 /* Audio Controls - Just device and listen button */
-.audio-controls {
+.live-mode .audio-controls {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -16,7 +16,7 @@
     align-self: flex-start;
 }
 
-.device-select {
+.live-mode .device-select {
     width: 180px;
     padding: 8px 10px;
     border-radius: 6px;
@@ -27,7 +27,7 @@
     font-family: inherit;
 }
 
-.ref-btn {
+.live-mode .ref-btn {
     width: 32px;
     height: 32px;
     border-radius: 6px;
@@ -38,11 +38,11 @@
     cursor: pointer;
 }
 
-.ref-btn:hover:not(:disabled) {
+.live-mode .ref-btn:hover:not(:disabled) {
     background: var(--bg-card);
 }
 
-.listen-btn {
+.live-mode .listen-btn {
     padding: 8px 16px;
     border-radius: 6px;
     border: none;
@@ -55,18 +55,18 @@
     transition: all 0.15s ease;
 }
 
-.listen-btn.active {
+.live-mode .listen-btn.active {
     background: #c62828;
 }
 
-.display-toggle {
+.live-mode .display-toggle {
     display: flex;
     background: var(--bg-elevated);
     border-radius: 6px;
     padding: 2px;
 }
 
-.dt-btn {
+.live-mode .dt-btn {
     padding: 6px 12px;
     border: none;
     border-radius: 4px;
@@ -78,25 +78,25 @@
     font-family: inherit;
 }
 
-.dt-btn.active {
+.live-mode .dt-btn.active {
     background: var(--accent-gold);
     color: #000;
 }
 
-.root-selector {
+.live-mode .root-selector {
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.root-label {
+.live-mode .root-label {
     font-size: 10px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 1px;
 }
 
-.root-select {
+.live-mode .root-select {
     padding: 6px 10px;
     border-radius: 6px;
     border: 1px solid var(--glass-border);
@@ -108,7 +108,7 @@
     cursor: pointer;
 }
 
-.clear-btn {
+.live-mode .clear-btn {
     padding: 6px 12px;
     border-radius: 6px;
     border: 1px solid var(--glass-border);
@@ -119,18 +119,18 @@
     font-family: inherit;
 }
 
-.clear-btn:hover {
+.live-mode .clear-btn:hover {
     background: var(--bg-card);
 }
 
 /* Fretboard Section */
-.fretboard-section {
+.live-mode .fretboard-section {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.fretboard-controls {
+.live-mode .fretboard-controls {
     display: inline-flex;
     align-items: center;
     gap: 16px;
@@ -141,13 +141,13 @@
     align-self: flex-start;
 }
 
-.fb-control-group {
+.live-mode .fb-control-group {
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.fb-label {
+.live-mode .fb-label {
     font-size: 10px;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -155,7 +155,7 @@
 }
 
 /* Detection Box */
-.detection-box {
+.live-mode .detection-box {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -168,11 +168,11 @@
     transition: border-color 0.2s ease;
 }
 
-.detection-box.active {
+.live-mode .detection-box.active {
     border-color: rgba(76, 175, 80, 0.5);
 }
 
-.vol-indicator {
+.live-mode .vol-indicator {
     width: 200px;
     height: 4px;
     background: rgba(255, 255, 255, 0.1);
@@ -181,26 +181,26 @@
     overflow: hidden;
 }
 
-.vol-fill {
+.live-mode .vol-fill {
     height: 100%;
     background: linear-gradient(90deg, #4caf50, #8bc34a);
     transition: width 0.05s;
 }
 
-.detected-info {
+.live-mode .detected-info {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
 }
 
-.note-display {
+.live-mode .note-display {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.big-note {
+.live-mode .big-note {
     font-size: 56px;
     font-weight: 700;
     color: #4caf50;
@@ -208,18 +208,18 @@
     line-height: 1;
 }
 
-.big-note .octave {
+.live-mode .big-note .octave {
     font-size: 24px;
     color: rgba(76, 175, 80, 0.7);
     margin-left: 2px;
 }
 
-.big-note.placeholder {
+.live-mode .big-note.placeholder {
     color: var(--text-muted);
     opacity: 0.3;
 }
 
-.interval-badge {
+.live-mode .interval-badge {
     font-size: 24px;
     font-weight: 700;
     color: #fff;
@@ -228,61 +228,61 @@
     border-radius: 8px;
 }
 
-.interval-badge.placeholder {
+.live-mode .interval-badge.placeholder {
     background: var(--bg-elevated);
     color: var(--text-muted);
     opacity: 0.3;
 }
 
-.note-details {
+.live-mode .note-details {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.freq {
+.live-mode .freq {
     font-size: 12px;
     color: var(--text-muted);
 }
 
-.cents {
+.live-mode .cents {
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
 }
 
-.cents.tune {
+.live-mode .cents.tune {
     background: rgba(76, 175, 80, 0.2);
     color: #4caf50;
 }
 
-.cents.sharp {
+.live-mode .cents.sharp {
     background: rgba(255, 152, 0, 0.2);
     color: #ff9800;
 }
 
-.cents.flat {
+.live-mode .cents.flat {
     background: rgba(33, 150, 243, 0.2);
     color: #2196f3;
 }
 
-.waiting {
+.live-mode .waiting {
     color: var(--text-muted);
     font-size: 14px;
 }
 
-.inactive-msg {
+.live-mode .inactive-msg {
     color: var(--text-muted);
     font-size: 14px;
 }
 
-.inactive-msg strong {
+.live-mode .inactive-msg strong {
     color: #2196f3;
 }
 
 /* History Row */
-.history-row {
+.live-mode .history-row {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -294,19 +294,19 @@
     min-height: 36px;
 }
 
-.hist-label {
+.live-mode .hist-label {
     font-size: 10px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 1px;
 }
 
-.hist-placeholder {
+.live-mode .hist-placeholder {
     color: var(--text-muted);
     font-size: 12px;
 }
 
-.hist-note {
+.live-mode .hist-note {
     padding: 4px 8px;
     border-radius: 4px;
     background: var(--bg-elevated);
@@ -315,13 +315,13 @@
     font-weight: 600;
 }
 
-.hist-note.latest {
+.live-mode .hist-note.latest {
     background: var(--accent-gold);
     color: #000;
 }
 
 /* Live Fretboard */
-.live-fretboard {
+.live-mode .live-fretboard {
     position: relative;
     background: var(--bg-card);
     border-radius: 10px;
@@ -330,7 +330,7 @@
     overflow-x: auto;
 }
 
-.lf-numbers {
+.live-mode .lf-numbers {
     display: flex;
     position: absolute;
     top: 4px;
@@ -338,7 +338,7 @@
     right: 8px;
 }
 
-.lf-num {
+.live-mode .lf-num {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -346,12 +346,12 @@
     color: var(--text-muted);
 }
 
-.lf-num .marked {
+.live-mode .lf-num .marked {
     color: var(--text-secondary);
     font-weight: 600;
 }
 
-.dot {
+.live-mode .dot {
     width: 4px;
     height: 4px;
     border-radius: 50%;
@@ -359,26 +359,26 @@
     margin-top: 1px;
 }
 
-.dots {
+.live-mode .dots {
     display: flex;
     gap: 3px;
 }
 
-.lf-string {
+.live-mode .lf-string {
     display: flex;
     position: relative;
     height: 24px;
     align-items: center;
 }
 
-.string-line {
+.live-mode .string-line {
     position: absolute;
     left: 0;
     right: 0;
     background: rgba(180, 160, 130, 0.3);
 }
 
-.lf-cell {
+.live-mode .lf-cell {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -386,7 +386,7 @@
     z-index: 1;
 }
 
-.lf-marker {
+.live-mode .lf-marker {
     width: 24px;
     height: 16px;
     border-radius: 4px;
@@ -397,7 +397,7 @@
     font-weight: 700;
 }
 
-.lf-marker.detected {
+.live-mode .lf-marker.detected {
     background: #4caf50;
     color: #fff;
     box-shadow: 0 0 15px #4caf50;
@@ -415,13 +415,13 @@
     }
 }
 
-.lf-marker.trail {
+.live-mode .lf-marker.trail {
     background: rgba(76, 175, 80, 0.25);
     color: rgba(255, 255, 255, 0.7);
     border: 1px solid rgba(76, 175, 80, 0.3);
 }
 
-.lf-lines {
+.live-mode .lf-lines {
     display: flex;
     position: absolute;
     top: 24px;
@@ -431,20 +431,20 @@
     pointer-events: none;
 }
 
-.lf-marker.is-root {
+.live-mode .lf-marker.is-root {
     background: #ffffff !important;
     color: #000000 !important;
     font-weight: 900;
 }
 
-.lf-marker.is-root.detected {
+.live-mode .lf-marker.is-root.detected {
     box-shadow: 0 0 20px #ffffff, 0 0 40px #ffffff !important;
 }
 
-.lf-line {
+.live-mode .lf-line {
     border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.lf-line.nut {
+.live-mode .lf-line.nut {
     border-right: 3px solid rgba(255, 255, 255, 0.3);
 }
