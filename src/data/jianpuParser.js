@@ -383,9 +383,8 @@ export function generate3NPSMap(startStringIdx = 5, key = 'C', scaleType = 'Majo
 
     const intervals = scale.intervals;
 
+    // 1. Iterate through strings from bottom (StartString) UP to top (0) - Standard
     let scaleDegreeIndex = 0;
-
-    // Iterate through strings from bottom (StartString) up to top (0)
     for (let s = startStringIdx; s >= 0; s--) {
         const stringOpenMidi = STRING_TUNINGS[s];
 
@@ -408,5 +407,52 @@ export function generate3NPSMap(startStringIdx = 5, key = 'C', scaleType = 'Majo
             scaleDegreeIndex++;
         }
     }
+
+    // 2. Iterate through strings from StartString DOWN to Low E (5) - Lower Extension
+    scaleDegreeIndex = -1; // Start from previous note below root
+    for (let s = startStringIdx + 1; s <= 5; s++) {
+        const stringOpenMidi = STRING_TUNINGS[s];
+
+        // Generate 3 notes per string, but in reverse order (High to Low on the string)
+        // Wait, notes on a string increase fret-wise.
+        // If we go down the scale: Root -> 7th -> 6th -> 5th...
+        // The notes on string S+1 will be lower.
+        // Let's generate 3 notes descending, then Push them.
+        // Note: The loop order on string should physically be Low->High pitch (Left-Right fretboard).
+        // But we are traversing Scale degrees downwards.
+        // Scale degrees: -1 (7th), -2 (6th), -3 (5th).
+        // On the string, the order is -3, -2, -1.
+
+        let stringNotes = [];
+        for (let n = 0; n < 3; n++) {
+            // Calculate interval backwards
+            // loopDegree for -1 should be 6.
+            const positiveIndex = ((scaleDegreeIndex % 7) + 7) % 7;
+            const octaves = Math.floor(scaleDegreeIndex / 7); // -1 -> -1 (Correct?) -> -1/7 = -0.14 -> floor -1.
+            // intervals: [0, 2, 4, 5, 7, 9, 11]
+            // Degree 0 = 0.
+            // Degree -1 (index 6) = 11.
+            // Midi = Root + 11 + (-1 * 12) = Root - 1. Correct (Major 7th below).
+
+            const inte = intervals[positiveIndex];
+            const targetMidi = rootOnStringMidi + inte + (octaves * 12);
+            const fret = targetMidi - stringOpenMidi;
+
+            if (fret >= 0 && fret <= 24) {
+                stringNotes.push({
+                    string: s,
+                    fret: fret,
+                    midi: targetMidi,
+                    isMap: true
+                });
+            }
+            scaleDegreeIndex--;
+        }
+        // Since we generated High->Low pitched notes (Scale down), 
+        // stringNotes has [High, Mid, Low].
+        // We push them to map. Order doesn't matter for Map.
+        map.push(...stringNotes);
+    }
+
     return map;
 }
