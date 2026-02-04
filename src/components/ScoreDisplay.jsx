@@ -42,7 +42,7 @@ const ScoreDisplay = ({ notes, notePositions, timeSignature = '4/4', currentNote
                 // Use Shifted MIDI from Position
                 const pos = notePositions[index];
                 const noteIndex = ((pos.midi % 12) + 12) % 12; // Handle negative midi safely
-                const octave = Math.floor(pos.midi / 12) - 1;
+                const octave = Math.max(0, Math.floor(pos.midi / 12) - 1); // VexFlow might crash on negative octaves
                 const names = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
                 const name = names[noteIndex] || 'b'; // Fallback to b just in case
                 keys = [`${name}/${octave}`];
