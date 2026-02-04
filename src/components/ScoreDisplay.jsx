@@ -35,60 +35,79 @@ const ScoreDisplay = ({ notes, notePositions, timeSignature = '4/4', currentNote
             let keys = ["b/4"];
             let duration = "q";
 
-            if (note.isRest || note.displayStr === '0') {
-                keys = ["b/4"];
-                duration = "qr";
-            } else if (notePositions[index] && typeof notePositions[index].midi === 'number') {
-                // Use Shifted MIDI from Position
-                const pos = notePositions[index];
-                const noteIndex = ((pos.midi % 12) + 12) % 12; // Handle negative midi safely
-                const octave = Math.max(0, Math.floor(pos.midi / 12) - 1); // VexFlow might crash on negative octaves
-                const names = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
-                const name = names[noteIndex] || 'b'; // Fallback to b just in case
-                keys = [`${name}/${octave}`];
-            } else if (note.noteName) {
-                const keyStr = `${note.noteName.toLowerCase()}/${note.octave || 4}`;
-                keys = [keyStr];
-            }
+            // 1. Prepare Key & Duration
+            try {
+                // Pitch: noteName + octave (e.g., "C/4")
+                let keys = ["b/4"];
+                let duration = "q";
+                let isRest = note.isRest || note.displayStr === '0';
 
-            // Stave Note
-            const sNote = new StaveNote({
-                keys: keys,
-                duration: duration,
-                clef: "treble"
-            });
+                if (isRest) {
+                    keys = ["b/4"];
+                    duration = "qr";
+                } else if (notePositions[index] && typeof notePositions[index].midi === 'number' && !isNaN(notePositions[index].midi)) {
+                    // Use Shifted MIDI from Position
+                    const pos = notePositions[index];
+                    const noteIndex = ((pos.midi % 12) + 12) % 12; // Handle negative midi safely
+                    const octave = Math.max(0, Math.floor(pos.midi / 12) - 1);
+                    const names = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
+                    const name = names[noteIndex] || 'b';
+                    keys = [`${name}/${octave}`];
+                } else if (note.noteName) {
+                    // Fallback to parsed note
+                    // Fix: Clamp octave here too!
+                    const octave = Math.max(0, note.octave || 4);
+                    const keyStr = `${note.noteName.toLowerCase()}/${octave}`;
+                    keys = [keyStr];
+                }
 
-            if (!note.isRest && note.noteName?.includes('#')) sNote.addModifier(new Accidental("#"));
-            else if (!note.isRest && note.noteName?.includes('b')) sNote.addModifier(new Accidental("b"));
-
-            // Tab Note
-            const pos = notePositions[index];
-            let tNote;
-            if (note.isRest || note.displayStr === '0') {
-                tNote = new TabNote({
-                    positions: [{ str: 0, fret: 0 }],
+                // Stave Note
+                const sNote = new StaveNote({
+                    keys: keys,
                     duration: duration,
-                    type: "r"
+                    clef: "treble"
                 });
-            } else {
-                if (pos && typeof pos.string === 'number') {
-                    // Fix: Map 0-indexed string (0=High E) to VexFlow 1-indexed (1=High E)
+
+                if (!isRest && note.noteName?.includes('#')) sNote.addModifier(new Accidental("#"));
+                else if (!isRest && note.noteName?.includes('b')) sNote.addModifier(new Accidental("b"));
+
+                // Tab Note
+                const pos = notePositions[index];
+                let tNote;
+                if (isRest) {
                     tNote = new TabNote({
-                        positions: [{ str: pos.string + 1, fret: pos.fret || 0 }],
-                        duration: duration
+                        positions: [{ str: 0, fret: 0 }],
+                        duration: duration,
+                        type: "r"
                     });
                 } else {
-                    // Fallback
-                    tNote = new TabNote({
-                        positions: [{ str: 2, fret: 0 }],
-                        duration: duration
-                    });
+                    if (pos && typeof pos.string === 'number') {
+                        // Fix: Map 0-indexed string (0=High E) to VexFlow 1-indexed (1=High E)
+                        tNote = new TabNote({
+                            positions: [{ str: pos.string + 1, fret: pos.fret || 0 }],
+                            duration: duration
+                        });
+                    } else {
+                        // Fallback
+                        tNote = new TabNote({
+                            positions: [{ str: 2, fret: 0 }],
+                            duration: duration
+                        });
+                    }
                 }
-            }
 
-            staveNotes.push(sNote);
-            tabNotes.push(tNote);
-            noteMapping.push(staveNotes.length - 1); // Map original note index to this generated note
+                staveNotes.push(sNote);
+                tabNotes.push(tNote);
+                noteMapping.push(staveNotes.length - 1);
+            } catch (err) {
+                console.warn("VexFlow Note Creation Error:", err, note);
+                // Push a dummy rest to keep alignment or just skip? 
+                // Better push a Rest to maintain index alignment if possible, but simplest is skip logic.
+                // But noteMapping needs to stay synced? 
+                // Actually noteMapping aligns `notes[index]` to `staveNotes[index]`.
+                // If we skip, we should push null to noteMapping.
+                noteMapping.push(null);
+            }
         });
 
         if (staveNotes.length === 0) return;
