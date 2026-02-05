@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import Fretboard from './components/Fretboard';
 import LiveMode from './components/LiveMode';
-import ReadMode from './components/ReadMode';
+import ReadMode from './components/ReadMode/index.jsx';
 import ScalePanelCompact from './components/ScalePanelCompact';
 import SettingsPage from './components/SettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';

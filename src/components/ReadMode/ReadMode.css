@@ -1,0 +1,337 @@
+/* Note Editor Layout Fixes */
+
+/* Main Container Layout */
+.read-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    color: #eee;
+}
+
+/* Control Panel with Upload and Settings */
+.read-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Settings Section */
+.settings-section {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 300px;
+}
+
+/* Text Result Section (The missing input box) */
+.result-section {
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.result-section label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #999;
+}
+
+.result-section textarea {
+    width: 100%;
+    min-height: 100px;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-family: monospace;
+    font-size: 16px;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+}
+
+/* Note Editor Area (The weird side panel) */
+.note-editor-area {
+    display: flex;
+    gap: 20px;
+    background: rgba(30, 30, 30, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+/* Left Panel: Editor Controls */
+.editor-panel {
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 16px;
+    border-radius: 8px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.editor-panel h4 {
+    margin: 0;
+    margin-bottom: 10px;
+    color: #fff;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+/* Selected Note Info */
+.selected-note-info {
+    background: rgba(76, 175, 80, 0.2);
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.selected-label {
+    font-size: 14px;
+    color: #ccc;
+}
+
+.selected-value {
+    font-weight: bold;
+    color: #4caf50;
+    font-size: 16px;
+}
+
+/* Editor Groups */
+.editor-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.editor-label {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.editor-buttons,
+.editor-insert-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Editor Buttons */
+.editor-btn,
+.insert-btn,
+.delete-note-btn {
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    flex: 1;
+    text-align: center;
+}
+
+.editor-btn:hover:not(:disabled),
+.insert-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.editor-btn.active {
+    background: #2196f3;
+    border-color: #2196f3;
+    color: white;
+}
+
+.editor-btn:disabled,
+.insert-btn:disabled,
+.delete-note-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.delete-note-btn {
+    margin-top: auto;
+    background: rgba(244, 67, 54, 0.1);
+    border-color: rgba(244, 67, 54, 0.3);
+    color: #ff5252;
+}
+
+.delete-note-btn:hover:not(:disabled) {
+    background: rgba(244, 67, 54, 0.2);
+    border-color: #ff5252;
+}
+
+
+/* Right Panel: Notes List */
+.notes-list-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+}
+
+.notes-list-area label {
+    font-size: 14px;
+    color: #888;
+}
+
+.notes-display {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-content: flex-start;
+    overflow-y: auto;
+    min-height: 400px;
+}
+
+/* Note Chips */
+.note-chip-wrapper {
+    position: relative;
+    cursor: pointer;
+}
+
+.note-chip {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 44px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: 500;
+    color: #eee;
+    transition: all 0.15s;
+    user-select: none;
+    line-height: 1;
+}
+
+.note-chip small {
+    font-size: 10px;
+    color: #888;
+    margin-top: 2px;
+}
+
+/* Active/Selected States */
+.note-chip-wrapper.selected .note-chip {
+    background: rgba(33, 150, 243, 0.2);
+    border-color: #2196f3;
+    color: #fff;
+    transform: scale(1.1);
+    z-index: 2;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);
+}
+
+.note-chip.active {
+    /* Playing state */
+    background: #4caf50;
+    border-color: #4caf50;
+    color: white;
+}
+
+.note-chip.separator {
+    background: transparent;
+    border: none;
+    color: #666;
+    min-width: 10px;
+    font-size: 20px;
+}
+
+/* Pitch Colors */
+.note-chip.high {
+    color: #ffeb3b;
+}
+
+.note-chip.low {
+    color: #ff9800;
+}
+
+.note-chip.sharp {
+    color: #f48fb1;
+}
+
+.note-chip.flat {
+    color: #80deea;
+}
+
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .note-editor-area {
+        flex-direction: column;
+    }
+
+    .editor-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* Notes List Area Styles */
+.notes-list-area {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    padding: 12px;
+    flex: 1;
+    /* Take remaining space if in flex container */
+    min-width: 0;
+    /* Prevent overflow */
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #e0e0e0;
+}
+
+.controls-bar {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: flex-end;
+}

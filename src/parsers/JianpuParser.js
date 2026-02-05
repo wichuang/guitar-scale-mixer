@@ -1,26 +1,13 @@
-
 /**
- * @deprecated 此檔案已棄用，請改用 src/parsers/JianpuParser.js
- * This file is deprecated. Please use src/parsers/JianpuParser.js instead.
+ * JianpuParser - 簡譜解析器
+ * 實作 ParserInterface，提供簡譜的解析與轉換功能
  *
- * 為保持向後相容，此檔案會重新匯出新位置的所有函數。
- * For backward compatibility, this file re-exports all functions from the new location.
+ * 簡譜使用數字 1-7 表示音符，對應 Do Re Mi Fa Sol La Si
  */
 
-console.warn(
-    '[DEPRECATED] jianpuParser.js is deprecated. ' +
-    'Please update your imports to use src/parsers/JianpuParser.js instead.'
-);
-
-// 簡譜 (Jianpu) 解析器
-// 簡譜使用數字 1-7 表示音符，對應 Do Re Mi Fa Sol La Si
-
-import { NOTES, STRING_TUNINGS, SCALES } from './scaleData.js';
-
-/**
- * 簡譜數字轉換對照表 (預設 C 調)
- * 1=C, 2=D, 3=E, 4=F, 5=G, 6=A, 7=B
- */
+import { ParserInterface } from '../core/interfaces/ParserInterface.js';
+import { Note } from '../core/models/Note.js';
+import { NOTES, STRING_TUNINGS, SCALES } from '../data/scaleData.js';
 
 // Map UI Scale Types to SCALES keys
 export const SCALE_MAPPING = {
@@ -47,6 +34,68 @@ export const KEY_OFFSETS = {
     'A': 9, 'A#': 10, 'Bb': 10,
     'B': 11, 'Cb': 11,
 };
+
+/**
+ * JianpuParser 類別
+ * @extends ParserInterface
+ */
+export class JianpuParser extends ParserInterface {
+    get name() {
+        return 'JianpuParser';
+    }
+
+    get description() {
+        return '簡譜 (Jianpu) 解析器 - 數字記譜法';
+    }
+
+    /**
+     * 解析簡譜文字
+     * @param {string} text
+     * @param {Object} options
+     * @returns {Array<Note>}
+     */
+    parse(text, options = {}) {
+        return parseJianpuText(
+            text,
+            options.key || 'C',
+            options.scaleType || 'Major',
+            options.octaveOffset || 0
+        );
+    }
+
+    /**
+     * 將音符陣列轉換為簡譜文字
+     * @param {Array} notes
+     * @returns {string}
+     */
+    stringify(notes) {
+        return notesToJianpuString(notes);
+    }
+
+    /**
+     * 清理 OCR 識別結果
+     * @param {string} text
+     * @returns {string}
+     */
+    clean(text) {
+        return cleanJianpuText(text);
+    }
+
+    /**
+     * 驗證簡譜格式
+     * @param {string} text
+     * @returns {boolean}
+     */
+    validate(text) {
+        const cleaned = cleanJianpuText(text);
+        // Check if there are valid jianpu digits
+        return /[0-7]/.test(cleaned);
+    }
+}
+
+// ============================================
+// 向後相容的獨立函數（保留原有 API）
+// ============================================
 
 /**
  * 將簡譜數字轉換為音符名稱
@@ -229,6 +278,10 @@ export function notesToJianpuString(notes) {
     }).join(' ');
 }
 
+// ============================================
+// 3NPS 相關函數（重新匯出）
+// ============================================
+
 /**
  * 吉他把位定義
  */
@@ -296,16 +349,13 @@ export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', sca
     if (!map || map.length === 0) return notes.map(() => null);
 
     // --- Smart Octave Alignment ---
-    // User Input (Jianpu) usually defaults to Octave 4 (Middle C range).
-    // 3NPS Patterns on Low Strings are usually Octave 2 or 3.
-    // 1. Find the first valid note in user input
     const firstNote = notes.find(n => n && !n.isSeparator && n.midiNote);
 
     let octaveShift = 0;
 
     if (firstNote) {
         const inputMidi = firstNote.midiNote;
-        const mapStartMidi = map[0].midi; // The lowest note in the map (Root)
+        const mapStartMidi = map[0].midi;
 
         // Auto-align input to map
         const diff = mapStartMidi - inputMidi;
@@ -328,21 +378,19 @@ export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', sca
         // Apply shift
         const targetMidi = note.midiNote + octaveShift;
 
-        // 1. Try exact match in Map (using shifted midi)
-        // Note: The MAP is static. If User shifts OUT of the map, this match fails.
+        // 1. Try exact match in Map
         const match = map.find(m => m.midi === targetMidi);
         if (match) {
             return { string: match.string, fret: match.fret, midi: targetMidi };
         }
 
         // 2. Fallback: Find closest position for shifted midi
-        // This handles cases where user shifts HIGH/LOW out of the static map box.
         let bestPos = null;
         let minDist = 999;
 
         for (let s = 0; s < 6; s++) {
             const f = targetMidi - STRING_TUNINGS[s];
-            if (f >= 0 && f <= 24) { // Allow up to 24 frets
+            if (f >= 0 && f <= 24) {
                 const dist = Math.abs(f - targetCenterFret);
                 if (dist < minDist) {
                     minDist = dist;
@@ -396,7 +444,7 @@ export function generate3NPSMap(startStringIdx = 5, key = 'C', scaleType = 'Majo
 
     const intervals = scale.intervals;
 
-    // 1. Iterate through strings from bottom (StartString) UP to top (0) - Standard
+    // 1. Iterate through strings from bottom (StartString) UP to top (0)
     let scaleDegreeIndex = 0;
     for (let s = startStringIdx; s >= 0; s--) {
         const stringOpenMidi = STRING_TUNINGS[s];
@@ -421,31 +469,15 @@ export function generate3NPSMap(startStringIdx = 5, key = 'C', scaleType = 'Majo
         }
     }
 
-    // 2. Iterate through strings from StartString DOWN to Low E (5) - Lower Extension
-    scaleDegreeIndex = -1; // Start from previous note below root
+    // 2. Lower Extension
+    scaleDegreeIndex = -1;
     for (let s = startStringIdx + 1; s <= 5; s++) {
         const stringOpenMidi = STRING_TUNINGS[s];
 
-        // Generate 3 notes per string, but in reverse order (High to Low on the string)
-        // Wait, notes on a string increase fret-wise.
-        // If we go down the scale: Root -> 7th -> 6th -> 5th...
-        // The notes on string S+1 will be lower.
-        // Let's generate 3 notes descending, then Push them.
-        // Note: The loop order on string should physically be Low->High pitch (Left-Right fretboard).
-        // But we are traversing Scale degrees downwards.
-        // Scale degrees: -1 (7th), -2 (6th), -3 (5th).
-        // On the string, the order is -3, -2, -1.
-
         let stringNotes = [];
         for (let n = 0; n < 3; n++) {
-            // Calculate interval backwards
-            // loopDegree for -1 should be 6.
             const positiveIndex = ((scaleDegreeIndex % 7) + 7) % 7;
-            const octaves = Math.floor(scaleDegreeIndex / 7); // -1 -> -1 (Correct?) -> -1/7 = -0.14 -> floor -1.
-            // intervals: [0, 2, 4, 5, 7, 9, 11]
-            // Degree 0 = 0.
-            // Degree -1 (index 6) = 11.
-            // Midi = Root + 11 + (-1 * 12) = Root - 1. Correct (Major 7th below).
+            const octaves = Math.floor(scaleDegreeIndex / 7);
 
             const inte = intervals[positiveIndex];
             const targetMidi = rootOnStringMidi + inte + (octaves * 12);
@@ -461,11 +493,11 @@ export function generate3NPSMap(startStringIdx = 5, key = 'C', scaleType = 'Majo
             }
             scaleDegreeIndex--;
         }
-        // Since we generated High->Low pitched notes (Scale down), 
-        // stringNotes has [High, Mid, Low].
-        // We push them to map. Order doesn't matter for Map.
         map.push(...stringNotes);
     }
 
     return map;
 }
+
+// Default export: the parser class
+export default JianpuParser;
