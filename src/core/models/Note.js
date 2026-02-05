@@ -44,6 +44,10 @@ export class Note {
      * @param {number} props.index - 在樂譜中的位置索引
      * @param {string} props.duration - 時值（未來擴充）
      * @param {string} props.type - 類型: 'note', 'rest', 'extension', 'separator', 'symbol'
+     * @param {number} props.stringIndex - Tab: 弦索引 (0=高E, 5=低E)
+     * @param {number} props.fret - Tab: 琴格
+     * @param {string} props.technique - Tab: 演奏技巧 (hammer-on, pull-off, bend, etc.)
+     * @param {string} props.format - 來源格式 ('jianpu', 'staff', 'tab')
      */
     constructor(props = {}) {
         this.midi = props.midi ?? null;
@@ -54,6 +58,15 @@ export class Note {
         this.displayStr = props.displayStr ?? '';
         this.index = props.index ?? 0;
         this.duration = props.duration ?? 'quarter';
+
+        // Tab-related properties
+        this.stringIndex = props.stringIndex ?? null;
+        this.fret = props.fret ?? null;
+        this.technique = props.technique ?? null;
+        this.tabPosition = props.tabPosition ?? null;
+
+        // Format tracking
+        this.format = props.format ?? null;
 
         // Type flags
         this._type = props.type ?? 'note';
@@ -341,7 +354,13 @@ export class Note {
             displayStr: overrides.displayStr ?? this.displayStr,
             index: overrides.index ?? this.index,
             duration: overrides.duration ?? this.duration,
-            type: overrides.type ?? this._type
+            type: overrides.type ?? this._type,
+            // Tab properties
+            stringIndex: overrides.stringIndex ?? this.stringIndex,
+            fret: overrides.fret ?? this.fret,
+            technique: overrides.technique ?? this.technique,
+            tabPosition: overrides.tabPosition ?? this.tabPosition,
+            format: overrides.format ?? this.format
         });
     }
 }

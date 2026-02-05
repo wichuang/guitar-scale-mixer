@@ -1,0 +1,171 @@
+/**
+ * NotationSelector Styles
+ */
+
+/* Base Selector */
+.notation-selector {
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.notation-selector.horizontal {
+    flex-direction: row;
+}
+
+.notation-selector.vertical {
+    flex-direction: column;
+}
+
+/* Size Variants */
+.notation-selector.sm .notation-option {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.notation-selector.md .notation-option {
+    padding: 6px 12px;
+    font-size: 14px;
+}
+
+.notation-selector.lg .notation-option {
+    padding: 8px 16px;
+    font-size: 16px;
+}
+
+/* Option Button */
+.notation-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: #aaa;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.notation-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.notation-option.active {
+    background: #2196F3;
+    color: #fff;
+    border-color: #2196F3;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
+.notation-icon {
+    font-size: 1.1em;
+}
+
+.notation-label {
+    font-weight: 500;
+}
+
+/* Tabs Style */
+.notation-tabs {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+.notation-tabs .notation-selector {
+    background: transparent;
+    padding: 0;
+    gap: 8px;
+}
+
+.notation-tabs .notation-option {
+    padding: 8px 16px;
+    border-radius: 4px 4px 0 0;
+    border-bottom: 2px solid transparent;
+}
+
+.notation-tabs .notation-option.active {
+    background: transparent;
+    color: #2196F3;
+    border-color: transparent;
+    border-bottom-color: #2196F3;
+    box-shadow: none;
+}
+
+/* Dropdown Style */
+.notation-dropdown {
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    outline: none;
+    min-width: 120px;
+}
+
+.notation-dropdown:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.notation-dropdown:focus {
+    border-color: #2196F3;
+}
+
+.notation-dropdown option {
+    background: #333;
+    color: #fff;
+}
+
+/* Toggle Style */
+.notation-toggle {
+    display: inline-flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.notation-toggle .toggle-btn {
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s ease;
+}
+
+.notation-toggle .toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.notation-toggle .toggle-btn.active {
+    background: #2196F3;
+    color: #fff;
+}
+
+.notation-toggle .toggle-btn:not(:last-child) {
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .notation-selector.horizontal {
+        flex-wrap: wrap;
+    }
+
+    .notation-selector .notation-label {
+        display: none;
+    }
+
+    .notation-selector.sm .notation-option,
+    .notation-selector.md .notation-option {
+        padding: 6px 10px;
+    }
+}

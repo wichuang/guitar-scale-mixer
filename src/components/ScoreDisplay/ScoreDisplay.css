@@ -1,0 +1,77 @@
+/**
+ * ScoreDisplay Styles
+ */
+
+.score-display {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.score-display-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 8px;
+}
+
+.score-display-wrapper {
+    position: relative;
+}
+
+/* 簡譜視圖 */
+.jianpu-view {
+    user-select: none;
+}
+
+/* VexFlow 容器 */
+.staff-view,
+.tab-view {
+    position: relative;
+}
+
+/* 播放游標動畫 */
+.playhead-cursor {
+    animation: pulse-cursor 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-cursor {
+    from {
+        opacity: 1;
+        box-shadow: 0 0 8px rgba(255, 82, 82, 0.8);
+    }
+    to {
+        opacity: 0.8;
+        box-shadow: 0 0 16px rgba(255, 82, 82, 1);
+    }
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+    .score-display-wrapper {
+        padding: 12px;
+        min-height: 200px;
+    }
+
+    .score-display-header {
+        justify-content: center;
+    }
+}
+
+/* 滾動條樣式 */
+.score-display-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.score-display-wrapper::-webkit-scrollbar-track {
+    background: #222;
+    border-radius: 4px;
+}
+
+.score-display-wrapper::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+.score-display-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}

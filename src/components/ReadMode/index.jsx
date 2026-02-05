@@ -13,7 +13,7 @@ import { useAudio } from '../../hooks/useAudio.js';
 import { usePlayback } from '../../hooks/usePlayback.js';
 import { useAutosave } from '../../hooks/useAutosave.js';
 import ReadFretboard from '../ReadFretboard.jsx';
-import ScoreDisplay from '../ScoreDisplay.jsx';
+import ScoreDisplay from '../ScoreDisplay/index.jsx';
 import UploadPanel from './UploadPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import NoteEditor from './NoteEditor.jsx';

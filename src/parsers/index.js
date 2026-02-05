@@ -19,3 +19,17 @@ export {
     get3NPSInfo,
     generate3NPSMap
 } from './JianpuParser.js';
+
+export {
+    TabParser,
+    TUNINGS,
+    TECHNIQUES,
+    STRING_NAMES
+} from './TabParser.js';
+
+export {
+    StaffParser,
+    ABC_NOTES,
+    ABC_DURATIONS,
+    KEY_SIGNATURES
+} from './StaffParser.js';
