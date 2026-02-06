@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Test Tab Image</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #fff;
+            padding: 40px;
+        }
+        .tab-container {
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #ccc;
+            display: inline-block;
+        }
+        .tab-line {
+            font-size: 16px;
+            line-height: 1.8;
+            letter-spacing: 2px;
+        }
+        h3 {
+            font-family: Arial, sans-serif;
+            margin-bottom: 10px;
+        }
+        .instructions {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h3>C Major Scale - Test Tab</h3>
+    <div class="tab-container" id="tab">
+        <pre class="tab-line">e|----------------0-1-3-|
+B|--------------1-------|
+G|------------0---------|
+D|--------0-2-----------|
+A|----0-2---------------|
+E|-0-3------------------|</pre>
+    </div>
+
+    <div class="instructions">
+        <p><strong>使用方法：</strong></p>
+        <ol>
+            <li>在瀏覽器中開啟此檔案</li>
+            <li>對 Tab 譜區域截圖 (Mac: Cmd+Shift+4)</li>
+            <li>將截圖匯入到 Guitar Scale Mixer 的 Tab OCR 功能</li>
+        </ol>
+        <p>或者直接右鍵 → 另存圖片</p>
+    </div>
+
+    <script>
+        // 可以用 html2canvas 轉成圖片，但這裡簡化處理
+        console.log('Open this file in browser and take a screenshot of the tab area');
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import MusicXMLImporter from './MusicXMLImporter.jsx';
 import MIDIExporter from './MIDIExporter.jsx';
+import TabImageImporter from '../TabImageImporter.jsx';
 import { StaffParser } from '../../parsers/StaffParser.js';
 
 function ImportExportPanel({
@@ -18,6 +19,7 @@ function ImportExportPanel({
 }) {
     const [showPanel, setShowPanel] = useState(false);
     const [importError, setImportError] = useState(null);
+    const [importMode, setImportMode] = useState('file'); // 'file' | 'tab-ocr'
 
     const handleImport = (result) => {
         setImportError(null);
@@ -148,10 +150,54 @@ function ImportExportPanel({
             {/* 匯入區 */}
             <div style={{ marginBottom: '20px' }}>
                 <h4 style={{ color: '#aaa', marginBottom: '12px' }}>Import</h4>
-                <MusicXMLImporter
-                    onImport={handleImport}
-                    onError={handleImportError}
-                />
+
+                {/* 匯入模式切換 */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                    <button
+                        onClick={() => setImportMode('file')}
+                        style={{
+                            padding: '8px 16px',
+                            background: importMode === 'file' ? '#4caf50' : '#333',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        📄 檔案匯入
+                    </button>
+                    <button
+                        onClick={() => setImportMode('tab-ocr')}
+                        style={{
+                            padding: '8px 16px',
+                            background: importMode === 'tab-ocr' ? '#4caf50' : '#333',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        🎸 Tab 圖片 OCR
+                    </button>
+                </div>
+
+                {/* 檔案匯入 */}
+                {importMode === 'file' && (
+                    <MusicXMLImporter
+                        onImport={handleImport}
+                        onError={handleImportError}
+                    />
+                )}
+
+                {/* Tab 圖片 OCR */}
+                {importMode === 'tab-ocr' && (
+                    <TabImageImporter
+                        onImport={handleImport}
+                    />
+                )}
+
                 {importError && (
                     <div style={{ color: '#ff5252', marginTop: '8px', fontSize: '12px' }}>
                         {importError}
