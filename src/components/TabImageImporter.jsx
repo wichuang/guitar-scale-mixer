@@ -5,6 +5,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { recognizeTabImage } from '../ocr/TabOCR.js';
+import NotePreview from './NotePreview.jsx';
 
 function TabImageImporter({ onImport, onClose }) {
     const [imageFile, setImageFile] = useState(null);
@@ -316,6 +317,13 @@ function TabImageImporter({ onImport, onClose }) {
                             <div style={{ fontSize: '12px', color: '#888' }}>小節</div>
                         </div>
                     </div>
+
+                    {/* 音符預覽 */}
+                    {result.notes.filter(n => n.isNote).length > 0 && (
+                        <div style={{ marginBottom: '12px' }}>
+                            <NotePreview notes={result.notes} height={100} />
+                        </div>
+                    )}
 
                     {/* 原始 OCR 文字（可折疊） */}
                     <details style={{ marginTop: '12px' }}>

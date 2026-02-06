@@ -5,6 +5,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { recognizeStaffImage } from '../ocr/StaffOCR.js';
+import NotePreview from './NotePreview.jsx';
 
 function StaffImageImporter({ onImport, onClose }) {
     const [imageFile, setImageFile] = useState(null);
@@ -371,25 +372,9 @@ function StaffImageImporter({ onImport, onClose }) {
                     </div>
 
                     {/* 音符預覽 */}
-                    {result.notes.length > 0 && (
-                        <div style={{
-                            marginTop: '12px',
-                            padding: '8px',
-                            background: '#111',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            maxHeight: '80px',
-                            overflow: 'auto'
-                        }}>
-                            <div style={{ color: '#888', marginBottom: '4px' }}>音符序列：</div>
-                            <div style={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                                {result.notes
-                                    .filter(n => n.isNote)
-                                    .slice(0, 20)
-                                    .map(n => n.displayStr || n.noteName)
-                                    .join(' ')}
-                                {result.notes.filter(n => n.isNote).length > 20 && ' ...'}
-                            </div>
+                    {result.notes.filter(n => n.isNote).length > 0 && (
+                        <div style={{ marginTop: '12px' }}>
+                            <NotePreview notes={result.notes} height={100} />
                         </div>
                     )}
                 </div>
