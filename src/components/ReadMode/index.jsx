@@ -15,9 +15,11 @@ import { useAutosave } from '../../hooks/useAutosave.js';
 import { useKeyboardShortcuts, KeyboardShortcutsHelp, DEFAULT_SHORTCUTS } from '../../hooks/useKeyboardShortcuts.jsx';
 import { useLoopSection } from '../../hooks/useLoopSection.js';
 import { useMetronome } from '../../hooks/useMetronome.js';
+import { usePracticeTimer } from '../../hooks/usePracticeTimer.js';
 import ReadFretboard from '../ReadFretboard.jsx';
 import ScoreDisplay from '../ScoreDisplay/index.jsx';
 import PracticeTools from '../PracticeTools/index.jsx';
+import PracticeStats from '../PracticeStats/index.jsx';
 import UploadPanel from './UploadPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import NoteEditor from './NoteEditor.jsx';
@@ -55,6 +57,9 @@ function ReadMode({ guitarType, fretCount }) {
     // ===== Practice Tools 狀態 =====
     const [showPracticeTools, setShowPracticeTools] = useState(false);
     const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+    const [showPracticeStats, setShowPracticeStats] = useState(false);
+    const [showSessionSummary, setShowSessionSummary] = useState(false);
+    const [lastSession, setLastSession] = useState(null);
 
     // ===== Hooks =====
     const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(guitarType);
@@ -103,10 +108,52 @@ function ReadMode({ guitarType, fretCount }) {
         initialTimeSignature: timeSignature
     });
 
+    // Practice Timer Hook
+    const practiceTimer = usePracticeTimer({
+        onSessionEnd: (session) => {
+            setLastSession(session);
+            setShowSessionSummary(true);
+        }
+    });
+
+    // 播放開始時啟動練習計時
+    const handlePlayWithTracking = useCallback((startIndex = 0) => {
+        if (!practiceTimer.isActive) {
+            practiceTimer.startSession({
+                songName: 'Practice Session',
+                bpm: tempo,
+                key: key,
+                scaleType: scaleType
+            });
+        } else if (practiceTimer.isPaused) {
+            practiceTimer.resumeSession();
+        }
+        practiceTimer.updateBpm(tempo);
+        play(startIndex);
+    }, [practiceTimer, tempo, key, scaleType, play]);
+
+    // 停止時結束練習紀錄
+    const handleStopWithTracking = useCallback(() => {
+        stop();
+        if (practiceTimer.isActive && practiceTimer.elapsedTime > 10) {
+            // 只有練習超過 10 秒才儲存
+            practiceTimer.endSession();
+        } else if (practiceTimer.isActive) {
+            practiceTimer.cancelSession();
+        }
+    }, [stop, practiceTimer]);
+
     // Keyboard Shortcuts
     const shortcutHandlers = useMemo(() => ({
-        togglePlay: () => togglePlay(selectedNoteIndex),
-        stop: () => stop(),
+        togglePlay: () => {
+            if (isPlaying) {
+                pause();
+                practiceTimer.pauseSession();
+            } else {
+                handlePlayWithTracking(selectedNoteIndex >= 0 ? selectedNoteIndex : 0);
+            }
+        },
+        stop: () => handleStopWithTracking(),
         prevNote: () => setSelectedNoteIndex(prev => Math.max(0, prev - 1)),
         nextNote: () => setSelectedNoteIndex(prev => Math.min(notes.length - 1, prev + 1)),
         goToStart: () => setSelectedNoteIndex(0),
@@ -120,9 +167,9 @@ function ReadMode({ guitarType, fretCount }) {
         toggleLoop: () => loopSection.toggleLoop(),
         clearLoop: () => loopSection.clearLoop(),
         toggleMetronome: () => metronome.toggle(),
-        repeat: () => play(loopSection.hasValidLoop && loopSection.isLoopEnabled ? loopSection.loopStart : 0),
+        repeat: () => handlePlayWithTracking(loopSection.hasValidLoop && loopSection.isLoopEnabled ? loopSection.loopStart : 0),
         showHelp: () => setShowShortcutsHelp(prev => !prev)
-    }), [togglePlay, selectedNoteIndex, stop, notes.length, loopSection, metronome, play, currentNoteIndex]);
+    }), [isPlaying, pause, practiceTimer, handlePlayWithTracking, selectedNoteIndex, handleStopWithTracking, notes.length, loopSection, metronome, currentNoteIndex]);
 
     useKeyboardShortcuts(shortcutHandlers, { enabled: true });
 
@@ -289,11 +336,23 @@ function ReadMode({ guitarType, fretCount }) {
                 {notes.length > 0 && (
                     <div className="playback-controls" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         {!isPlaying ? (
-                            <button className="play-btn" onClick={() => play(selectedNoteIndex >= 0 ? selectedNoteIndex : 0)}>Play</button>
+                            <button className="play-btn" onClick={() => handlePlayWithTracking(selectedNoteIndex >= 0 ? selectedNoteIndex : 0)}>Play</button>
                         ) : (
-                            <button className="pause-btn" onClick={pause}>Pause</button>
+                            <button className="pause-btn" onClick={() => { pause(); practiceTimer.pauseSession(); }}>Pause</button>
                         )}
-                        <button className="stop-btn" onClick={stop}>Stop</button>
+                        <button className="stop-btn" onClick={handleStopWithTracking}>Stop</button>
+
+                        {/* 練習計時顯示 */}
+                        {practiceTimer.isActive && (
+                            <span style={{
+                                fontSize: '14px',
+                                color: practiceTimer.isPaused ? '#ff9800' : '#4caf50',
+                                fontFamily: 'monospace'
+                            }}>
+                                {practiceTimer.formattedTime}
+                                {practiceTimer.isPaused && ' (paused)'}
+                            </span>
+                        )}
 
                         {countInStatus && (
                             <span style={{
@@ -337,7 +396,14 @@ function ReadMode({ guitarType, fretCount }) {
                     onNotesChange={setNotes}
                     onTextChange={setEditableText}
                     onSelectedNoteChange={setSelectedNoteIndex}
-                    onTogglePlay={() => togglePlay(selectedNoteIndex)}
+                    onTogglePlay={() => {
+                        if (isPlaying) {
+                            pause();
+                            practiceTimer.pauseSession();
+                        } else {
+                            handlePlayWithTracking(selectedNoteIndex >= 0 ? selectedNoteIndex : 0);
+                        }
+                    }}
                     playNote={playNote}
                 />
             )}
@@ -371,7 +437,7 @@ function ReadMode({ guitarType, fretCount }) {
             )}
 
             {/* Practice Tools */}
-            <div style={{ padding: '0 20px 20px 20px' }}>
+            <div style={{ padding: '0 20px 20px 20px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 <PracticeTools
                     tempo={tempo}
                     timeSignature={timeSignature}
@@ -380,6 +446,13 @@ function ReadMode({ guitarType, fretCount }) {
                     onTimeSignatureChange={setTimeSignature}
                     isExpanded={showPracticeTools}
                     onToggleExpand={() => setShowPracticeTools(prev => !prev)}
+                />
+                <PracticeStats
+                    showSessionSummary={showSessionSummary}
+                    lastSession={lastSession}
+                    onSessionSummaryClose={() => setShowSessionSummary(false)}
+                    isExpanded={showPracticeStats}
+                    onToggleExpand={() => setShowPracticeStats(prev => !prev)}
                 />
             </div>
 
