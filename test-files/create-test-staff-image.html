@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Test Staff Image</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #fff;
+            padding: 40px;
+        }
+        .staff-container {
+            background: #fff;
+            padding: 30px;
+            border: 1px solid #ccc;
+            display: inline-block;
+        }
+        .staff {
+            position: relative;
+            width: 500px;
+            height: 80px;
+            margin: 20px 0;
+        }
+        .staff-lines {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        .staff-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: #000;
+        }
+        .staff-line:nth-child(1) { top: 0; }
+        .staff-line:nth-child(2) { top: 16px; }
+        .staff-line:nth-child(3) { top: 32px; }
+        .staff-line:nth-child(4) { top: 48px; }
+        .staff-line:nth-child(5) { top: 64px; }
+
+        .clef {
+            position: absolute;
+            left: 10px;
+            top: -10px;
+            font-size: 60px;
+            line-height: 1;
+        }
+
+        .note {
+            position: absolute;
+            width: 14px;
+            height: 10px;
+            background: #000;
+            border-radius: 50%;
+            transform: rotate(-20deg);
+        }
+
+        .note-stem {
+            position: absolute;
+            width: 2px;
+            height: 35px;
+            background: #000;
+            right: 0;
+            top: -30px;
+        }
+
+        .barline {
+            position: absolute;
+            width: 2px;
+            height: 64px;
+            background: #000;
+            top: 0;
+        }
+
+        h3 {
+            margin-bottom: 10px;
+        }
+        .instructions {
+            margin-top: 30px;
+            padding: 15px;
+            background: #f0f0f0;
+            font-size: 14px;
+            max-width: 500px;
+        }
+    </style>
+</head>
+<body>
+    <h3>C Major Scale - Test Staff (五線譜)</h3>
+
+    <div class="staff-container" id="staff">
+        <div class="staff">
+            <!-- 五條線 -->
+            <div class="staff-lines">
+                <div class="staff-line"></div>
+                <div class="staff-line"></div>
+                <div class="staff-line"></div>
+                <div class="staff-line"></div>
+                <div class="staff-line"></div>
+            </div>
+
+            <!-- 高音譜號 (用 Unicode 符號) -->
+            <div class="clef">𝄞</div>
+
+            <!-- 小節線 -->
+            <div class="barline" style="left: 60px;"></div>
+
+            <!-- C4 (下加一線) -->
+            <div class="note" style="left: 80px; top: 72px;">
+                <div class="note-stem"></div>
+            </div>
+
+            <!-- D4 (下加一間) -->
+            <div class="note" style="left: 120px; top: 64px;">
+                <div class="note-stem"></div>
+            </div>
+
+            <!-- E4 (第一線) -->
+            <div class="note" style="left: 160px; top: 56px;">
+                <div class="note-stem"></div>
+            </div>
+
+            <!-- F4 (第一間) -->
+            <div class="note" style="left: 200px; top: 48px;">
+                <div class="note-stem"></div>
+            </div>
+
+            <!-- G4 (第二線) -->
+            <div class="note" style="left: 240px; top: 40px;">
+                <div class="note-stem"></div>
+            </div>
+
+            <!-- A4 (第二間) -->
+            <div class="note" style="left: 280px; top: 32px;">
+                <div class="note-stem"></div>
+            </div>
+
+            <!-- B4 (第三線) -->
+            <div class="note" style="left: 320px; top: 24px;">
+                <div class="note-stem"></div>
+            </div>
+
+            <!-- C5 (第三間) -->
+            <div class="note" style="left: 360px; top: 16px;">
+                <div class="note-stem"></div>
+            </div>
+
+            <!-- 結束小節線 -->
+            <div class="barline" style="left: 420px;"></div>
+            <div class="barline" style="left: 425px; width: 4px;"></div>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <p><strong>使用方法：</strong></p>
+        <ol>
+            <li>在瀏覽器中開啟此檔案</li>
+            <li>對五線譜區域截圖 (Mac: Cmd+Shift+4)</li>
+            <li>將截圖匯入到 Guitar Scale Mixer 的五線譜 OMR 功能</li>
+        </ol>
+        <p><strong>注意事項：</strong></p>
+        <ul>
+            <li>這是一個簡化的測試譜，用於驗證 OMR 基本功能</li>
+            <li>真實樂譜的識別效果可能因圖片品質而異</li>
+            <li>建議使用高對比度、清晰的印刷譜圖片</li>
+        </ul>
+    </div>
+
+    <script>
+        console.log('Open this file in browser and take a screenshot of the staff area');
+    </script>
+</body>
+</html>

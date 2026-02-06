@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import MusicXMLImporter from './MusicXMLImporter.jsx';
 import MIDIExporter from './MIDIExporter.jsx';
 import TabImageImporter from '../TabImageImporter.jsx';
+import StaffImageImporter from '../StaffImageImporter.jsx';
 import { StaffParser } from '../../parsers/StaffParser.js';
 
 function ImportExportPanel({
@@ -19,7 +20,7 @@ function ImportExportPanel({
 }) {
     const [showPanel, setShowPanel] = useState(false);
     const [importError, setImportError] = useState(null);
-    const [importMode, setImportMode] = useState('file'); // 'file' | 'tab-ocr'
+    const [importMode, setImportMode] = useState('file'); // 'file' | 'tab-ocr' | 'staff-ocr'
 
     const handleImport = (result) => {
         setImportError(null);
@@ -181,6 +182,20 @@ function ImportExportPanel({
                     >
                         🎸 Tab 圖片 OCR
                     </button>
+                    <button
+                        onClick={() => setImportMode('staff-ocr')}
+                        style={{
+                            padding: '8px 16px',
+                            background: importMode === 'staff-ocr' ? '#2196F3' : '#333',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        🎼 五線譜 OMR
+                    </button>
                 </div>
 
                 {/* 檔案匯入 */}
@@ -194,6 +209,13 @@ function ImportExportPanel({
                 {/* Tab 圖片 OCR */}
                 {importMode === 'tab-ocr' && (
                     <TabImageImporter
+                        onImport={handleImport}
+                    />
+                )}
+
+                {/* 五線譜 OMR */}
+                {importMode === 'staff-ocr' && (
+                    <StaffImageImporter
                         onImport={handleImport}
                     />
                 )}
