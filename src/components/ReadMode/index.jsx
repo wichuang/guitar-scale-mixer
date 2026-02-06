@@ -12,8 +12,12 @@ import {
 import { useAudio } from '../../hooks/useAudio.js';
 import { usePlayback } from '../../hooks/usePlayback.js';
 import { useAutosave } from '../../hooks/useAutosave.js';
+import { useKeyboardShortcuts, KeyboardShortcutsHelp, DEFAULT_SHORTCUTS } from '../../hooks/useKeyboardShortcuts.jsx';
+import { useLoopSection } from '../../hooks/useLoopSection.js';
+import { useMetronome } from '../../hooks/useMetronome.js';
 import ReadFretboard from '../ReadFretboard.jsx';
 import ScoreDisplay from '../ScoreDisplay/index.jsx';
+import PracticeTools from '../PracticeTools/index.jsx';
 import UploadPanel from './UploadPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import NoteEditor from './NoteEditor.jsx';
@@ -48,6 +52,10 @@ function ReadMode({ guitarType, fretCount }) {
     const [showYoutube, setShowYoutube] = useState(false);
     const [youtubeLayout, setYoutubeLayout] = useState({ x: 50, y: 50, width: 320, height: 180 });
 
+    // ===== Practice Tools 狀態 =====
+    const [showPracticeTools, setShowPracticeTools] = useState(false);
+    const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
     // ===== Hooks =====
     const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(guitarType);
     const { debouncedSave, load } = useAutosave({ key: AUTOSAVE_KEY });
@@ -81,6 +89,42 @@ function ReadMode({ guitarType, fretCount }) {
         audioLoading,
         resumeAudio
     });
+
+    // Loop Section Hook
+    const loopSection = useLoopSection({
+        totalNotes: notes.length,
+        onLoopStart: () => console.log('Loop started'),
+        onLoopEnd: () => console.log('Loop ended')
+    });
+
+    // Metronome Hook
+    const metronome = useMetronome({
+        initialBpm: tempo,
+        initialTimeSignature: timeSignature
+    });
+
+    // Keyboard Shortcuts
+    const shortcutHandlers = useMemo(() => ({
+        togglePlay: () => togglePlay(selectedNoteIndex),
+        stop: () => stop(),
+        prevNote: () => setSelectedNoteIndex(prev => Math.max(0, prev - 1)),
+        nextNote: () => setSelectedNoteIndex(prev => Math.min(notes.length - 1, prev + 1)),
+        goToStart: () => setSelectedNoteIndex(0),
+        goToEnd: () => setSelectedNoteIndex(notes.length - 1),
+        tempoUp: () => setTempo(prev => Math.min(240, prev + 1)),
+        tempoDown: () => setTempo(prev => Math.max(40, prev - 1)),
+        tempoUp5: () => setTempo(prev => Math.min(240, prev + 5)),
+        tempoDown5: () => setTempo(prev => Math.max(40, prev - 5)),
+        setLoopStart: () => loopSection.setStart(selectedNoteIndex >= 0 ? selectedNoteIndex : currentNoteIndex),
+        setLoopEnd: () => loopSection.setEnd(selectedNoteIndex >= 0 ? selectedNoteIndex : currentNoteIndex),
+        toggleLoop: () => loopSection.toggleLoop(),
+        clearLoop: () => loopSection.clearLoop(),
+        toggleMetronome: () => metronome.toggle(),
+        repeat: () => play(loopSection.hasValidLoop && loopSection.isLoopEnabled ? loopSection.loopStart : 0),
+        showHelp: () => setShowShortcutsHelp(prev => !prev)
+    }), [togglePlay, selectedNoteIndex, stop, notes.length, loopSection, metronome, play, currentNoteIndex]);
+
+    useKeyboardShortcuts(shortcutHandlers, { enabled: true });
 
     // ===== 載入自動儲存 =====
     useEffect(() => {
@@ -326,6 +370,19 @@ function ReadMode({ guitarType, fretCount }) {
                 </div>
             )}
 
+            {/* Practice Tools */}
+            <div style={{ padding: '0 20px 20px 20px' }}>
+                <PracticeTools
+                    tempo={tempo}
+                    timeSignature={timeSignature}
+                    totalNotes={notes.length}
+                    onTempoChange={setTempo}
+                    onTimeSignatureChange={setTimeSignature}
+                    isExpanded={showPracticeTools}
+                    onToggleExpand={() => setShowPracticeTools(prev => !prev)}
+                />
+            </div>
+
             {/* 儲存/載入按鈕 */}
             <FileActions
                 editableText={editableText}
@@ -341,6 +398,14 @@ function ReadMode({ guitarType, fretCount }) {
                 viewMode={viewMode}
                 onLoadFile={handleLoadFile}
             />
+
+            {/* Keyboard Shortcuts Help */}
+            {showShortcutsHelp && (
+                <KeyboardShortcutsHelp
+                    shortcuts={DEFAULT_SHORTCUTS}
+                    onClose={() => setShowShortcutsHelp(false)}
+                />
+            )}
         </div>
     );
 }
