@@ -1,6 +1,6 @@
 /**
  * OCR Module - 光學識別模組
- * 統一匯出 Tab OCR 和 Staff OMR 功能
+ * 統一匯出 Tab OCR、Staff OMR、Jianpu OCR、Combined OCR、Header OCR 和 SystemDetector
  */
 
 // Tab OCR
@@ -17,6 +17,34 @@ export {
     recognizeStaffImage
 } from './StaffOCR.js';
 
+// Jianpu OCR
+export {
+    JianpuOCR,
+    createJianpuOCR,
+    recognizeJianpuImage
+} from './JianpuOCR.js';
+
+// Header OCR (Phase 6A)
+export {
+    HeaderOCR,
+    createHeaderOCR,
+    recognizeHeader
+} from './HeaderOCR.js';
+
+// System Detector (Phase 6B)
+export {
+    SystemDetector,
+    SystemType,
+    createSystemDetector
+} from './SystemDetector.js';
+
+// Combined Staff+Tab OCR (Phase 6C)
+export {
+    CombinedSheetOCR,
+    createCombinedOCR,
+    recognizeCombinedImage
+} from './CombinedSheetOCR.js';
+
 // Image preprocessing utilities
 export {
     loadImageToCanvas,
@@ -24,6 +52,9 @@ export {
     binarize,
     adjustContrast,
     sharpen,
+    invertColors,
+    isDarkImage,
+    morphologicalOpen,
     detectHorizontalLines,
     findSixStringLines,
     preprocessTabImage
@@ -33,6 +64,7 @@ export {
 export {
     detectStaffLines,
     findStaffGroups,
+    findTabGroups,
     calculatePitchPosition,
     positionToMidi,
     removeStaffLines,
@@ -64,13 +96,15 @@ export {
  */
 export const OCRType = {
     TAB: 'tab',
-    STAFF: 'staff'
+    STAFF: 'staff',
+    JIANPU: 'jianpu',
+    COMBINED: 'combined',
 };
 
 /**
  * 根據類型創建 OCR 實例
- * @param {string} type - 'tab' | 'staff'
- * @returns {TabOCR|StaffOCR}
+ * @param {string} type - 'tab' | 'staff' | 'jianpu' | 'combined'
+ * @returns {TabOCR|StaffOCR|JianpuOCR|CombinedSheetOCR}
  */
 export function createOCR(type) {
     switch (type) {
@@ -78,6 +112,10 @@ export function createOCR(type) {
             return createTabOCR();
         case OCRType.STAFF:
             return createStaffOCR();
+        case OCRType.JIANPU:
+            return createJianpuOCR();
+        case OCRType.COMBINED:
+            return createCombinedOCR();
         default:
             throw new Error(`Unknown OCR type: ${type}`);
     }
@@ -85,18 +123,48 @@ export function createOCR(type) {
 
 /**
  * 自動偵測圖片類型並識別
+ * Enhanced with SystemDetector for auto-detection and header OCR
  * @param {File|Blob|string} imageSource
  * @param {Function} onProgress
- * @returns {Promise<{type: string, notes: Array, confidence: number}>}
+ * @returns {Promise<{type: string, notes: Array, confidence: number, metadata?: Object}>}
  */
 export async function autoRecognize(imageSource, onProgress) {
-    // 嘗試兩種方式，選擇信心度較高的
+    // First, try Combined OCR (detects systems automatically)
+    try {
+        onProgress?.('Analyzing image structure...', 3);
+        const detector = new SystemDetector();
+        const detection = await detector.detectSystems(imageSource, () => {});
+
+        // If we find staff+tab or tab systems, use Combined OCR
+        if (detection.systems.length > 0) {
+            const hasStaffTab = detection.systems.some(s => s.type === SystemType.STAFF_TAB);
+            const hasTab = detection.systems.some(s => s.type === SystemType.TAB);
+
+            if (hasStaffTab || hasTab) {
+                onProgress?.('Using Combined Staff+Tab OCR...', 5);
+                const result = await recognizeCombinedImage(imageSource, (status, percent) => {
+                    onProgress?.(status, 5 + percent * 0.6);
+                });
+                if (result.notes.length > 0) {
+                    onProgress?.('Complete', 100);
+                    return {
+                        type: OCRType.COMBINED,
+                        ...result
+                    };
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Combined OCR auto-detect failed:', e);
+    }
+
+    // Fallback: try each OCR type
     const results = [];
 
     try {
-        onProgress?.('Trying Tab OCR...', 10);
+        onProgress?.('Trying Tab OCR...', 5);
         const tabResult = await recognizeTabImage(imageSource, (status, percent) => {
-            onProgress?.(status, 10 + percent * 0.4);
+            onProgress?.(status, 5 + percent * 0.3);
         });
         if (tabResult.notes.length > 0) {
             results.push({
@@ -109,9 +177,9 @@ export async function autoRecognize(imageSource, onProgress) {
     }
 
     try {
-        onProgress?.('Trying Staff OMR...', 50);
+        onProgress?.('Trying Staff OMR...', 35);
         const staffResult = await recognizeStaffImage(imageSource, (status, percent) => {
-            onProgress?.(status, 50 + percent * 0.4);
+            onProgress?.(status, 35 + percent * 0.3);
         });
         if (staffResult.notes.length > 0) {
             results.push({
@@ -121,6 +189,21 @@ export async function autoRecognize(imageSource, onProgress) {
         }
     } catch (e) {
         console.warn('Staff OMR failed:', e);
+    }
+
+    try {
+        onProgress?.('Trying Jianpu OCR...', 65);
+        const jianpuResult = await recognizeJianpuImage(imageSource, (status, percent) => {
+            onProgress?.(status, 65 + percent * 0.3);
+        });
+        if (jianpuResult.notes.length > 0) {
+            results.push({
+                type: OCRType.JIANPU,
+                ...jianpuResult
+            });
+        }
+    } catch (e) {
+        console.warn('Jianpu OCR failed:', e);
     }
 
     onProgress?.('Complete', 100);
@@ -143,5 +226,8 @@ export default {
     createOCR,
     autoRecognize,
     recognizeTabImage,
-    recognizeStaffImage
+    recognizeStaffImage,
+    recognizeJianpuImage,
+    recognizeCombinedImage,
+    recognizeHeader,
 };

@@ -113,7 +113,7 @@ export function findConnectedComponents(imageData, width, height) {
  * 判斷區域是否為音符頭
  * @param {Object} component - 連通區域
  * @param {number} staffSpacing - 五線譜間距
- * @returns {{isNoteHead: boolean, type: string, confidence: number}}
+ * @returns {{isNoteHead: boolean, type: string, confidence: number, details: Object}}
  */
 export function classifyComponent(component, staffSpacing) {
     const { bounds, area } = component;
@@ -121,50 +121,91 @@ export function classifyComponent(component, staffSpacing) {
 
     // 音符頭的預期尺寸（基於五線譜間距）
     const expectedSize = staffSpacing * 0.8;
-    const minSize = expectedSize * 0.5;
-    const maxSize = expectedSize * 2.5;
+    const minSize = expectedSize * 0.4;  // 放寬最小尺寸
+    const maxSize = expectedSize * 3.0;  // 放寬最大尺寸
+
+    const details = {
+        aspectRatio,
+        fillRatio: 0,
+        circularity: 0,
+        ellipticity: 0,
+        compactness: 0
+    };
 
     // 檢查尺寸
     if (bounds.width < minSize || bounds.height < minSize) {
-        return { isNoteHead: false, type: 'too_small', confidence: 0 };
+        return { isNoteHead: false, type: 'too_small', confidence: 0, details };
     }
 
     if (bounds.width > maxSize || bounds.height > maxSize) {
-        return { isNoteHead: false, type: 'too_large', confidence: 0 };
+        return { isNoteHead: false, type: 'too_large', confidence: 0, details };
     }
 
-    // 音符頭通常是橢圓形，寬高比約 1.0-1.8
-    if (aspectRatio < 0.5 || aspectRatio > 2.5) {
-        return { isNoteHead: false, type: 'wrong_aspect', confidence: 0 };
+    // 音符頭通常是橢圓形，寬高比約 0.6-2.0
+    if (aspectRatio < 0.4 || aspectRatio > 2.5) {
+        return { isNoteHead: false, type: 'wrong_aspect', confidence: 0, details };
     }
 
     // 計算填充率（實際像素 / 邊界框面積）
     const boundingArea = bounds.width * bounds.height;
     const fillRatio = area / boundingArea;
+    details.fillRatio = fillRatio;
 
-    // 實心音符頭填充率高，空心音符頭填充率較低
+    // 計算圓形度
+    const circularity = calculateCircularity(component);
+    details.circularity = circularity;
+
+    // 計算橢圓度（音符頭通常是傾斜的橢圓）
+    const ellipticity = calculateEllipticity(component);
+    details.ellipticity = ellipticity;
+
+    // 計算緊湊度（周長與面積的關係）
+    const compactness = calculateCompactness(component);
+    details.compactness = compactness;
+
+    // 綜合評分
     let type = 'unknown';
     let confidence = 0;
 
-    if (fillRatio > 0.6) {
-        type = 'filled'; // 四分音符或更短
-        confidence = Math.min(fillRatio * 100, 95);
-    } else if (fillRatio > 0.3) {
-        type = 'hollow'; // 二分音符或全音符
-        confidence = fillRatio * 150;
+    // 實心音符頭：高填充率，高緊湊度
+    if (fillRatio > 0.55) {
+        type = 'filled';
+        // 結合多個因子計算信心度
+        confidence = (
+            fillRatio * 40 +
+            circularity * 30 +
+            ellipticity * 20 +
+            (1 - Math.abs(aspectRatio - 1.2) / 1.2) * 10
+        );
+    }
+    // 空心音符頭：中等填充率，有環形特徵
+    else if (fillRatio > 0.25 && fillRatio <= 0.55) {
+        type = 'hollow';
+        // 空心音符需要檢查環形特徵
+        const hasRing = detectRingShape(component);
+        if (hasRing) {
+            confidence = (
+                (1 - fillRatio) * 30 +  // 填充率低一點更好
+                circularity * 30 +
+                ellipticity * 25 +
+                15  // 環形加分
+            );
+        } else {
+            confidence = fillRatio * 80;
+        }
     } else {
-        return { isNoteHead: false, type: 'too_sparse', confidence: 0 };
+        return { isNoteHead: false, type: 'too_sparse', confidence: 0, details };
     }
 
-    // 額外檢查：圓形度
-    const circularity = calculateCircularity(component);
-    if (circularity < 0.4) {
-        return { isNoteHead: false, type: 'not_round', confidence: 0 };
+    // 圓形度過低的不是音符頭
+    if (circularity < 0.3) {
+        return { isNoteHead: false, type: 'not_round', confidence: 0, details };
     }
 
-    confidence = confidence * circularity;
+    // 信心度上限
+    confidence = Math.min(confidence, 95);
 
-    return { isNoteHead: true, type, confidence };
+    return { isNoteHead: true, type, confidence, details };
 }
 
 /**
@@ -174,10 +215,6 @@ export function classifyComponent(component, staffSpacing) {
  */
 function calculateCircularity(component) {
     const { bounds, area } = component;
-
-    // 使用等效圓的方式計算
-    const radius = Math.sqrt(area / Math.PI);
-    const expectedPerimeter = 2 * Math.PI * radius;
 
     // 估算周長（簡化：使用邊界框周長的一半）
     const estimatedPerimeter = Math.PI * (bounds.width + bounds.height) / 2;
@@ -189,6 +226,103 @@ function calculateCircularity(component) {
 }
 
 /**
+ * 計算橢圓度（基於主軸和次軸的比例）
+ * @param {Object} component
+ * @returns {number} 0-1, 橢圓越接近 1
+ */
+function calculateEllipticity(component) {
+    const { bounds, pixels } = component;
+
+    if (!pixels || pixels.length === 0) {
+        return 0.5; // 預設值
+    }
+
+    // 計算中心
+    const cx = component.centroid?.x || (bounds.x + bounds.width / 2);
+    const cy = component.centroid?.y || (bounds.y + bounds.height / 2);
+
+    // 計算二階矩（簡化版）
+    let sumXX = 0, sumYY = 0, sumXY = 0;
+    for (const p of pixels) {
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        sumXX += dx * dx;
+        sumYY += dy * dy;
+        sumXY += dx * dy;
+    }
+    sumXX /= pixels.length;
+    sumYY /= pixels.length;
+    sumXY /= pixels.length;
+
+    // 計算主軸方向（特徵值）
+    const trace = sumXX + sumYY;
+    const det = sumXX * sumYY - sumXY * sumXY;
+    const lambda1 = trace / 2 + Math.sqrt(trace * trace / 4 - det);
+    const lambda2 = trace / 2 - Math.sqrt(trace * trace / 4 - det);
+
+    if (lambda1 <= 0) return 0.5;
+
+    // 橢圓度 = 次軸/主軸
+    const ellipticity = Math.sqrt(lambda2 / lambda1);
+
+    // 音符頭的橢圓度通常在 0.5-0.9 之間
+    if (ellipticity >= 0.5 && ellipticity <= 0.95) {
+        return 1 - Math.abs(ellipticity - 0.7) / 0.4;  // 0.7 附近最佳
+    }
+    return ellipticity;
+}
+
+/**
+ * 計算緊湊度
+ * @param {Object} component
+ * @returns {number} 0-1
+ */
+function calculateCompactness(component) {
+    const { bounds, area } = component;
+
+    // 緊湊度 = 4 * π * A / P²
+    // 估算周長
+    const perimeter = 2 * (bounds.width + bounds.height);
+    const compactness = (4 * Math.PI * area) / (perimeter * perimeter);
+
+    return Math.min(compactness, 1);
+}
+
+/**
+ * 偵測環形特徵（用於空心音符）
+ * @param {Object} component
+ * @returns {boolean}
+ */
+function detectRingShape(component) {
+    const { bounds, pixels } = component;
+
+    if (!pixels || pixels.length === 0) return false;
+
+    const cx = component.centroid?.x || (bounds.x + bounds.width / 2);
+    const cy = component.centroid?.y || (bounds.y + bounds.height / 2);
+
+    // 計算像素到中心的距離分佈
+    const distances = pixels.map(p => {
+        const dx = p.x - cx;
+        const dy = p.y - cy;
+        return Math.sqrt(dx * dx + dy * dy);
+    });
+
+    const avgDist = distances.reduce((a, b) => a + b, 0) / distances.length;
+    const maxDist = Math.max(...distances);
+    const minDist = Math.min(...distances);
+
+    // 環形特徵：距離分佈相對集中
+    const distVariance = distances.reduce((sum, d) => sum + (d - avgDist) ** 2, 0) / distances.length;
+    const distStdDev = Math.sqrt(distVariance);
+    const cv = distStdDev / avgDist; // 變異係數
+
+    // 環形的 CV 應該較小（像素集中在環上）
+    // 並且最小距離不應該太接近 0（否則是實心）
+    return cv < 0.4 && minDist > maxDist * 0.3;
+}
+
+/**
  * 偵測升降記號
  * @param {Array} components - 所有連通區域
  * @param {Object} noteHead - 音符頭
@@ -197,10 +331,10 @@ function calculateCircularity(component) {
  */
 export function detectAccidental(components, noteHead, staffSpacing) {
     // 在音符頭左側尋找升降記號
-    const searchLeft = noteHead.centroid.x - staffSpacing * 2;
-    const searchRight = noteHead.centroid.x - staffSpacing * 0.3;
-    const searchTop = noteHead.centroid.y - staffSpacing;
-    const searchBottom = noteHead.centroid.y + staffSpacing;
+    const searchLeft = noteHead.centroid.x - staffSpacing * 2.5;
+    const searchRight = noteHead.centroid.x - staffSpacing * 0.2;
+    const searchTop = noteHead.centroid.y - staffSpacing * 1.5;
+    const searchBottom = noteHead.centroid.y + staffSpacing * 1.5;
 
     const candidates = components.filter(c =>
         c.centroid.x >= searchLeft &&
@@ -214,22 +348,267 @@ export function detectAccidental(components, noteHead, staffSpacing) {
         return { type: null, confidence: 0 };
     }
 
-    // 簡單分類（基於形狀特徵）
-    for (const candidate of candidates) {
-        const aspectRatio = candidate.bounds.width / candidate.bounds.height;
+    // 分析每個候選區域
+    const results = candidates.map(candidate => analyzeAccidentalCandidate(candidate, staffSpacing));
 
-        // 升記號 (#)：較高，寬高比 < 1
-        if (aspectRatio < 0.8 && candidate.bounds.height > staffSpacing) {
-            return { type: 'sharp', confidence: 60 };
-        }
+    // 選擇信心度最高的
+    results.sort((a, b) => b.confidence - a.confidence);
+    return results[0] || { type: null, confidence: 0 };
+}
 
-        // 降記號 (b)：高且窄
-        if (aspectRatio < 0.6 && candidate.bounds.height > staffSpacing * 1.2) {
-            return { type: 'flat', confidence: 60 };
-        }
+/**
+ * 分析升降記號候選區域
+ * @param {Object} candidate - 候選連通區域
+ * @param {number} staffSpacing
+ * @returns {{type: 'sharp'|'flat'|'natural'|null, confidence: number}}
+ */
+function analyzeAccidentalCandidate(candidate, staffSpacing) {
+    const { bounds, area, pixels } = candidate;
+    const aspectRatio = bounds.width / bounds.height;
+    const fillRatio = area / (bounds.width * bounds.height);
+
+    // 特徵分析
+    const features = {
+        aspectRatio,
+        fillRatio,
+        height: bounds.height / staffSpacing,
+        width: bounds.width / staffSpacing,
+        hasVerticalLines: false,
+        hasHorizontalLines: false,
+        hasCurve: false,
+        horizontalLineCount: 0,
+        verticalLineCount: 0
+    };
+
+    // 分析像素分佈（如果有像素資料）
+    if (pixels && pixels.length > 0) {
+        const lineAnalysis = analyzeLineStructure(pixels, bounds);
+        features.hasVerticalLines = lineAnalysis.verticalLines > 0;
+        features.hasHorizontalLines = lineAnalysis.horizontalLines > 0;
+        features.horizontalLineCount = lineAnalysis.horizontalLines;
+        features.verticalLineCount = lineAnalysis.verticalLines;
+        features.hasCurve = lineAnalysis.hasCurve;
+    }
+
+    // 升記號 (#) 特徵：
+    // - 較高（height > 1.5 * spacing）
+    // - 寬高比約 0.4-0.8
+    // - 有交叉的線條（2 條垂直 + 2 條水平）
+    // - 填充率較低（因為是線條構成）
+    const sharpScore = calculateSharpScore(features);
+
+    // 降記號 (♭) 特徵：
+    // - 高且窄
+    // - 上半部是垂直線
+    // - 下半部有圓弧
+    const flatScore = calculateFlatScore(features);
+
+    // 還原記號 (♮) 特徵：
+    // - 類似升記號但更窄
+    // - 兩條垂直線錯開
+    const naturalScore = calculateNaturalScore(features);
+
+    // 選擇最高分
+    if (sharpScore > flatScore && sharpScore > naturalScore && sharpScore > 30) {
+        return { type: 'sharp', confidence: sharpScore };
+    }
+    if (flatScore > sharpScore && flatScore > naturalScore && flatScore > 30) {
+        return { type: 'flat', confidence: flatScore };
+    }
+    if (naturalScore > 30) {
+        return { type: 'natural', confidence: naturalScore };
     }
 
     return { type: null, confidence: 0 };
+}
+
+/**
+ * 分析線條結構
+ */
+function analyzeLineStructure(pixels, bounds) {
+    const result = {
+        verticalLines: 0,
+        horizontalLines: 0,
+        hasCurve: false
+    };
+
+    // 建立像素圖
+    const grid = new Map();
+    for (const p of pixels) {
+        const key = `${p.x},${p.y}`;
+        grid.set(key, true);
+    }
+
+    // 檢測垂直線（沿 Y 軸連續的像素）
+    const verticalRuns = new Map();
+    for (const p of pixels) {
+        const x = p.x;
+        if (!verticalRuns.has(x)) {
+            verticalRuns.set(x, []);
+        }
+        verticalRuns.get(x).push(p.y);
+    }
+
+    for (const [, ys] of verticalRuns) {
+        ys.sort((a, b) => a - b);
+        let maxRun = 1, currentRun = 1;
+        for (let i = 1; i < ys.length; i++) {
+            if (ys[i] - ys[i - 1] <= 2) {
+                currentRun++;
+            } else {
+                maxRun = Math.max(maxRun, currentRun);
+                currentRun = 1;
+            }
+        }
+        maxRun = Math.max(maxRun, currentRun);
+        if (maxRun > bounds.height * 0.5) {
+            result.verticalLines++;
+        }
+    }
+
+    // 檢測水平線
+    const horizontalRuns = new Map();
+    for (const p of pixels) {
+        const y = p.y;
+        if (!horizontalRuns.has(y)) {
+            horizontalRuns.set(y, []);
+        }
+        horizontalRuns.get(y).push(p.x);
+    }
+
+    for (const [, xs] of horizontalRuns) {
+        xs.sort((a, b) => a - b);
+        let maxRun = 1, currentRun = 1;
+        for (let i = 1; i < xs.length; i++) {
+            if (xs[i] - xs[i - 1] <= 2) {
+                currentRun++;
+            } else {
+                maxRun = Math.max(maxRun, currentRun);
+                currentRun = 1;
+            }
+        }
+        maxRun = Math.max(maxRun, currentRun);
+        if (maxRun > bounds.width * 0.4) {
+            result.horizontalLines++;
+        }
+    }
+
+    // 檢測曲線（通過分析像素分佈的變化率）
+    const bottomHalf = pixels.filter(p => p.y > bounds.y + bounds.height / 2);
+    if (bottomHalf.length > 0) {
+        const xCoords = bottomHalf.map(p => p.x);
+        const minX = Math.min(...xCoords);
+        const maxX = Math.max(...xCoords);
+        if (maxX - minX > bounds.width * 0.3) {
+            result.hasCurve = true;
+        }
+    }
+
+    return result;
+}
+
+/**
+ * 計算升記號分數
+ */
+function calculateSharpScore(features) {
+    let score = 0;
+
+    // 高度特徵
+    if (features.height > 1.2 && features.height < 3.0) {
+        score += 25;
+    }
+
+    // 寬高比
+    if (features.aspectRatio > 0.3 && features.aspectRatio < 0.9) {
+        score += 20;
+    }
+
+    // 填充率（線條構成，較低）
+    if (features.fillRatio > 0.15 && features.fillRatio < 0.5) {
+        score += 15;
+    }
+
+    // 垂直線
+    if (features.verticalLineCount >= 2) {
+        score += 25;
+    } else if (features.verticalLineCount >= 1) {
+        score += 10;
+    }
+
+    // 水平線
+    if (features.horizontalLineCount >= 2) {
+        score += 15;
+    }
+
+    return Math.min(score, 95);
+}
+
+/**
+ * 計算降記號分數
+ */
+function calculateFlatScore(features) {
+    let score = 0;
+
+    // 高度特徵（較高）
+    if (features.height > 1.5 && features.height < 3.5) {
+        score += 25;
+    }
+
+    // 寬高比（窄）
+    if (features.aspectRatio > 0.3 && features.aspectRatio < 0.7) {
+        score += 20;
+    }
+
+    // 填充率
+    if (features.fillRatio > 0.25 && features.fillRatio < 0.6) {
+        score += 15;
+    }
+
+    // 垂直線（上半部）
+    if (features.verticalLineCount >= 1) {
+        score += 15;
+    }
+
+    // 曲線（下半部）
+    if (features.hasCurve) {
+        score += 20;
+    }
+
+    return Math.min(score, 95);
+}
+
+/**
+ * 計算還原記號分數
+ */
+function calculateNaturalScore(features) {
+    let score = 0;
+
+    // 高度特徵
+    if (features.height > 1.3 && features.height < 3.0) {
+        score += 20;
+    }
+
+    // 寬高比（比升記號更窄）
+    if (features.aspectRatio > 0.2 && features.aspectRatio < 0.6) {
+        score += 20;
+    }
+
+    // 填充率
+    if (features.fillRatio > 0.1 && features.fillRatio < 0.4) {
+        score += 15;
+    }
+
+    // 垂直線
+    if (features.verticalLineCount >= 2) {
+        score += 25;
+    }
+
+    // 少量水平線
+    if (features.horizontalLineCount >= 1 && features.horizontalLineCount <= 2) {
+        score += 15;
+    }
+
+    return Math.min(score, 90);
 }
 
 /**
@@ -242,7 +621,7 @@ export function detectAccidental(components, noteHead, staffSpacing) {
  * @returns {Array<{x, y, midi, position, type, accidental, confidence}>}
  */
 export function detectNotes(imageData, width, height, staffGroup, options = {}) {
-    const { clef = 'treble' } = options;
+    const { clef = 'treble', startNoteIndex = 0 } = options;
     const { lines, spacing } = staffGroup;
 
     // 1. 找出所有連通區域
@@ -332,7 +711,7 @@ export function detectNotes(imageData, width, height, staffGroup, options = {}) 
  */
 export function detectBarlines(imageData, width, height, staffGroup) {
     const data = imageData.data;
-    const { lines, top, bottom } = staffGroup;
+    const { top, bottom } = staffGroup;
     const staffHeight = bottom - top;
 
     const barlines = [];

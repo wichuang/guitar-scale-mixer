@@ -26,6 +26,11 @@ export class Score {
             octaveOffset: props.metadata?.octaveOffset ?? -1,
             createdAt: props.metadata?.createdAt ?? new Date().toISOString(),
             updatedAt: props.metadata?.updatedAt ?? new Date().toISOString(),
+            // Header metadata (from OCR)
+            title: props.metadata?.title ?? null,
+            capo: props.metadata?.capo ?? null,
+            composer: props.metadata?.composer ?? null,
+            lyricist: props.metadata?.lyricist ?? null,
             // YouTube 相關
             youtubeUrl: props.metadata?.youtubeUrl ?? '',
             showYoutube: props.metadata?.showYoutube ?? false,

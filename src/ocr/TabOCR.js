@@ -4,7 +4,7 @@
  */
 
 import Tesseract from 'tesseract.js';
-import { preprocessTabImage, loadImageToCanvas } from './imagePreprocess.js';
+import { preprocessTabImage } from './imagePreprocess.js';
 import { Note } from '../core/models/Note.js';
 
 // 標準調音 MIDI 值 (高 E 到低 E)
@@ -68,9 +68,18 @@ export class TabOCR {
      * 識別 Tab 圖片
      * @param {File|Blob|string} imageSource - 圖片來源
      * @param {ProgressCallback} onProgress - 進度回調
+     * @param {Object} options - 選項
+     * @param {Array<number>} options.tabLines - Pre-detected tab line Y-positions (6 lines)
+     * @param {number} options.startNoteIndex - Starting note index for multi-system
      * @returns {Promise<{notes: Array<Note>, rawText: string, confidence: number}>}
      */
-    async recognizeTabImage(imageSource, onProgress) {
+    async recognizeTabImage(imageSource, onProgress, options = {}) {
+        const {
+            useRegionBased = true,
+            tabLines = null,
+            startNoteIndex = 0,
+        } = options;
+
         // 1. 初始化
         await this.initialize(onProgress);
 
@@ -78,14 +87,29 @@ export class TabOCR {
         onProgress?.('Preprocessing image...', 25);
         const preprocessed = await preprocessTabImage(imageSource);
 
-        // 3. 執行 OCR
+        // Use pre-detected lines if provided, otherwise use detected ones
+        const stringLines = tabLines || preprocessed.stringLines;
+
+        // 3. 如果偵測到弦線且啟用區域辨識，使用區域式 OCR
+        if (useRegionBased && stringLines && stringLines.length === 6) {
+            onProgress?.('Using region-based OCR...', 30);
+            return await this.recognizeTabImageRegionBased(
+                preprocessed.canvas,
+                stringLines,
+                preprocessed.width,
+                onProgress,
+                startNoteIndex
+            );
+        }
+
+        // 4. 回退到傳統整頁 OCR
         onProgress?.('Running OCR...', 30);
         const { data } = await this.worker.recognize(preprocessed.canvas);
 
         onProgress?.('Parsing results...', 85);
 
-        // 4. 解析結果
-        const parseResult = this.parseOCRResult(data.text, preprocessed.stringLines);
+        // 5. 解析結果
+        const parseResult = this.parseOCRResult(data.text, startNoteIndex);
 
         onProgress?.('Complete', 100);
 
@@ -94,17 +118,219 @@ export class TabOCR {
             rawText: data.text,
             cleanedText: parseResult.cleanedText,
             confidence: data.confidence,
-            stringLines: preprocessed.stringLines
+            stringLines
         };
+    }
+
+    /**
+     * 區域式 Tab 辨識 - 根據弦線位置分區域 OCR
+     * @param {HTMLCanvasElement} canvas
+     * @param {Array<number>} stringLines - 6 條弦線的 Y 座標
+     * @param {number} width - 圖片寬度
+     * @param {ProgressCallback} onProgress
+     * @returns {Promise<{notes: Array<Note>, rawText: string, confidence: number}>}
+     */
+    async recognizeTabImageRegionBased(canvas, stringLines, width, onProgress, startNoteIndex = 0) {
+        const notes = [];
+        let noteIndex = startNoteIndex;
+        const recognizedCells = [];
+
+        // 計算弦線間距
+        const spacing = (stringLines[5] - stringLines[0]) / 5;
+        const cellHeight = spacing * 0.8; // 每個儲存格的高度
+        const cellWidth = spacing * 1.2; // 每個儲存格的寬度
+
+        // 決定要掃描的列數
+        const numColumns = Math.ceil(width / cellWidth);
+        const totalCells = numColumns * 6;
+        let processedCells = 0;
+
+        // 對每個儲存格進行 OCR
+        for (let col = 0; col < numColumns; col++) {
+            const x = col * cellWidth;
+            const columnResults = [];
+
+            for (let stringIdx = 0; stringIdx < 6; stringIdx++) {
+                const y = stringLines[stringIdx] - cellHeight / 2;
+
+                // OCR 單一儲存格
+                const result = await this.recognizeSingleCell(
+                    canvas, x, y, cellWidth, cellHeight
+                );
+
+                if (result.digit !== null) {
+                    columnResults.push({
+                        stringIdx,
+                        fret: result.digit,
+                        confidence: result.confidence
+                    });
+                }
+
+                // 記錄辨識結果
+                if (result.text) {
+                    recognizedCells.push({
+                        col, stringIdx,
+                        text: result.text,
+                        digit: result.digit,
+                        confidence: result.confidence
+                    });
+                }
+
+                processedCells++;
+                if (processedCells % 12 === 0) { // 每 12 個儲存格更新一次進度
+                    const progress = 30 + (processedCells / totalCells) * 50;
+                    onProgress?.(`Processing cell ${processedCells}/${totalCells}...`, progress);
+                }
+            }
+
+            // 如果這一列有辨識結果，轉換為音符
+            if (columnResults.length > 0) {
+                // 取信心度最高的結果
+                columnResults.sort((a, b) => b.confidence - a.confidence);
+                const best = columnResults[0];
+
+                const midiNote = STRING_TUNINGS[best.stringIdx] + best.fret;
+                const note = Note.fromMidi(midiNote, {
+                    index: noteIndex,
+                    stringIndex: best.stringIdx,
+                    fret: best.fret,
+                    confidence: best.confidence,
+                    sourceType: 'tab-ocr-region'
+                });
+                notes.push(note);
+                noteIndex++;
+            }
+        }
+
+        onProgress?.('Complete', 100);
+
+        // 計算平均信心度
+        const confidences = recognizedCells
+            .filter(c => c.digit !== null)
+            .map(c => c.confidence);
+        const avgConfidence = confidences.length > 0
+            ? confidences.reduce((a, b) => a + b, 0) / confidences.length
+            : 0;
+
+        // 組合成文字表示
+        const rawText = this.cellsToTabString(recognizedCells, numColumns);
+
+        return {
+            notes,
+            rawText,
+            cleanedText: rawText,
+            confidence: avgConfidence,
+            stringLines,
+            recognizedCells
+        };
+    }
+
+    /**
+     * 辨識單一儲存格
+     */
+    async recognizeSingleCell(canvas, x, y, width, height) {
+        // 確保座標在有效範圍內
+        x = Math.max(0, Math.min(x, canvas.width - width));
+        y = Math.max(0, Math.min(y, canvas.height - height));
+        width = Math.min(width, canvas.width - x);
+        height = Math.min(height, canvas.height - y);
+
+        if (width <= 0 || height <= 0) {
+            return { digit: null, confidence: 0, text: '' };
+        }
+
+        // 裁切區域
+        const regionCanvas = document.createElement('canvas');
+        regionCanvas.width = Math.max(1, Math.floor(width));
+        regionCanvas.height = Math.max(1, Math.floor(height));
+        const ctx = regionCanvas.getContext('2d');
+        ctx.drawImage(
+            canvas,
+            Math.floor(x), Math.floor(y),
+            Math.floor(width), Math.floor(height),
+            0, 0,
+            regionCanvas.width, regionCanvas.height
+        );
+
+        // 檢查區域是否有足夠的黑色像素（可能有數字）
+        const imageData = ctx.getImageData(0, 0, regionCanvas.width, regionCanvas.height);
+        const data = imageData.data;
+        let blackPixels = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] < 128) blackPixels++;
+        }
+        const blackRatio = blackPixels / (regionCanvas.width * regionCanvas.height);
+
+        // 如果黑色像素太少，跳過 OCR
+        if (blackRatio < 0.02 || blackRatio > 0.8) {
+            return { digit: null, confidence: 0, text: '' };
+        }
+
+        try {
+            // 使用 SINGLE_WORD 模式辨識單一儲存格
+            await this.worker.setParameters({
+                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_WORD,
+            });
+
+            const { data: result } = await this.worker.recognize(regionCanvas);
+
+            // 恢復預設參數
+            await this.worker.setParameters({
+                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+            });
+
+            // 解析結果
+            let text = result.text.trim()
+                .replace(/[oO]/g, '0')
+                .replace(/[lI]/g, '1')
+                .replace(/[zZ]/g, '2')
+                .replace(/[sS]/g, '5');
+
+            const match = text.match(/^(\d{1,2})$/);
+            if (match) {
+                const digit = parseInt(match[1], 10);
+                if (digit >= 0 && digit <= 24) {
+                    return {
+                        digit,
+                        confidence: result.confidence,
+                        text
+                    };
+                }
+            }
+
+            return { digit: null, confidence: result.confidence, text };
+        } catch {
+            return { digit: null, confidence: 0, text: '' };
+        }
+    }
+
+    /**
+     * 將儲存格結果轉換為 Tab 字串
+     */
+    cellsToTabString(cells, numColumns) {
+        const lines = Array(6).fill(null).map(() => []);
+
+        for (let col = 0; col < numColumns; col++) {
+            for (let stringIdx = 0; stringIdx < 6; stringIdx++) {
+                const cell = cells.find(c => c.col === col && c.stringIdx === stringIdx);
+                if (cell && cell.digit !== null) {
+                    lines[stringIdx].push(cell.digit.toString().padStart(2, '-'));
+                } else {
+                    lines[stringIdx].push('--');
+                }
+            }
+        }
+
+        const stringNames = ['e', 'B', 'G', 'D', 'A', 'E'];
+        return lines.map((line, idx) => `${stringNames[idx]}|${line.join('-')}|`).join('\n');
     }
 
     /**
      * 解析 OCR 結果文字
      * @param {string} text - OCR 識別的文字
-     * @param {Array<number>|null} stringLines - 弦線位置（如果有的話）
      * @returns {{notes: Array<Note>, cleanedText: string}}
      */
-    parseOCRResult(text, stringLines) {
+    parseOCRResult(text, startNoteIndex = 0) {
         // 清理文字
         let cleanedText = text
             .replace(/[oO]/g, '0')  // 常見誤識別
@@ -122,11 +348,11 @@ export class TabOCR {
         const tabLines = this.extractTabLines(lines);
 
         if (tabLines && tabLines.length === 6) {
-            return this.parseStandardTab(tabLines);
+            return this.parseStandardTab(tabLines, startNoteIndex);
         }
 
         // 如果不是標準格式，嘗試簡單解析數字
-        return this.parseSimpleNumbers(cleanedText);
+        return this.parseSimpleNumbers(cleanedText, startNoteIndex);
     }
 
     /**
@@ -168,13 +394,13 @@ export class TabOCR {
      * @param {Array<string>} tabLines - 6 行 Tab 文字
      * @returns {{notes: Array<Note>, cleanedText: string}}
      */
-    parseStandardTab(tabLines) {
+    parseStandardTab(tabLines, startNoteIndex = 0) {
         const notes = [];
-        let noteIndex = 0;
+        let noteIndex = startNoteIndex;
 
         // 移除弦名前綴，只保留數字部分
         const cleanLines = tabLines.map(line => {
-            return line.replace(/^[eBGDAE]\s*[\|:]?\s*/, '').replace(/\|/g, ' | ');
+            return line.replace(/^[eBGDAE]\s*[|:]?\s*/, '').replace(/[|]/g, ' | ');
         });
 
         // 找出最長的行長度
@@ -238,7 +464,7 @@ export class TabOCR {
      * @param {string} text
      * @returns {{notes: Array<Note>, cleanedText: string}}
      */
-    parseSimpleNumbers(text) {
+    parseSimpleNumbers(text, startNoteIndex = 0) {
         const notes = [];
         const numbers = text.match(/\d+/g) || [];
 

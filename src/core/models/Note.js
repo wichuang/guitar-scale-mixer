@@ -65,6 +65,9 @@ export class Note {
         this.technique = props.technique ?? null;
         this.tabPosition = props.tabPosition ?? null;
 
+        // Chord symbol (e.g. "Am", "B7", "Em")
+        this.chordSymbol = props.chordSymbol ?? null;
+
         // Format tracking
         this.format = props.format ?? null;
 
@@ -360,6 +363,7 @@ export class Note {
             fret: overrides.fret ?? this.fret,
             technique: overrides.technique ?? this.technique,
             tabPosition: overrides.tabPosition ?? this.tabPosition,
+            chordSymbol: overrides.chordSymbol ?? this.chordSymbol,
             format: overrides.format ?? this.format
         });
     }

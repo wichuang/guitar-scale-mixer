@@ -8,6 +8,8 @@ import MusicXMLImporter from './MusicXMLImporter.jsx';
 import MIDIExporter from './MIDIExporter.jsx';
 import TabImageImporter from '../TabImageImporter.jsx';
 import StaffImageImporter from '../StaffImageImporter.jsx';
+import JianpuImageImporter from '../JianpuImageImporter.jsx';
+import CombinedImageImporter from '../CombinedImageImporter.jsx';
 import { StaffParser } from '../../parsers/StaffParser.js';
 
 function ImportExportPanel({
@@ -20,7 +22,7 @@ function ImportExportPanel({
 }) {
     const [showPanel, setShowPanel] = useState(false);
     const [importError, setImportError] = useState(null);
-    const [importMode, setImportMode] = useState('file'); // 'file' | 'tab-ocr' | 'staff-ocr'
+    const [importMode, setImportMode] = useState('file'); // 'file' | 'tab-ocr' | 'staff-ocr' | 'jianpu-ocr' | 'combined-ocr'
 
     const handleImport = (result) => {
         setImportError(null);
@@ -196,6 +198,34 @@ function ImportExportPanel({
                     >
                         🎼 五線譜 OMR
                     </button>
+                    <button
+                        onClick={() => setImportMode('jianpu-ocr')}
+                        style={{
+                            padding: '8px 16px',
+                            background: importMode === 'jianpu-ocr' ? '#ff9800' : '#333',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        簡譜 OCR
+                    </button>
+                    <button
+                        onClick={() => setImportMode('combined-ocr')}
+                        style={{
+                            padding: '8px 16px',
+                            background: importMode === 'combined-ocr' ? '#9c27b0' : '#333',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
+                    >
+                        Staff+Tab OCR
+                    </button>
                 </div>
 
                 {/* 檔案匯入 */}
@@ -216,6 +246,20 @@ function ImportExportPanel({
                 {/* 五線譜 OMR */}
                 {importMode === 'staff-ocr' && (
                     <StaffImageImporter
+                        onImport={handleImport}
+                    />
+                )}
+
+                {/* 簡譜 OCR */}
+                {importMode === 'jianpu-ocr' && (
+                    <JianpuImageImporter
+                        onImport={handleImport}
+                    />
+                )}
+
+                {/* Combined Staff+Tab OCR */}
+                {importMode === 'combined-ocr' && (
+                    <CombinedImageImporter
                         onImport={handleImport}
                     />
                 )}

@@ -305,9 +305,48 @@ export async function preprocessStaffImage(source, options = {}) {
     };
 }
 
+/**
+ * Find 6-line tab groups from detected lines
+ * @param {Array} allLines
+ * @returns {Array<{lines: number[], spacing: number, top: number, bottom: number}>}
+ */
+export function findTabGroups(allLines) {
+    if (allLines.length < 6) return [];
+
+    const sortedLines = [...allLines].sort((a, b) => a.y - b.y);
+    const tabGroups = [];
+
+    for (let start = 0; start <= sortedLines.length - 6; start++) {
+        const candidate = sortedLines.slice(start, start + 6);
+        const gaps = [];
+
+        for (let i = 1; i < 6; i++) {
+            gaps.push(candidate[i].y - candidate[i - 1].y);
+        }
+
+        const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+        const variance = gaps.reduce((sum, g) => sum + Math.pow(g - avgGap, 2), 0) / gaps.length;
+        const stdDev = Math.sqrt(variance);
+
+        if (stdDev < avgGap * 0.2 && avgGap >= 5 && avgGap <= 60) {
+            tabGroups.push({
+                lines: candidate.map(l => l.y),
+                spacing: avgGap,
+                top: candidate[0].y,
+                bottom: candidate[5].y,
+                startIndex: start
+            });
+            start += 5;
+        }
+    }
+
+    return tabGroups;
+}
+
 export default {
     detectStaffLines,
     findStaffGroups,
+    findTabGroups,
     calculatePitchPosition,
     positionToMidi,
     removeStaffLines,

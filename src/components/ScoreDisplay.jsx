@@ -112,9 +112,9 @@ const ScoreDisplay = ({ notes, notePositions, timeSignature = '4/4', currentNote
 
         if (staveNotes.length === 0) return;
 
-        // Create Staves
+        // Create Staves - Shift down to make room for Jianpu
         const staveX = 10;
-        const staveY = 20;
+        const staveY = 70; // Was 20. Shifted down 50px for Jianpu.
         const staveWidth = Math.max(500, staveNotes.length * 50);
 
         const stave = new Stave(staveX, staveY, staveWidth);
@@ -149,7 +149,9 @@ const ScoreDisplay = ({ notes, notePositions, timeSignature = '4/4', currentNote
         const coords = notes.map((note, idx) => {
             const vfIndex = noteMapping[idx];
             if (vfIndex !== null && staveNotes[vfIndex]) {
-                return staveNotes[vfIndex].getAbsoluteX();
+                const noteX = staveNotes[vfIndex].getAbsoluteX();
+                // Check if valid number
+                return isNaN(noteX) ? null : noteX;
             }
             return null;
         });
@@ -167,6 +169,38 @@ const ScoreDisplay = ({ notes, notePositions, timeSignature = '4/4', currentNote
         }
     }, [currentNoteIndex, noteXCoordinates]);
 
+    // Helper to render Jianpu Dots
+    const renderDots = (count, position) => {
+        if (count === 0) return null;
+        const dots = [];
+        for (let i = 0; i < Math.abs(count); i++) {
+            dots.push(<div key={i} style={{ width: '4px', height: '4px', background: 'white', borderRadius: '50%', margin: '0 2px' }}></div>);
+        }
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', position: 'absolute', [position]: '-8px', width: '100%' }}>
+                {dots}
+            </div>
+        );
+    };
+
+    // Helper to render Underlines
+    const renderUnderlines = (duration) => {
+        let lines = 0;
+        if (duration.includes('8')) lines = 1;
+        if (duration.includes('16')) lines = 2;
+        if (duration.includes('32')) lines = 3;
+
+        if (lines === 0) return null;
+
+        return (
+            <div style={{ position: 'absolute', bottom: '-4px', left: '0', right: '0', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {Array.from({ length: lines }).map((_, i) => (
+                    <div key={i} style={{ height: '2px', background: 'white', width: '100%' }}></div>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <div
             ref={scrollContainerRef}
@@ -178,10 +212,69 @@ const ScoreDisplay = ({ notes, notePositions, timeSignature = '4/4', currentNote
                 borderRadius: '8px',
                 marginTop: '20px',
                 position: 'relative',
-                minHeight: '340px',
+                minHeight: '380px', // Increased height
                 border: '1px solid #333'
             }}
         >
+            {/* Chord Symbol Layer */}
+            <div className="chord-layer" style={{ height: '20px', position: 'relative', width: '100%' }}>
+                {notes.map((note, index) => {
+                    if (!note.chordSymbol) return null;
+                    const x = noteXCoordinates[index];
+                    if (x === null || x === undefined) return null;
+
+                    return (
+                        <div key={`chord-${index}`} style={{
+                            position: 'absolute',
+                            left: x - 15,
+                            top: '2px',
+                            color: '#4fc3f7',
+                            fontSize: '13px',
+                            fontWeight: 'bold',
+                            whiteSpace: 'nowrap',
+                        }}>
+                            {note.chordSymbol}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Jianpu Layer */}
+            <div className="jianpu-layer" style={{ height: '60px', position: 'relative', width: '100%' }}>
+                {notes.map((note, index) => {
+                    const x = noteXCoordinates[index];
+                    if (x === null || x === undefined) return null;
+
+                    let char = note.displayStr || note.jianpu || '?';
+                    if (note.isRest) char = '0';
+                    if (note.isSeparator) char = '|';
+
+                    const octDiff = (note.octave || 4) - 4;
+
+                    return (
+                        <div key={index} style={{
+                            position: 'absolute',
+                            left: x - 10,
+                            top: '20px',
+                            width: '20px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '18px',
+                            lineHeight: '1'
+                        }}>
+                            {octDiff > 0 && renderDots(octDiff, 'top')}
+                            <span>{char}</span>
+                            {octDiff < 0 && renderDots(octDiff, 'bottom')}
+
+                            {renderUnderlines(note.duration || 'q')}
+                        </div>
+                    );
+                })}
+            </div>
+
             {/* VexFlow Canvas - Inverted to show White on Dark */}
             <div
                 ref={containerRef}
@@ -194,10 +287,10 @@ const ScoreDisplay = ({ notes, notePositions, timeSignature = '4/4', currentNote
                 <div
                     style={{
                         position: 'absolute',
-                        top: 20,
+                        top: 20, // Adjusted top
                         left: noteXCoordinates[currentNoteIndex],
                         width: '2px',
-                        height: '280px',
+                        height: '340px', // Adjusted height
                         backgroundColor: '#ff5252', // Bright Red
                         boxShadow: '0 0 8px rgba(255, 82, 82, 0.8)',
                         zIndex: 10,

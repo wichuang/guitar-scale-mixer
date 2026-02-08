@@ -189,6 +189,86 @@ export function sharpen(ctx, width, height) {
 }
 
 /**
+ * Invert image colors (for dark-background images)
+ * @param {ImageData} imageData
+ * @returns {ImageData}
+ */
+export function invertColors(imageData) {
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+        data[i] = 255 - data[i];         // R
+        data[i + 1] = 255 - data[i + 1]; // G
+        data[i + 2] = 255 - data[i + 2]; // B
+        // Alpha unchanged
+    }
+    return imageData;
+}
+
+/**
+ * Detect if an image is dark (inverted) based on average brightness
+ * @param {ImageData} imageData
+ * @returns {boolean} true if the image is dark (mean brightness < 128)
+ */
+export function isDarkImage(imageData) {
+    const data = imageData.data;
+    let sum = 0;
+    const pixelCount = data.length / 4;
+    for (let i = 0; i < data.length; i += 4) {
+        sum += data[i]; // Already grayscale, R channel is sufficient
+    }
+    return (sum / pixelCount) < 128;
+}
+
+/**
+ * Apply morphological erosion to remove noise
+ * @param {ImageData} imageData
+ * @param {number} width
+ * @param {number} height
+ * @param {number} radius - kernel radius
+ * @returns {ImageData}
+ */
+export function morphologicalOpen(imageData, width, height, radius = 1) {
+    const data = imageData.data;
+    const temp = new Uint8ClampedArray(data);
+
+    // Erosion pass (shrink black regions, removing small noise)
+    for (let y = radius; y < height - radius; y++) {
+        for (let x = radius; x < width - radius; x++) {
+            const idx = (y * width + x) * 4;
+            let allBlack = true;
+            for (let dy = -radius; dy <= radius && allBlack; dy++) {
+                for (let dx = -radius; dx <= radius && allBlack; dx++) {
+                    const nIdx = ((y + dy) * width + (x + dx)) * 4;
+                    if (data[nIdx] >= 128) allBlack = false;
+                }
+            }
+            temp[idx] = temp[idx + 1] = temp[idx + 2] = allBlack ? 0 : 255;
+        }
+    }
+
+    // Dilation pass (restore original shapes)
+    const result = new Uint8ClampedArray(temp);
+    for (let y = radius; y < height - radius; y++) {
+        for (let x = radius; x < width - radius; x++) {
+            const idx = (y * width + x) * 4;
+            let anyBlack = false;
+            for (let dy = -radius; dy <= radius && !anyBlack; dy++) {
+                for (let dx = -radius; dx <= radius && !anyBlack; dx++) {
+                    const nIdx = ((y + dy) * width + (x + dx)) * 4;
+                    if (temp[nIdx] < 128) anyBlack = true;
+                }
+            }
+            result[idx] = result[idx + 1] = result[idx + 2] = anyBlack ? 0 : 255;
+        }
+    }
+
+    for (let i = 0; i < data.length; i++) {
+        data[i] = result[i];
+    }
+    return imageData;
+}
+
+/**
  * 限制數值範圍
  */
 function clamp(value) {
@@ -353,6 +433,9 @@ export default {
     binarize,
     adjustContrast,
     sharpen,
+    invertColors,
+    isDarkImage,
+    morphologicalOpen,
     detectHorizontalLines,
     findSixStringLines,
     preprocessTabImage
