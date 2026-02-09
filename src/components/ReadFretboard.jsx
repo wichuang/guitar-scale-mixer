@@ -5,7 +5,7 @@ import { STRING_TUNINGS, getNoteName, getNoteIndex, getIntervalForNote } from '.
 import { calculate3NPSPositions, get3NPSInfo, generate3NPSMap } from '../parsers/JianpuParser';
 import './ReadFretboard.css';
 
-function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startString = 5, onStartStringChange, rangeOctave = 0, onRangeOctaveChange, musicKey = 'C', scaleType = 'Major', showScaleGuide = false }) {
+function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startString = 5, onStartStringChange, rangeOctave = 0, onRangeOctaveChange, musicKey = 'C', scaleType = 'Major', showScaleGuide = false, toolbarExtra }) {
     // 1. Calculate Score Note Positions
     const notePositions = useMemo(() => {
         const positions = calculate3NPSPositions(notes, startString, musicKey, scaleType, rangeOctave);
@@ -88,7 +88,7 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                         <option value={-1}>Range: Low (-8ve)</option>
                     </select>
                 </div>
-                <span className="position-range">每弦 3 音 {showScaleGuide ? '(背景顯示全音階)' : ''}</span>
+                {toolbarExtra}
             </div>
 
             {/* 指板主體 */}

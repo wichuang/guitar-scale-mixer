@@ -319,6 +319,16 @@ function ReadMode({ guitarType, fretCount }) {
                     onNotesChange={setNotes}
                     onTextChange={setEditableText}
                     onRawTextChange={setRawText}
+                    onImportNotes={(result) => {
+                        if (result.notes) {
+                            setNotes(normalizeNotes(result.notes));
+                        }
+                        if (result.metadata) {
+                            if (result.metadata.key) setKey(result.metadata.key);
+                            if (result.metadata.tempo) setTempo(result.metadata.tempo);
+                            if (result.metadata.timeSignature) setTimeSignature(result.metadata.timeSignature);
+                        }
+                    }}
                 />
 
                 {/* 設定區 */}
@@ -357,40 +367,23 @@ function ReadMode({ guitarType, fretCount }) {
                     </div>
                 )}
 
-                {/* 播放控制 */}
-                {notes.length > 0 && (
-                    <div className="playback-controls" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {!isPlaying ? (
-                            <button className="play-btn" onClick={() => handlePlayWithTracking(selectedNoteIndex >= 0 ? selectedNoteIndex : 0)}>Play</button>
-                        ) : (
-                            <button className="pause-btn" onClick={() => { pause(); practiceTimer.pauseSession(); }}>Pause</button>
-                        )}
-                        <button className="stop-btn" onClick={handleStopWithTracking}>Stop</button>
-
-                        {/* 練習計時顯示 */}
-                        {practiceTimer.isActive && (
-                            <span style={{
-                                fontSize: '14px',
-                                color: practiceTimer.isPaused ? '#ff9800' : '#4caf50',
-                                fontFamily: 'monospace'
-                            }}>
-                                {practiceTimer.formattedTime}
-                                {practiceTimer.isPaused && ' (paused)'}
-                            </span>
-                        )}
-
-                        {countInStatus && (
-                            <span style={{
-                                fontSize: '20px',
-                                color: '#ff5252',
-                                fontWeight: 'bold',
-                                animation: 'pulse 0.5s infinite alternate'
-                            }}>
-                                {countInStatus}
-                            </span>
-                        )}
-                    </div>
-                )}
+                {/* 檔案操作 (Save/Open/Copy/Export) */}
+                <FileActions
+                    editableText={editableText}
+                    notes={notes}
+                    musicKey={key}
+                    scaleType={scaleType}
+                    tempo={tempo}
+                    timeSignature={timeSignature}
+                    startString={startString}
+                    octaveOffset={octaveOffset}
+                    youtubeUrl={youtubeUrl}
+                    showYoutube={showYoutube}
+                    youtubeLayout={youtubeLayout}
+                    viewMode={viewMode}
+                    onLoadFile={handleLoadFile}
+                    fileName="guitar_score"
+                />
             </div>
 
             {/* YouTube Player */}
@@ -446,6 +439,26 @@ function ReadMode({ guitarType, fretCount }) {
                 musicKey={key}
                 scaleType={scaleType}
                 showScaleGuide={showScaleGuide}
+                toolbarExtra={
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <PracticeTools
+                            tempo={tempo}
+                            timeSignature={timeSignature}
+                            totalNotes={notes.length}
+                            onTempoChange={setTempo}
+                            onTimeSignatureChange={setTimeSignature}
+                            isExpanded={showPracticeTools}
+                            onToggleExpand={() => setShowPracticeTools(prev => !prev)}
+                        />
+                        <PracticeStats
+                            showSessionSummary={showSessionSummary}
+                            lastSession={lastSession}
+                            onSessionSummaryClose={() => setShowSessionSummary(false)}
+                            isExpanded={showPracticeStats}
+                            onToggleExpand={() => setShowPracticeStats(prev => !prev)}
+                        />
+                    </div>
+                }
             />
 
             {/* Score Display */}
@@ -460,53 +473,6 @@ function ReadMode({ guitarType, fretCount }) {
                     />
                 </div>
             )}
-
-            {/* Practice Tools */}
-            <div style={{ padding: '0 20px 20px 20px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <PracticeTools
-                    tempo={tempo}
-                    timeSignature={timeSignature}
-                    totalNotes={notes.length}
-                    onTempoChange={setTempo}
-                    onTimeSignatureChange={setTimeSignature}
-                    isExpanded={showPracticeTools}
-                    onToggleExpand={() => setShowPracticeTools(prev => !prev)}
-                />
-                <PracticeStats
-                    showSessionSummary={showSessionSummary}
-                    lastSession={lastSession}
-                    onSessionSummaryClose={() => setShowSessionSummary(false)}
-                    isExpanded={showPracticeStats}
-                    onToggleExpand={() => setShowPracticeStats(prev => !prev)}
-                />
-            </div>
-
-            {/* 儲存/載入按鈕 */}
-            <FileActions
-                editableText={editableText}
-                notes={notes}
-                musicKey={key}
-                scaleType={scaleType}
-                tempo={tempo}
-                timeSignature={timeSignature}
-                startString={startString}
-                octaveOffset={octaveOffset}
-                youtubeUrl={youtubeUrl}
-                showYoutube={showYoutube}
-                youtubeLayout={youtubeLayout}
-                viewMode={viewMode}
-                onLoadFile={handleLoadFile}
-                onImportNotes={(result) => {
-                    if (result.notes) {
-                        setNotes(normalizeNotes(result.notes));
-                    }
-                    if (result.metadata) {
-                        if (result.metadata.key) setKey(result.metadata.key);
-                        if (result.metadata.tempo) setTempo(result.metadata.tempo);
-                        if (result.metadata.timeSignature) setTimeSignature(result.metadata.timeSignature);
-                    }
-                }}
-            />
 
             {/* Keyboard Shortcuts Help */}
             {showShortcutsHelp && (

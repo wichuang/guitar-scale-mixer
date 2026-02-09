@@ -1,10 +1,11 @@
 /**
  * FileActions - 檔案操作元件
- * 儲存、載入、複製功能
+ * 儲存、載入、複製、匯出功能
  */
 
 import React, { useRef, useState } from 'react';
-import ImportExportPanel from '../ImportExport/index.jsx';
+import { createMIDI } from '../ImportExport/MIDIExporter.jsx';
+import { StaffParser } from '../../parsers/StaffParser.js';
 
 function FileActions({
     editableText,
@@ -20,20 +21,9 @@ function FileActions({
     viewMode,
     timeSignature,
     onLoadFile,
-    onImportNotes
+    fileName = 'guitar_score'
 }) {
     const loadInputRef = useRef(null);
-    const [showImportExport, setShowImportExport] = useState(false);
-
-    /**
-     * 處理匯入結果
-     */
-    const handleImport = (result) => {
-        if (result && result.notes) {
-            onImportNotes?.(result);
-            setShowImportExport(false);
-        }
-    };
 
     /**
      * 儲存檔案
@@ -91,11 +81,11 @@ function FileActions({
 
         const now = new Date();
         const timeStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-        const fileName = `GuitarScore_${timeStr}.json`;
+        const fName = `GuitarScore_${timeStr}.json`;
 
         a.href = url;
-        a.download = fileName;
-        a.setAttribute('download', fileName);
+        a.download = fName;
+        a.setAttribute('download', fName);
         document.body.appendChild(a);
         a.click();
 
@@ -146,7 +136,7 @@ function FileActions({
 
         navigator.clipboard.writeText(jsonStr).then(() => {
             alert('樂譜資料已複製到剪貼簿！');
-        }).catch(err => {
+        }).catch(() => {
             const textArea = document.createElement("textarea");
             textArea.value = jsonStr;
             document.body.appendChild(textArea);
@@ -161,44 +151,199 @@ function FileActions({
         });
     };
 
+    /**
+     * 匯出為 ABC Notation
+     */
+    const handleExportABC = () => {
+        if (!notes || notes.length === 0) {
+            alert('沒有可匯出的音符');
+            return;
+        }
+
+        const parser = new StaffParser();
+        const abcText = parser.stringify(notes, {
+            title: fileName,
+            key: musicKey,
+            meter: timeSignature,
+            tempo
+        });
+
+        const blob = new Blob([abcText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${fileName}.abc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    /**
+     * 匯出為 JSON
+     */
+    const handleExportJSON = () => {
+        if (!notes || notes.length === 0) {
+            alert('沒有可匯出的音符');
+            return;
+        }
+
+        const data = {
+            name: fileName,
+            data: {
+                notes: notes.map(n => ({
+                    ...n,
+                    midiNote: n.midi || n.midiNote
+                })),
+                key: musicKey,
+                tempo,
+                timeSignature
+            }
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${fileName}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    /**
+     * 匯出為 MIDI
+     */
+    const [exporting, setExporting] = useState(false);
+    const handleExportMIDI = async () => {
+        if (!notes || notes.length === 0) {
+            alert('沒有可匯出的音符');
+            return;
+        }
+        setExporting(true);
+        try {
+            const midiData = createMIDI(notes, { tempo, timeSignature: timeSignature || '4/4' });
+            const blob = new Blob([midiData], { type: 'audio/midi' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${fileName}.mid`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('MIDI export error:', error);
+            alert('MIDI 匯出失敗');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const hasNotes = notes && notes.length > 0;
+
+    const actionBtnStyle = {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '10px 16px',
+        background: '#2a2a2a',
+        color: '#ccc',
+        border: '1px solid #444',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        fontSize: '11px',
+        minWidth: '60px',
+        transition: 'all 0.2s ease',
+    };
+
+    const exportBtnStyle = (color) => ({
+        padding: '8px 14px',
+        background: 'transparent',
+        color: color,
+        border: `1px solid ${color}`,
+        borderRadius: '6px',
+        cursor: hasNotes ? 'pointer' : 'default',
+        fontSize: '12px',
+        fontWeight: '500',
+        opacity: hasNotes ? 1 : 0.4,
+        transition: 'all 0.2s ease',
+    });
+
     return (
-        <div className="score-actions">
-            <button
-                className="score-btn save"
-                onClick={handleSaveFile}
-                title="儲存為 .json 檔案"
-            >
-                Save
-            </button>
-            <button
-                className="score-btn load"
-                onClick={() => loadInputRef.current?.click()}
-                title="開啟 .json 檔案"
-            >
-                Open
-            </button>
-            <button
-                className="score-btn copy"
-                style={{
-                    background: '#FF9800',
-                    color: 'white'
-                }}
-                onClick={handleCopyCurrentScore}
-                title="複製到剪貼簿"
-            >
-                Copy
-            </button>
-            <button
-                className="score-btn import-export"
-                style={{
-                    background: '#9c27b0',
-                    color: 'white'
-                }}
-                onClick={() => setShowImportExport(true)}
-                title="匯入 MusicXML/ABC/Tab 或匯出 MIDI/ABC"
-            >
-                Import/Export
-            </button>
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+            padding: '12px 0',
+            flexWrap: 'wrap'
+        }}>
+            {/* File actions group */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                    onClick={handleSaveFile}
+                    title="儲存為 .json 檔案"
+                    style={actionBtnStyle}
+                >
+                    <span style={{ fontSize: '20px' }}>💾</span>
+                    <span>Save</span>
+                </button>
+                <button
+                    onClick={() => loadInputRef.current?.click()}
+                    title="開啟 .json 檔案"
+                    style={actionBtnStyle}
+                >
+                    <span style={{ fontSize: '20px' }}>📂</span>
+                    <span>Open</span>
+                </button>
+                <button
+                    onClick={handleCopyCurrentScore}
+                    title="複製到剪貼簿"
+                    style={actionBtnStyle}
+                >
+                    <span style={{ fontSize: '20px' }}>📋</span>
+                    <span>Copy</span>
+                </button>
+            </div>
+
+            {/* Divider */}
+            <div style={{
+                width: '1px',
+                height: '40px',
+                background: '#444',
+            }} />
+
+            {/* Export group */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#888', fontSize: '12px', marginRight: '4px' }}>Export</span>
+                <button
+                    onClick={handleExportMIDI}
+                    disabled={!hasNotes || exporting}
+                    title="匯出 MIDI 檔案"
+                    style={exportBtnStyle('#4caf50')}
+                >
+                    MIDI
+                </button>
+                <button
+                    onClick={handleExportABC}
+                    disabled={!hasNotes}
+                    title="匯出 ABC Notation"
+                    style={exportBtnStyle('#42a5f5')}
+                >
+                    ABC
+                </button>
+                <button
+                    onClick={handleExportJSON}
+                    disabled={!hasNotes}
+                    title="匯出 JSON"
+                    style={exportBtnStyle('#ffa726')}
+                >
+                    JSON
+                </button>
+            </div>
+
             <input
                 ref={loadInputRef}
                 type="file"
@@ -206,35 +351,6 @@ function FileActions({
                 onChange={handleLoadFileChange}
                 hidden
             />
-
-            {/* Import/Export 面板 */}
-            {showImportExport && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0,0,0,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 999
-                }}
-                    onClick={() => setShowImportExport(false)}
-                >
-                    <div onClick={e => e.stopPropagation()}>
-                        <ImportExportPanel
-                            notes={notes}
-                            tempo={tempo}
-                            timeSignature={timeSignature || '4/4'}
-                            musicKey={musicKey}
-                            onImport={handleImport}
-                            fileName="guitar_score"
-                        />
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

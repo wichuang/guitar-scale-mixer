@@ -1,11 +1,15 @@
 /**
- * UploadPanel - 上傳區元件
- * 處理圖片上傳、拖放、OCR 辨識
+ * UploadPanel - 統一匯入面板
+ * 整合簡譜 OCR、Tab OCR、五線譜 OMR、Staff+Tab OCR、檔案匯入
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import Tesseract from 'tesseract.js';
 import { parseJianpuText, cleanJianpuText } from '../../parsers/JianpuParser.js';
+import TabImageImporter from '../TabImageImporter.jsx';
+import StaffImageImporter from '../StaffImageImporter.jsx';
+import CombinedImageImporter from '../CombinedImageImporter.jsx';
+import MusicXMLImporter from '../ImportExport/MusicXMLImporter.jsx';
 
 function UploadPanel({
     musicKey,
@@ -14,70 +18,89 @@ function UploadPanel({
     onImageChange,
     onNotesChange,
     onTextChange,
-    onRawTextChange
+    onRawTextChange,
+    onImportNotes
 }) {
+    const [importMode, setImportMode] = useState('jianpu');
     const [image, setImage] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [ocrProgress, setOcrProgress] = useState(0);
+    const [importError, setImportError] = useState(null);
     const fileInputRef = useRef(null);
+    const dropZoneRef = useRef(null);
+
+    const modes = [
+        { key: 'jianpu', label: '簡譜 OCR', color: '#ff9800' },
+        { key: 'tab-ocr', label: 'Tab OCR', color: '#4caf50' },
+        { key: 'staff-ocr', label: '五線譜 OMR', color: '#2196F3' },
+        { key: 'combined-ocr', label: 'Staff+Tab', color: '#9c27b0' },
+        { key: 'file', label: '檔案匯入', color: '#4caf50' },
+    ];
 
     /**
-     * 處理檔案上傳
+     * 處理 OCR importer 結果（非簡譜 tab）
      */
-    const handleFileChange = (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            processFile(file);
+    const handleImport = (result) => {
+        setImportError(null);
+        if (result && result.notes) {
+            onImportNotes?.(result);
         }
     };
 
-    /**
-     * 處理拖放
-     */
-    const handleDrop = (e) => {
-        e.preventDefault();
-        const file = e.dataTransfer.files?.[0];
-        if (file) {
-            processFile(file);
-        }
+    const handleImportError = (error) => {
+        setImportError(error);
     };
 
-    const handleDragOver = (e) => {
-        e.preventDefault();
-    };
+    // ===== Jianpu-specific handlers =====
 
-    /**
-     * 處理檔案
-     */
-    const processFile = (file) => {
+    const handleFileSelect = useCallback((file) => {
+        if (!file) return;
         if (!file.type.startsWith('image/')) {
-            alert('請上傳圖片檔案 (JPG, PNG)');
+            setImportError('請選擇圖片檔案');
             return;
         }
 
         setImage(file);
+        setImportError(null);
+
         const reader = new FileReader();
         reader.onload = (e) => {
             setImagePreview(e.target.result);
         };
         reader.readAsDataURL(file);
 
-        // 重置狀態
         onNotesChange([]);
         onRawTextChange('');
         onTextChange('');
         onImageChange?.(file);
-    };
+    }, [onNotesChange, onRawTextChange, onTextChange, onImageChange]);
 
-    /**
-     * OCR 辨識
-     */
-    const handleOCR = async () => {
+    const handleDrop = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZoneRef.current?.classList.remove('drag-over');
+        handleFileSelect(e.dataTransfer.files?.[0]);
+    }, [handleFileSelect]);
+
+    const handleDragOver = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZoneRef.current?.classList.add('drag-over');
+    }, []);
+
+    const handleDragLeave = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZoneRef.current?.classList.remove('drag-over');
+    }, []);
+
+    const handleOCR = useCallback(async () => {
         if (!image) return;
 
         setIsProcessing(true);
         setOcrProgress(0);
+        setImportError(null);
 
         try {
             const result = await Tesseract.recognize(image, 'chi_tra+eng', {
@@ -91,74 +114,260 @@ function UploadPanel({
             const text = result.data.text;
             onRawTextChange(text);
 
-            // 自動清理非簡譜字符
             const cleanedText = cleanJianpuText(text);
             onTextChange(cleanedText);
 
-            // 解析簡譜
             const parsedNotes = parseJianpuText(text, musicKey, scaleType, octaveOffset);
             onNotesChange(parsedNotes);
         } catch (error) {
             console.error('OCR 錯誤:', error);
-            alert('OCR 辨識失敗，請嘗試其他圖片');
+            setImportError('OCR 辨識失敗，請嘗試其他圖片');
         } finally {
             setIsProcessing(false);
-            setOcrProgress(100);
         }
-    };
+    }, [image, musicKey, scaleType, octaveOffset, onRawTextChange, onTextChange, onNotesChange]);
 
-    /**
-     * 手動輸入模式
-     */
     const handleManualInput = () => {
-        onRawTextChange(' '); // Enable text area
+        onRawTextChange(' ');
         onTextChange('');
         onNotesChange([]);
     };
 
+    const handleReset = useCallback(() => {
+        setImage(null);
+        setImagePreview(null);
+        setImportError(null);
+        setOcrProgress(0);
+    }, []);
+
     return (
         <div className="upload-section">
-            <div
-                className="upload-area"
-                onClick={() => fileInputRef.current?.click()}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-            >
-                {imagePreview ? (
-                    <img src={imagePreview} alt="樂譜預覽" className="preview-image" />
-                ) : (
-                    <div className="upload-placeholder">
-                        <span className="upload-icon">Image</span>
-                        <span>點擊或拖放簡譜圖片</span>
-                        <span className="upload-hint">支援 JPG, PNG</span>
-                    </div>
-                )}
-            </div>
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                hidden
-            />
-
-            <div className="upload-actions">
-                {imagePreview && (
+            {/* Import mode tabs */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                {modes.map(mode => (
                     <button
-                        className="ocr-btn"
-                        onClick={handleOCR}
-                        disabled={isProcessing}
+                        key={mode.key}
+                        onClick={() => { setImportMode(mode.key); setImportError(null); }}
+                        style={{
+                            padding: '6px 12px',
+                            background: importMode === mode.key ? mode.color : '#333',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                        }}
                     >
-                        {isProcessing ? `辨識中...${ocrProgress}%` : 'OCR'}
+                        {mode.label}
                     </button>
-                )}
-                <button
-                    className="manual-btn"
-                    onClick={handleManualInput}
-                >
-                    Manual
-                </button>
+                ))}
             </div>
+
+            {/* Jianpu OCR (default) - styled like TabImageImporter */}
+            {importMode === 'jianpu' && (
+                <div style={{
+                    background: '#1a1a1a',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    maxWidth: '600px',
+                    width: '100%',
+                    color: '#fff'
+                }}>
+                    <h3 style={{ margin: '0 0 20px 0' }}>
+                        簡譜圖片識別 (OCR)
+                    </h3>
+
+                    {/* 上傳區域 */}
+                    {!imagePreview && (
+                        <div
+                            ref={dropZoneRef}
+                            onClick={() => fileInputRef.current?.click()}
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            style={{
+                                border: '2px dashed #444',
+                                borderRadius: '8px',
+                                padding: '40px',
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            <div style={{ fontSize: '48px', marginBottom: '12px' }}>📷</div>
+                            <div style={{ fontSize: '16px', marginBottom: '8px' }}>
+                                點擊或拖放簡譜圖片
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#888' }}>
+                                支援 JPG, PNG, GIF 格式
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 圖片預覽 */}
+                    {imagePreview && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <div style={{
+                                position: 'relative',
+                                background: '#111',
+                                borderRadius: '8px',
+                                overflow: 'hidden'
+                            }}>
+                                <img
+                                    src={imagePreview}
+                                    alt="簡譜預覽"
+                                    style={{
+                                        width: '100%',
+                                        maxHeight: '300px',
+                                        objectFit: 'contain'
+                                    }}
+                                />
+                                {!isProcessing && (
+                                    <button
+                                        onClick={handleReset}
+                                        style={{
+                                            position: 'absolute',
+                                            top: '8px',
+                                            right: '8px',
+                                            padding: '4px 8px',
+                                            background: 'rgba(0,0,0,0.7)',
+                                            color: '#fff',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '12px'
+                                        }}
+                                    >
+                                        更換圖片
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 處理進度 */}
+                    {isProcessing && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                marginBottom: '8px',
+                                fontSize: '14px'
+                            }}>
+                                <span>辨識中...</span>
+                                <span>{ocrProgress}%</span>
+                            </div>
+                            <div style={{
+                                height: '8px',
+                                background: '#333',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }}>
+                                <div style={{
+                                    width: `${ocrProgress}%`,
+                                    height: '100%',
+                                    background: 'linear-gradient(90deg, #ff9800, #ffb74d)',
+                                    transition: 'width 0.3s ease'
+                                }} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 操作按鈕 */}
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        {imagePreview && !isProcessing && (
+                            <button
+                                onClick={handleOCR}
+                                style={{
+                                    flex: 1,
+                                    padding: '14px',
+                                    background: '#ff9800',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    fontSize: '16px',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                開始識別
+                            </button>
+                        )}
+                        <button
+                            onClick={handleManualInput}
+                            style={{
+                                padding: '14px 24px',
+                                background: '#333',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '14px'
+                            }}
+                        >
+                            手動輸入
+                        </button>
+                    </div>
+
+                    {/* 隱藏檔案輸入 */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileSelect(e.target.files?.[0])}
+                        style={{ display: 'none' }}
+                    />
+
+                    {/* 使用說明 */}
+                    <div style={{
+                        marginTop: '20px',
+                        padding: '12px',
+                        background: '#222',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        color: '#888'
+                    }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#aaa' }}>
+                            使用提示
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                            <li>圖片應清晰、對比度高</li>
+                            <li>支援數字簡譜 (1234567) 格式</li>
+                            <li>識別結果會自動填入編輯區</li>
+                            <li>可在編輯區手動修正後更新</li>
+                        </ul>
+                    </div>
+                </div>
+            )}
+
+            {/* Tab OCR */}
+            {importMode === 'tab-ocr' && (
+                <TabImageImporter onImport={handleImport} />
+            )}
+
+            {/* Staff OMR */}
+            {importMode === 'staff-ocr' && (
+                <StaffImageImporter onImport={handleImport} />
+            )}
+
+            {/* Combined Staff+Tab OCR */}
+            {importMode === 'combined-ocr' && (
+                <CombinedImageImporter onImport={handleImport} />
+            )}
+
+            {/* File Import */}
+            {importMode === 'file' && (
+                <MusicXMLImporter
+                    onImport={handleImport}
+                    onError={handleImportError}
+                />
+            )}
+
+            {importError && (
+                <div style={{ color: '#ff5252', marginTop: '8px', fontSize: '12px' }}>
+                    {importError}
+                </div>
+            )}
         </div>
     );
 }
