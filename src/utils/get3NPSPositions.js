@@ -113,17 +113,35 @@ export function generate3NPSMap(startStringIdx, key, scaleType) {
 export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', scaleType = 'Major', userOctaveShift = 0) {
     if (!notes || notes.length === 0) return [];
 
+    // Normalize key: strip quality suffix ('Fm' → 'F', 'C#m' → 'C#')
+    const normalizedKey = key.replace(/m$/, '').replace(/\s*(Major|Minor|maj|min)$/i, '') || 'C';
+
     // Generate Static Map
-    const map = generate3NPSMap(startStringIdx, key, scaleType);
-    if (!map || map.length === 0) return notes.map(() => null);
+    const map = generate3NPSMap(startStringIdx, normalizedKey, scaleType);
 
-    // --- Smart Octave Alignment ---
-    // User Input (Jianpu) usually defaults to Octave 4 (Middle C range).
-    // 3NPS Patterns on Low Strings (StartString 5 or 6) are usually Octave 2 or 3.
-    // We need to find the "Octave Shift" to align the USER's notes to the MAP's range.
+    const getMidi = (n) => n.midiNote ?? n.midi;
+    const isSep = (n) => n.isSeparator || n._type === 'separator';
 
-    // 1. Find the first valid note in user input
-    const firstNote = notes.find(n => n && !n.isSeparator && n.midiNote);
+    // If map is empty, use direct fallback positioning
+    if (!map || map.length === 0) {
+        return notes.map((note) => {
+            if (!note || isSep(note)) return null;
+            const noteMidi = getMidi(note);
+            if (!noteMidi) return null;
+            let bestPos = null;
+            let minDist = 999;
+            for (let s = 0; s < 6; s++) {
+                const f = noteMidi - STRING_TUNINGS[s];
+                if (f >= 0 && f <= 24) {
+                    const dist = Math.abs(f - 5);
+                    if (dist < minDist) { minDist = dist; bestPos = { string: s, fret: f, midi: noteMidi }; }
+                }
+            }
+            return bestPos;
+        });
+    }
+
+    const firstNote = notes.find(n => n && !isSep(n) && getMidi(n));
 
     // 2. Find the root (or closest note) in the Map
     // Ideally, the first note of the scale should match the first note of the map (if it's the root).
@@ -132,7 +150,7 @@ export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', sca
     let octaveShift = 0;
 
     if (firstNote) {
-        const inputMidi = firstNote.midiNote;
+        const inputMidi = getMidi(firstNote);
         const mapStartMidi = map[0].midi; // The lowest note in the map (Root)
 
         // Auto-align input to map
@@ -155,11 +173,12 @@ export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', sca
     const targetCenterFret = rootEntry ? rootEntry.fret + 2 : 5;
 
     return notes.map((note) => {
-        if (!note || note.isSeparator) return null;
-        if (!note.midiNote) return null;
+        if (!note || isSep(note)) return null;
+        const noteMidi = getMidi(note);
+        if (!noteMidi) return null;
 
         // Apply shift
-        const targetMidi = note.midiNote + octaveShift;
+        const targetMidi = noteMidi + octaveShift;
 
         // 1. Try exact match in Map (using shifted midi)
         const match = map.find(m => m.midi === targetMidi);

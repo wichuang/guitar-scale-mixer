@@ -344,17 +344,41 @@ export function getBestPosition(midiNote, position = 1) {
 export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', scaleType = 'Major', userOctaveShift = 0) {
     if (!notes || notes.length === 0) return [];
 
+    // Normalize key: strip quality suffix ('Fm' → 'F', 'C#m' → 'C#')
+    const normalizedKey = key.replace(/m$/, '').replace(/\s*(Major|Minor|maj|min)$/i, '') || 'C';
+
     // Generate Static Map
-    const map = generate3NPSMap(startStringIdx, key, scaleType);
-    if (!map || map.length === 0) return notes.map(() => null);
+    const map = generate3NPSMap(startStringIdx, normalizedKey, scaleType);
+
+    const getMidi = (n) => n.midiNote ?? n.midi;
+    const isSep = (n) => n.isSeparator || n._type === 'separator';
+
+    // If map is empty, use direct fallback positioning (no octave alignment)
+    if (!map || map.length === 0) {
+        return notes.map((note) => {
+            if (!note || isSep(note)) return null;
+            const noteMidi = getMidi(note);
+            if (!noteMidi) return null;
+            let bestPos = null;
+            let minDist = 999;
+            for (let s = 0; s < 6; s++) {
+                const f = noteMidi - STRING_TUNINGS[s];
+                if (f >= 0 && f <= 24) {
+                    const dist = Math.abs(f - 5);
+                    if (dist < minDist) { minDist = dist; bestPos = { string: s, fret: f, midi: noteMidi }; }
+                }
+            }
+            return bestPos;
+        });
+    }
 
     // --- Smart Octave Alignment ---
-    const firstNote = notes.find(n => n && !n.isSeparator && n.midiNote);
+    const firstNote = notes.find(n => n && !isSep(n) && getMidi(n));
 
     let octaveShift = 0;
 
     if (firstNote) {
-        const inputMidi = firstNote.midiNote;
+        const inputMidi = getMidi(firstNote);
         const mapStartMidi = map[0].midi;
 
         // Auto-align input to map
@@ -372,11 +396,12 @@ export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', sca
     const targetCenterFret = rootEntry ? rootEntry.fret + 2 : 5;
 
     return notes.map((note) => {
-        if (!note || note.isSeparator) return null;
-        if (!note.midiNote) return null;
+        if (!note || isSep(note)) return null;
+        const noteMidi = getMidi(note);
+        if (!noteMidi) return null;
 
         // Apply shift
-        const targetMidi = note.midiNote + octaveShift;
+        const targetMidi = noteMidi + octaveShift;
 
         // 1. Try exact match in Map
         const match = map.find(m => m.midi === targetMidi);

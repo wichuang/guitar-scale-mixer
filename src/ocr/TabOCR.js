@@ -123,106 +123,232 @@ export class TabOCR {
     }
 
     /**
-     * 區域式 Tab 辨識 - 根據弦線位置分區域 OCR
-     * @param {HTMLCanvasElement} canvas
-     * @param {Array<number>} stringLines - 6 條弦線的 Y 座標
-     * @param {number} width - 圖片寬度
+     * Per-line Tab recognition - OCR one horizontal strip per string
+     * Much more accurate than cell-by-cell: 6 Tesseract calls instead of hundreds,
+     * with larger image context for each call.
+     * @param {HTMLCanvasElement} canvas - binarized canvas
+     * @param {Array<number>} stringLines - 6 string Y positions
+     * @param {number} width - image width
      * @param {ProgressCallback} onProgress
+     * @param {number} startNoteIndex
      * @returns {Promise<{notes: Array<Note>, rawText: string, confidence: number}>}
      */
     async recognizeTabImageRegionBased(canvas, stringLines, width, onProgress, startNoteIndex = 0) {
         const notes = [];
         let noteIndex = startNoteIndex;
-        const recognizedCells = [];
-
-        // 計算弦線間距
         const spacing = (stringLines[5] - stringLines[0]) / 5;
-        const cellHeight = spacing * 0.8; // 每個儲存格的高度
-        const cellWidth = spacing * 1.2; // 每個儲存格的寬度
+        const canvasHeight = canvas.height;
 
-        // 決定要掃描的列數
-        const numColumns = Math.ceil(width / cellWidth);
-        const totalCells = numColumns * 6;
-        let processedCells = 0;
+        for (let stringIdx = 0; stringIdx < 6; stringIdx++) {
+            const lineY = stringLines[stringIdx];
 
-        // 對每個儲存格進行 OCR
-        for (let col = 0; col < numColumns; col++) {
-            const x = col * cellWidth;
-            const columnResults = [];
+            // Strip extends from midway to previous line to midway to next line
+            // Edge strings get full spacing worth of margin for better digit capture
+            const stripTop = stringIdx === 0
+                ? Math.max(0, lineY - spacing * 0.5)
+                : (stringLines[stringIdx - 1] + lineY) / 2;
+            const stripBottom = stringIdx === 5
+                ? Math.min(canvasHeight, lineY + spacing * 0.5)
+                : (lineY + stringLines[stringIdx + 1]) / 2;
 
-            for (let stringIdx = 0; stringIdx < 6; stringIdx++) {
-                const y = stringLines[stringIdx] - cellHeight / 2;
+            const stripHeight = Math.ceil(stripBottom - stripTop);
+            if (stripHeight <= 0) continue;
 
-                // OCR 單一儲存格
-                const result = await this.recognizeSingleCell(
-                    canvas, x, y, cellWidth, cellHeight
-                );
+            // Crop strip
+            const stripCanvas = document.createElement('canvas');
+            stripCanvas.width = width;
+            stripCanvas.height = stripHeight;
+            const stripCtx = stripCanvas.getContext('2d');
+            stripCtx.drawImage(canvas, 0, Math.floor(stripTop), width, stripHeight, 0, 0, width, stripHeight);
 
-                if (result.digit !== null) {
-                    columnResults.push({
-                        stringIdx,
-                        fret: result.digit,
-                        confidence: result.confidence
-                    });
-                }
+            // Remove the horizontal tab line from the strip
+            const imgData = stripCtx.getImageData(0, 0, width, stripHeight);
+            this.removeHorizontalTabLine(imgData, width, stripHeight, lineY - stripTop);
+            stripCtx.putImageData(imgData, 0, 0);
 
-                // 記錄辨識結果
-                if (result.text) {
-                    recognizedCells.push({
-                        col, stringIdx,
-                        text: result.text,
-                        digit: result.digit,
-                        confidence: result.confidence
-                    });
-                }
-
-                processedCells++;
-                if (processedCells % 12 === 0) { // 每 12 個儲存格更新一次進度
-                    const progress = 30 + (processedCells / totalCells) * 50;
-                    onProgress?.(`Processing cell ${processedCells}/${totalCells}...`, progress);
-                }
+            // Scale up if too small for Tesseract (80px minimum for reliable digit recognition)
+            const minHeight = 80;
+            let ocrCanvas = stripCanvas;
+            if (stripHeight < minHeight) {
+                const scale = Math.ceil(minHeight / stripHeight);
+                ocrCanvas = document.createElement('canvas');
+                ocrCanvas.width = width * scale;
+                ocrCanvas.height = stripHeight * scale;
+                const ocrCtx = ocrCanvas.getContext('2d');
+                ocrCtx.imageSmoothingEnabled = false; // nearest-neighbor for crisp binarized text
+                ocrCtx.drawImage(stripCanvas, 0, 0, ocrCanvas.width, ocrCanvas.height);
             }
 
-            // 如果這一列有辨識結果，轉換為音符
-            if (columnResults.length > 0) {
-                // 取信心度最高的結果
-                columnResults.sort((a, b) => b.confidence - a.confidence);
-                const best = columnResults[0];
+            // OCR the strip with digits-only whitelist for higher accuracy
+            await this.worker.setParameters({
+                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_LINE,
+                tessedit_char_whitelist: '0123456789 -|',
+            });
 
-                const midiNote = STRING_TUNINGS[best.stringIdx] + best.fret;
-                const note = Note.fromMidi(midiNote, {
-                    index: noteIndex,
-                    stringIndex: best.stringIdx,
-                    fret: best.fret,
-                    confidence: best.confidence,
-                    sourceType: 'tab-ocr-region'
-                });
-                notes.push(note);
-                noteIndex++;
+            try {
+                const { data } = await this.worker.recognize(ocrCanvas);
+                const rawText = data.text.trim();
+
+                // Debug logging (disabled in production)
+                // console.log(`[TabOCR] String ${stringIdx}: text="${rawText}" conf=${data.confidence?.toFixed(0)} stripH=${stripHeight}`);
+
+                // Try word-level bounding boxes first (from data.lines[].words)
+                const words = [];
+                if (data.lines) {
+                    for (const line of data.lines) {
+                        if (line.words) words.push(...line.words);
+                    }
+                }
+                // Fall back to top-level data.words
+                if (words.length === 0 && data.words?.length > 0) {
+                    words.push(...data.words);
+                }
+
+                if (words.length > 0) {
+                    // Use word bounding boxes for x-positions
+                    const scaleX = ocrCanvas.width / width;
+                    for (const word of words) {
+                        let text = word.text.trim()
+                            .replace(/[oO]/g, '0')
+                            .replace(/[lI]/g, '1')
+                            .replace(/[zZ]/g, '2')
+                            .replace(/[sS]/g, '5');
+
+                        const match = text.match(/^(\d{1,2})$/);
+                        if (match) {
+                            const fret = parseInt(match[1], 10);
+                            if (fret >= 0 && fret <= 24) {
+                                const midiNote = STRING_TUNINGS[stringIdx] + fret;
+                                const xPos = ((word.bbox.x0 + word.bbox.x1) / 2) / scaleX;
+                                const note = Note.fromMidi(midiNote, {
+                                    index: noteIndex,
+                                    stringIndex: stringIdx,
+                                    fret,
+                                    confidence: word.confidence || data.confidence,
+                                    sourceType: 'tab-ocr-line'
+                                });
+                                note._xPos = xPos;
+                                notes.push(note);
+                                noteIndex++;
+                            }
+                        }
+                    }
+                } else {
+                    // Fall back to parsing text directly (no bbox data available)
+                    // Clean OCR text and extract digit tokens
+                    let cleanText = rawText
+                        .replace(/[oO]/g, '0')
+                        .replace(/[lI]/g, '1')
+                        .replace(/[zZ]/g, '2')
+                        .replace(/[sS]/g, '5')
+                        .replace(/[|]/g, ' ');
+
+                    // Find all digit tokens with their approximate positions in the text
+                    const tokens = [];
+                    const digitRegex = /\d{1,2}/g;
+                    let m;
+                    while ((m = digitRegex.exec(cleanText)) !== null) {
+                        tokens.push({
+                            fret: parseInt(m[0], 10),
+                            textPos: m.index,
+                        });
+                    }
+
+                    // Estimate x-positions proportionally across the image width
+                    const textLen = cleanText.length || 1;
+                    for (const token of tokens) {
+                        if (token.fret >= 0 && token.fret <= 24) {
+                            const midiNote = STRING_TUNINGS[stringIdx] + token.fret;
+                            const xPos = (token.textPos / textLen) * width;
+                            const note = Note.fromMidi(midiNote, {
+                                index: noteIndex,
+                                stringIndex: stringIdx,
+                                fret: token.fret,
+                                confidence: data.confidence || 50,
+                                sourceType: 'tab-ocr-line'
+                            });
+                            note._xPos = xPos;
+                            notes.push(note);
+                            noteIndex++;
+                        }
+                    }
+
+                    // console.log(`[TabOCR]   Parsed ${tokens.length} digits from text`);
+                }
+            } catch (e) {
+                console.warn(`[TabOCR] String ${stringIdx} OCR failed:`, e);
             }
+
+            // Restore default parameters
+            await this.worker.setParameters({
+                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+                tessedit_char_whitelist: '0123456789-|xXhHpPbB/\\()~',
+            });
+
+            onProgress?.(`Processed string ${stringIdx + 1}/6...`, 30 + ((stringIdx + 1) / 6) * 50);
         }
+
+        // Sort notes by x-position for proper ordering, then by string
+        notes.sort((a, b) => (a._xPos || 0) - (b._xPos || 0) || a.stringIndex - b.stringIndex);
+
+        // Re-assign indices and clean up temp _xPos
+        notes.forEach((note, i) => {
+            note.index = startNoteIndex + i;
+            delete note._xPos;
+        });
 
         onProgress?.('Complete', 100);
 
-        // 計算平均信心度
-        const confidences = recognizedCells
-            .filter(c => c.digit !== null)
-            .map(c => c.confidence);
-        const avgConfidence = confidences.length > 0
-            ? confidences.reduce((a, b) => a + b, 0) / confidences.length
+        const avgConf = notes.length > 0
+            ? notes.reduce((sum, n) => sum + (n.confidence || 0), 0) / notes.length
             : 0;
-
-        // 組合成文字表示
-        const rawText = this.cellsToTabString(recognizedCells, numColumns);
 
         return {
             notes,
-            rawText,
-            cleanedText: rawText,
-            confidence: avgConfidence,
+            rawText: '',
+            cleanedText: '',
+            confidence: avgConf,
             stringLines,
-            recognizedCells
         };
+    }
+
+    /**
+     * Remove horizontal tab line pixels from a strip's ImageData.
+     * Only removes pixels that are part of a horizontal line (black neighbors
+     * left/right but white 2px above and below).
+     * @param {ImageData} imageData
+     * @param {number} width
+     * @param {number} height
+     * @param {number} lineYInStrip - Y position of the tab line within the strip
+     */
+    removeHorizontalTabLine(imageData, width, height, lineYInStrip) {
+        const data = imageData.data;
+        const lineY = Math.round(lineYInStrip);
+
+        // Scan ±1 rows around the line position (narrow band to preserve digit strokes)
+        for (let dy = -1; dy <= 1; dy++) {
+            const y = lineY + dy;
+            if (y < 0 || y >= height) continue;
+
+            for (let x = 0; x < width; x++) {
+                const idx = (y * width + x) * 4;
+                if (data[idx] >= 128) continue; // skip white pixels
+
+                // Check if this pixel is part of a horizontal line (not a digit):
+                // Line pixels have no black ink 2+ rows above AND below
+                const checkDist = 2;
+                const aboveY = y - checkDist;
+                const belowY = y + checkDist;
+                const above = aboveY >= 0 ? data[(aboveY * width + x) * 4] : 255;
+                const below = belowY < height ? data[(belowY * width + x) * 4] : 255;
+
+                if (above >= 128 && below >= 128) {
+                    data[idx] = 255;
+                    data[idx + 1] = 255;
+                    data[idx + 2] = 255;
+                }
+            }
+        }
     }
 
     /**
@@ -261,10 +387,11 @@ export class TabOCR {
         }
         const blackRatio = blackPixels / (regionCanvas.width * regionCanvas.height);
 
-        // 如果黑色像素太少，跳過 OCR
+        // 如果黑色像素太少或太多，跳過 OCR
         if (blackRatio < 0.02 || blackRatio > 0.8) {
             return { digit: null, confidence: 0, text: '' };
         }
+
 
         try {
             // 使用 SINGLE_WORD 模式辨識單一儲存格

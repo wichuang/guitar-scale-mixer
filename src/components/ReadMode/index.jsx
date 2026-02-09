@@ -29,6 +29,31 @@ import './ReadMode.css';
 
 const AUTOSAVE_KEY = 'guitar-mixer-readmode-autosave';
 
+/**
+ * Normalize notes loaded from JSON (autosave/file).
+ * Note class getters (midiNote, isSeparator, etc.) are lost after JSON serialization.
+ * This ensures all notes have the expected plain properties.
+ */
+function normalizeNotes(notes) {
+    if (!notes || !Array.isArray(notes)) return [];
+    return notes.map(n => {
+        const out = { ...n };
+        // Ensure midiNote exists (getter lost after JSON round-trip of Note instances)
+        if (out.midi != null && out.midiNote == null) {
+            out.midiNote = out.midi;
+        }
+        // Ensure type flags exist as plain properties
+        if (out._type && out.isNote == null) {
+            out.isNote = out._type === 'note';
+            out.isRest = out._type === 'rest';
+            out.isExtension = out._type === 'extension';
+            out.isSeparator = out._type === 'separator';
+            out.isSymbol = out._type === 'symbol';
+        }
+        return out;
+    });
+}
+
 function ReadMode({ guitarType, fretCount }) {
     // ===== 基本狀態 =====
     const [rawText, setRawText] = useState('');
@@ -182,7 +207,7 @@ function ReadMode({ guitarType, fretCount }) {
                     setEditableText(saved.text);
                     setRawText(saved.text);
                 }
-                if (saved.notes) setNotes(saved.notes);
+                if (saved.notes) setNotes(normalizeNotes(saved.notes));
                 if (saved.key) setKey(saved.key);
                 if (saved.scaleType) setScaleType(saved.scaleType);
                 if (saved.tempo) setTempo(saved.tempo);
@@ -258,7 +283,7 @@ function ReadMode({ guitarType, fretCount }) {
 
         if (actualData && (actualData.notes || actualData.text)) {
             setEditableText(actualData.text || '');
-            setNotes(actualData.notes || []);
+            setNotes(normalizeNotes(actualData.notes || []));
             setKey(actualData.key || 'C');
             setScaleType(actualData.scaleType || 'Major');
             setTempo(actualData.tempo || 120);
@@ -463,6 +488,7 @@ function ReadMode({ guitarType, fretCount }) {
                 musicKey={key}
                 scaleType={scaleType}
                 tempo={tempo}
+                timeSignature={timeSignature}
                 startString={startString}
                 octaveOffset={octaveOffset}
                 youtubeUrl={youtubeUrl}
@@ -470,6 +496,16 @@ function ReadMode({ guitarType, fretCount }) {
                 youtubeLayout={youtubeLayout}
                 viewMode={viewMode}
                 onLoadFile={handleLoadFile}
+                onImportNotes={(result) => {
+                    if (result.notes) {
+                        setNotes(normalizeNotes(result.notes));
+                    }
+                    if (result.metadata) {
+                        if (result.metadata.key) setKey(result.metadata.key);
+                        if (result.metadata.tempo) setTempo(result.metadata.tempo);
+                        if (result.metadata.timeSignature) setTimeSignature(result.metadata.timeSignature);
+                    }
+                }}
             />
 
             {/* Keyboard Shortcuts Help */}

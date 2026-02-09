@@ -9,6 +9,18 @@
  * @returns {Promise<{canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, width: number, height: number}>}
  */
 export async function loadImageToCanvas(source) {
+    // Handle Canvas elements directly (used by CombinedSheetOCR for cropped regions)
+    if (source instanceof HTMLCanvasElement) {
+        const ctx = source.getContext('2d');
+        return {
+            canvas: source,
+            ctx,
+            width: source.width,
+            height: source.height,
+            image: null
+        };
+    }
+
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -290,6 +302,7 @@ export function detectHorizontalLines(imageData, width, height, minLineLength = 
     for (let y = 0; y < height; y++) {
         let consecutiveBlack = 0;
         let maxConsecutive = 0;
+        let totalBlack = 0;
 
         for (let x = 0; x < width; x++) {
             const idx = (y * width + x) * 4;
@@ -297,6 +310,7 @@ export function detectHorizontalLines(imageData, width, height, minLineLength = 
 
             if (isBlack) {
                 consecutiveBlack++;
+                totalBlack++;
                 maxConsecutive = Math.max(maxConsecutive, consecutiveBlack);
             } else {
                 consecutiveBlack = 0;
@@ -304,8 +318,14 @@ export function detectHorizontalLines(imageData, width, height, minLineLength = 
         }
 
         const lineRatio = maxConsecutive / width;
-        if (lineRatio > minLineLength) {
-            lines.push({ y, strength: lineRatio });
+        const totalRatio = totalBlack / width;
+
+        // Detect lines by either method:
+        // 1. Long consecutive run (for uninterrupted lines) - original method
+        // 2. High total black pixel ratio (for lines interrupted by fret numbers/noteheads)
+        //    Tab lines are typically >40% black even with number interruptions
+        if (lineRatio > minLineLength || totalRatio > 0.4) {
+            lines.push({ y, strength: Math.max(lineRatio, totalRatio) });
         }
     }
 
@@ -411,6 +431,13 @@ export async function preprocessTabImage(source, options = {}) {
     imageData = ctx.getImageData(0, 0, width, height);
     binarize(imageData);
     ctx.putImageData(imageData, 0, 0);
+
+    // 4b. Fix inverted binarization (dark background → invert back)
+    imageData = ctx.getImageData(0, 0, width, height);
+    if (isDarkImage(imageData)) {
+        invertColors(imageData);
+        ctx.putImageData(imageData, 0, 0);
+    }
 
     // 5. 偵測弦線
     const allLines = detectHorizontalLines(imageData, width, height, 0.3);

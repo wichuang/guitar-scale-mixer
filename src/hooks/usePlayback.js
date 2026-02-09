@@ -152,7 +152,7 @@ export function usePlayback({
         const note = notes[index];
         const pos = notePositions[index];
         if (pos && !audioLoading && playNote) {
-            const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : note.midiNote);
+            const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : (note.midiNote ?? note.midi));
             playNote(targetMidi, pos.string);
         }
     }, [notes, notePositions, audioLoading, playNote]);
@@ -175,15 +175,15 @@ export function usePlayback({
 
         const note = notes[currentNoteIndex];
 
-        // Separator resets beat count
-        if (note.isSeparator) {
+        // Separator resets beat count (handle both Note instances and plain objects)
+        if (note.isSeparator || note._type === 'separator') {
             beatCounterRef.current = 0;
             setCurrentNoteIndex(prev => prev + 1);
             return;
         }
 
         // Skip symbols
-        if (note.isSymbol) {
+        if (note.isSymbol || note._type === 'symbol') {
             setCurrentNoteIndex(prev => prev + 1);
             return;
         }
@@ -195,7 +195,7 @@ export function usePlayback({
         const isAccent = beatCounterRef.current % beatsPerBar === 0;
 
         if (pos && !audioLoading && playNote) {
-            const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : note.midiNote);
+            const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : (note.midiNote ?? note.midi));
             playNote(targetMidi, pos.string, { gain: isAccent ? 1.3 : 0.7 });
         }
 

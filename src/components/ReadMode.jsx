@@ -1,4 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import Draggable from 'react-draggable';
+import YouTube from 'react-youtube';
 import Tesseract from 'tesseract.js';
 import {
     parseJianpuText,
@@ -12,6 +14,8 @@ import { useAudio } from '../hooks/useAudio';
 import ReadFretboard from './ReadFretboard';
 import ScoreDisplay from './ScoreDisplay';
 import './ReadMode.css';
+
+
 
 // Timer Helper
 const formatTime = (seconds) => {
@@ -47,6 +51,15 @@ function ReadMode({ guitarType, fretCount }) {
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
     const [showScaleGuide, setShowScaleGuide] = useState(true); // User requested to restore Ghost notes
 
+    // YouTube State
+    const [youtubeUrl, setYoutubeUrl] = useState('');
+    const [showYoutube, setShowYoutube] = useState(false);
+    const [youtubeLayout, setYoutubeLayout] = useState({ x: 50, y: 50, width: 320, height: 180 });
+    const youtubeNodeRef = useRef(null);
+
+    // View Mode: 'both' | 'text' | 'score'
+    const [viewMode, setViewMode] = useState('both');
+
     const fileInputRef = useRef(null);
     const loadInputRef = useRef(null); // For loading JSON files
     const playTimeoutRef = useRef(null);
@@ -74,7 +87,15 @@ function ReadMode({ guitarType, fretCount }) {
                     if (data.timeSignature) setTimeSignature(data.timeSignature);
                     if (typeof data.startString === 'number') setStartString(data.startString);
                     if (typeof data.octaveOffset === 'number') setOctaveOffset(data.octaveOffset);
+                    if (typeof data.octaveOffset === 'number') setOctaveOffset(data.octaveOffset);
                     if (data.showScaleGuide !== undefined) setShowScaleGuide(data.showScaleGuide);
+
+                    // Restore YouTube State
+                    if (data.youtubeUrl) setYoutubeUrl(data.youtubeUrl);
+                    if (data.showYoutube !== undefined) setShowYoutube(data.showYoutube);
+                    if (data.youtubeLayout) setYoutubeLayout(data.youtubeLayout);
+                    // Restore View Mode
+                    if (data.viewMode) setViewMode(data.viewMode);
                 }
             }
         } catch (e) {
@@ -95,12 +116,48 @@ function ReadMode({ guitarType, fretCount }) {
                 timeSignature: timeSignature,
                 startString: startString,
                 octaveOffset: octaveOffset,
-                showScaleGuide: showScaleGuide
+                showScaleGuide: showScaleGuide,
+                showScaleGuide: showScaleGuide,
+                youtubeUrl,
+                showYoutube,
+                youtubeLayout,
+                viewMode
             };
             localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(dataToSave));
         }, 1000);
         return () => clearTimeout(timer);
-    }, [editableText, notes, key, scaleType, tempo, timeSignature, startString, octaveOffset, showScaleGuide]);
+    }, [editableText, notes, key, scaleType, tempo, timeSignature, startString, octaveOffset, showScaleGuide, youtubeUrl, showYoutube, youtubeLayout, viewMode]);
+
+    const youtubePlayerRef = useRef(null);
+
+    const extractYouTubeId = (url) => {
+        if (!url) return '';
+        let videoId = '';
+        try {
+            if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0];
+            } else if (url.includes('v=')) {
+                videoId = url.split('v=')[1].split('&')[0];
+            } else if (url.includes('embed/')) {
+                videoId = url.split('embed/')[1].split('?')[0];
+            }
+        } catch (e) { return ''; }
+        return videoId;
+    };
+
+    const handleYouTubeCountIn = () => {
+        if (enableCountIn) {
+            startCountIn(() => {
+                if (youtubePlayerRef.current) {
+                    youtubePlayerRef.current.internalPlayer.playVideo();
+                }
+            });
+        } else {
+            if (youtubePlayerRef.current) {
+                youtubePlayerRef.current.internalPlayer.playVideo();
+            }
+        }
+    };
 
     // 處理檔案上傳
     const handleFileChange = (e) => {
@@ -221,11 +278,56 @@ function ReadMode({ guitarType, fretCount }) {
         }
     };
 
+    const [enableCountIn, setEnableCountIn] = useState(true);
+    const [countInStatus, setCountInStatus] = useState(''); // '' | '4' | '3'...
+
+    const playClickSound = (high = false) => {
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        osc.frequency.value = high ? 1500 : 1000;
+        gain.gain.value = 0.5;
+        gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.1);
+        osc.start();
+        osc.stop(ac.currentTime + 0.1);
+    };
+
+    const startCountIn = (onComplete) => {
+        let beat = 4;
+        setCountInStatus('Ready: ' + beat);
+        playClickSound(false);
+
+        const interval = 60000 / tempo;
+
+        const timer = setInterval(() => {
+            beat--;
+            if (beat > 0) {
+                setCountInStatus('Ready: ' + beat);
+                playClickSound(false);
+            } else {
+                // Go!
+                clearInterval(timer);
+                setCountInStatus('');
+                playClickSound(true); // High pitch for "Go"
+                if (onComplete) onComplete();
+            }
+        }, interval);
+
+        playTimeoutRef.current = timer;
+    };
+
     const togglePlay = () => {
         if (isPlaying) {
             pause();
+            setCountInStatus('');
         } else {
-            play();
+            if (enableCountIn && currentNoteIndex === -1) {
+                startCountIn(play);
+            } else {
+                play();
+            }
         }
     };
 
@@ -374,7 +476,11 @@ function ReadMode({ guitarType, fretCount }) {
                 scaleType: scaleType,
                 tempo: tempo,
                 startString: startString,
-                octaveOffset: octaveOffset
+                octaveOffset: octaveOffset,
+                youtubeUrl: youtubeUrl,
+                showYoutube: showYoutube,
+                youtubeLayout: youtubeLayout,
+                viewMode: viewMode
             }
         };
 
@@ -443,6 +549,13 @@ function ReadMode({ guitarType, fretCount }) {
                     setTempo(actualData.tempo || 120);
                     if (typeof actualData.startString === 'number') setStartString(actualData.startString);
                     if (typeof actualData.octaveOffset === 'number') setOctaveOffset(actualData.octaveOffset);
+
+                    // Restore YouTube Data
+                    if (actualData.youtubeUrl) setYoutubeUrl(actualData.youtubeUrl);
+                    if (actualData.showYoutube !== undefined) setShowYoutube(actualData.showYoutube);
+                    if (actualData.youtubeLayout) setYoutubeLayout(actualData.youtubeLayout);
+                    if (actualData.viewMode) setViewMode(actualData.viewMode);
+
                     alert('樂譜載入成功！');
                 } else {
                     alert('載入失敗：檔案格式不符');
@@ -1069,10 +1182,74 @@ function ReadMode({ guitarType, fretCount }) {
                             <span>顯示背景音階 (Ghost Notes)</span>
                         </label>
                     </div>
+
+                    <div className="setting-row" style={{ marginTop: '5px' }}>
+                        <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+                            <input
+                                type="checkbox"
+                                checked={enableCountIn}
+                                onChange={(e) => setEnableCountIn(e.target.checked)}
+                                style={{ width: '16px', height: '16px' }}
+                            />
+                            <span>播放前倒數 (Count-In)</span>
+                        </label>
+                    </div>
+
+                    <div className="setting-row" style={{ marginTop: '5px' }}>
+                        <button
+                            onClick={() => setShowYoutube(!showYoutube)}
+                            style={{
+                                background: showYoutube ? '#ff0000' : '#444',
+                                color: 'white',
+                                border: 'none',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            {showYoutube ? '🔴 關閉 YouTube 視窗' : '📺 開啟 YouTube 視窗'}
+                        </button>
+                    </div>
+
+                    {/* View Mode Toggle */}
+                    <div className="setting-row" style={{ marginTop: '10px', padding: '5px 0', borderTop: '1px solid #444' }}>
+                        <span style={{ fontSize: '12px', color: '#ccc', marginBottom: '4px', display: 'block' }}>顯示模式</span>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                            <button
+                                onClick={() => setViewMode('both')}
+                                style={{
+                                    flex: 1, padding: '4px', fontSize: '12px', cursor: 'pointer',
+                                    background: viewMode === 'both' ? '#2196F3' : '#444',
+                                    color: 'white', border: 'none', borderRadius: '4px'
+                                }}
+                            >全部</button>
+                            <button
+                                onClick={() => setViewMode('text')}
+                                style={{
+                                    flex: 1, padding: '4px', fontSize: '12px', cursor: 'pointer',
+                                    background: viewMode === 'text' ? '#2196F3' : '#444',
+                                    color: 'white', border: 'none', borderRadius: '4px'
+                                }}
+                            >簡譜</button>
+                            <button
+                                onClick={() => setViewMode('score')}
+                                style={{
+                                    flex: 1, padding: '4px', fontSize: '12px', cursor: 'pointer',
+                                    background: viewMode === 'score' ? '#2196F3' : '#444',
+                                    color: 'white', border: 'none', borderRadius: '4px'
+                                }}
+                            >譜面</button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* 辨識結果顯示 */}
-                {rawText && (
+                {rawText && (viewMode === 'both' || viewMode === 'text') && (
                     <div className="result-section expanded">
                         <label>簡譜內容</label>
                         <textarea
@@ -1087,20 +1264,126 @@ function ReadMode({ guitarType, fretCount }) {
 
                 {/* 播放控制 */}
                 {notes.length > 0 && (
-                    <div className="playback-controls">
+                    <div className="playback-controls" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         {!isPlaying ? (
                             <button className="play-btn" onClick={play}>▶️ 播放</button>
                         ) : (
                             <button className="pause-btn" onClick={pause}>⏸️ 暫停</button>
                         )}
                         <button className="stop-btn" onClick={stop}>⏹️ 停止</button>
+
+                        {/* Count-In Status Display */}
+                        {countInStatus && (
+                            <span style={{
+                                fontSize: '20px',
+                                color: '#ff5252',
+                                fontWeight: 'bold',
+                                animation: 'pulse 0.5s infinite alternate'
+                            }}>
+                                {countInStatus}
+                            </span>
+                        )}
                     </div>
                 )}
             </div>
 
+
+
+            {/* Draggable YouTube Window */}
+            {
+                showYoutube && (
+                    <Draggable
+                        nodeRef={youtubeNodeRef}
+                        handle=".yt-handle"
+                        defaultPosition={{ x: youtubeLayout.x, y: youtubeLayout.y }}
+                        onStop={(e, data) => setYoutubeLayout(prev => ({ ...prev, x: data.x, y: data.y }))}
+                    >
+                        <div ref={youtubeNodeRef} className="youtube-floating-window" style={{
+                            position: 'fixed', zIndex: 1000,
+                            width: youtubeLayout.width, height: youtubeLayout.height,
+                            background: '#222', border: '1px solid #444',
+                            resize: 'both', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                            paddingBottom: '16px' // Reserve space for resize handle
+                        }}>
+                            <div className="yt-handle" style={{
+                                padding: '5px', background: '#333', cursor: 'move', color: '#fff',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center', userSelect: 'none'
+                            }}>
+                                <span style={{ fontSize: '12px' }}>📺 YouTube (拖曳標題移動 / 右下角縮放)</span>
+                                <button onClick={() => setShowYoutube(false)} style={{ background: 'red', border: 'none', color: 'white', width: '20px', cursor: 'pointer' }}>x</button>
+                            </div>
+                            <div style={{ flex: 1, position: 'relative', background: '#111' }}>
+                                {!youtubeUrl ? (
+                                    <div style={{ padding: '10px', color: '#ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="貼上 YouTube 網址..."
+                                            onBlur={(e) => setYoutubeUrl(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') setYoutubeUrl(e.currentTarget.value); }}
+                                            style={{ width: '90%', padding: '4px', background: '#222', color: 'white', border: '1px solid #555' }}
+                                        />
+                                        <p style={{ fontSize: '12px', marginTop: '4px' }}>貼上網址後按 Enter 或點擊外部</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '40px' }}>
+                                            <YouTube
+                                                videoId={extractYouTubeId(youtubeUrl)}
+                                                opts={{
+                                                    height: '100%',
+                                                    width: '100%',
+                                                    playerVars: {
+                                                        autoplay: 0,
+                                                        controls: 1,
+                                                    },
+                                                }}
+                                                onReady={(e) => youtubePlayerRef.current = e.target}
+                                                style={{ height: '100%' }}
+                                                className={'youtube-player-iframe'}
+                                            />
+                                        </div>
+
+                                        {/* YouTube Control Bar */}
+                                        <div style={{
+                                            position: 'absolute', bottom: 0, left: 0, right: 0, height: '40px',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            background: '#222', padding: '0 8px', borderTop: '1px solid #444'
+                                        }}>
+                                            <button
+                                                onClick={handleYouTubeCountIn}
+                                                style={{
+                                                    background: '#4CAF50', color: 'white', border: 'none',
+                                                    padding: '4px 8px', borderRadius: '4px', cursor: 'pointer',
+                                                    fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px'
+                                                }}
+                                            >
+                                                ▶️ 倒數播放 (Play w/ Count-In)
+                                            </button>
+
+                                            <button
+                                                onClick={() => setYoutubeUrl('')}
+                                                style={{
+                                                    background: '#555', color: 'white', border: 'none',
+                                                    padding: '4px 8px', borderRadius: '4px', cursor: 'pointer',
+                                                    fontSize: '11px'
+                                                }}
+                                            >
+                                                更換影片
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </Draggable>
+                )
+            }
+
+            {/* 音符編輯區 - 獨立全寬區域 */}
             {/* 音符編輯區 - 獨立全寬區域 */}
             {
-                notes.length > 0 && (
+                notes.length > 0 && (viewMode === 'both' || viewMode === 'score') && (
                     <div className="note-editor-area">
                         {/* 左側：編輯面板 */}
                         <div className="editor-panel">
@@ -1326,17 +1609,19 @@ function ReadMode({ guitarType, fretCount }) {
             />
 
             {/* Score Display (Music Notation & Tabs) */}
-            {notes.length > 0 && (
-                <div style={{ padding: '0 20px 20px 20px' }}>
-                    <h3 style={{ color: '#aaa', marginBottom: '10px' }}>🎼 五線譜/六線譜預覽</h3>
-                    <ScoreDisplay
-                        notes={notes}
-                        notePositions={notePositions}
-                        timeSignature={timeSignature}
-                        currentNoteIndex={currentNoteIndex}
-                    />
-                </div>
-            )}
+            {
+                notes.length > 0 && (
+                    <div style={{ padding: '0 20px 20px 20px' }}>
+                        <h3 style={{ color: '#aaa', marginBottom: '10px' }}>🎼 五線譜/六線譜預覽</h3>
+                        <ScoreDisplay
+                            notes={notes}
+                            notePositions={notePositions}
+                            timeSignature={timeSignature}
+                            currentNoteIndex={currentNoteIndex}
+                        />
+                    </div>
+                )
+            }
 
             {/* 儲存/載入按鈕 */}
             <div className="score-actions">

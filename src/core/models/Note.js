@@ -68,6 +68,10 @@ export class Note {
         // Chord symbol (e.g. "Am", "B7", "Em")
         this.chordSymbol = props.chordSymbol ?? null;
 
+        // OCR confidence and source type
+        this.confidence = props.confidence ?? null;
+        this.sourceType = props.sourceType ?? null;
+
         // Format tracking
         this.format = props.format ?? null;
 
@@ -143,7 +147,13 @@ export class Note {
             displayStr,
             index: options.index ?? 0,
             duration: options.duration ?? 'quarter',
-            type: 'note'
+            type: 'note',
+            // Pass through tab-related and OCR properties
+            stringIndex: options.stringIndex,
+            fret: options.fret,
+            technique: options.technique,
+            confidence: options.confidence,
+            sourceType: options.sourceType,
         });
     }
 

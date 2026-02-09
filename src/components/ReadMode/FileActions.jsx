@@ -3,7 +3,8 @@
  * 儲存、載入、複製功能
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
+import ImportExportPanel from '../ImportExport/index.jsx';
 
 function FileActions({
     editableText,
@@ -17,9 +18,22 @@ function FileActions({
     showYoutube,
     youtubeLayout,
     viewMode,
-    onLoadFile
+    timeSignature,
+    onLoadFile,
+    onImportNotes
 }) {
     const loadInputRef = useRef(null);
+    const [showImportExport, setShowImportExport] = useState(false);
+
+    /**
+     * 處理匯入結果
+     */
+    const handleImport = (result) => {
+        if (result && result.notes) {
+            onImportNotes?.(result);
+            setShowImportExport(false);
+        }
+    };
 
     /**
      * 儲存檔案
@@ -174,6 +188,17 @@ function FileActions({
             >
                 Copy
             </button>
+            <button
+                className="score-btn import-export"
+                style={{
+                    background: '#9c27b0',
+                    color: 'white'
+                }}
+                onClick={() => setShowImportExport(true)}
+                title="匯入 MusicXML/ABC/Tab 或匯出 MIDI/ABC"
+            >
+                Import/Export
+            </button>
             <input
                 ref={loadInputRef}
                 type="file"
@@ -181,6 +206,35 @@ function FileActions({
                 onChange={handleLoadFileChange}
                 hidden
             />
+
+            {/* Import/Export 面板 */}
+            {showImportExport && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 999
+                }}
+                    onClick={() => setShowImportExport(false)}
+                >
+                    <div onClick={e => e.stopPropagation()}>
+                        <ImportExportPanel
+                            notes={notes}
+                            tempo={tempo}
+                            timeSignature={timeSignature || '4/4'}
+                            musicKey={musicKey}
+                            onImport={handleImport}
+                            fileName="guitar_score"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

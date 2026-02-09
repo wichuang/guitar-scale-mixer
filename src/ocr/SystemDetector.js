@@ -4,8 +4,7 @@
  * Returns system boundaries for sequential processing.
  */
 
-import { loadImageToCanvas, grayscale, binarize, adjustContrast, detectHorizontalLines } from './imagePreprocess.js';
-import { detectStaffLines } from './staffPreprocess.js';
+import { loadImageToCanvas, grayscale, binarize, adjustContrast, detectHorizontalLines, isDarkImage, invertColors } from './imagePreprocess.js';
 
 /**
  * System types
@@ -45,10 +44,21 @@ export class SystemDetector {
         binarize(imageData);
         ctx.putImageData(imageData, 0, 0);
 
+        // Check if binarization inverted the image (dark background)
+        // If so, invert it back so lines are black on white
+        imageData = ctx.getImageData(0, 0, width, height);
+        if (isDarkImage(imageData)) {
+            // console.log('[SystemDetector] Image is dark after binarization, inverting...');
+            invertColors(imageData);
+            ctx.putImageData(imageData, 0, 0);
+        }
+
         onProgress?.('Detecting lines...', 20);
 
         // 2. Detect all horizontal lines
-        const allLines = detectStaffLines(imageData, width, height);
+        // Use low threshold 0.15 for consecutive check (tab lines are interrupted by fret numbers)
+        // detectHorizontalLines also uses totalRatio > 0.4 as secondary detection
+        const allLines = detectHorizontalLines(imageData, width, height, 0.15);
 
         onProgress?.('Classifying line groups...', 40);
 
@@ -75,85 +85,165 @@ export class SystemDetector {
     }
 
     /**
-     * Classify detected lines into staff groups (5-line) and tab groups (6-line)
+     * Classify detected lines into staff groups (5-line) and tab groups (6-line).
+     * Uses a cluster-based grid-fitting approach that tolerates missing lines
+     * (common in real scanned/photographed sheet music).
      * @param {Array} allLines - detected horizontal lines
      * @returns {Array<{type: string, lines: number[], spacing: number, top: number, bottom: number}>}
      */
     classifyLineGroups(allLines) {
-        if (allLines.length < 5) return [];
+        if (allLines.length < 3) return [];
 
         const sortedLines = [...allLines].sort((a, b) => a.y - b.y);
-        const groups = [];
-        const usedIndices = new Set();
 
-        // Try to find 6-line groups first (tab), then 5-line groups (staff)
-        // This prevents a 6-line tab from being partially matched as a 5-line staff
-
-        // Pass 1: Find 6-line tab groups
-        for (let start = 0; start <= sortedLines.length - 6; start++) {
-            if (usedIndices.has(start)) continue;
-
-            const candidate = sortedLines.slice(start, start + 6);
-            const gaps = [];
-            for (let i = 1; i < 6; i++) {
-                gaps.push(candidate[i].y - candidate[i - 1].y);
-            }
-
-            const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
-            const variance = gaps.reduce((sum, g) => sum + Math.pow(g - avgGap, 2), 0) / gaps.length;
-            const stdDev = Math.sqrt(variance);
-
-            if (stdDev < avgGap * 0.2 && avgGap >= 5 && avgGap <= 60) {
-                groups.push({
-                    type: 'tab-candidate',
-                    lines: candidate.map(l => l.y),
-                    spacing: avgGap,
-                    top: candidate[0].y,
-                    bottom: candidate[5].y,
-                });
-                for (let i = start; i < start + 6; i++) usedIndices.add(i);
-                start += 5;
+        // Step 1: Cluster nearby lines (gap < 30px between consecutive lines)
+        // 30px separates staff groups (~6px spacing) and tab groups (~9px spacing)
+        // from the staff-tab gap (~35-45px) and inter-system gaps (~80px)
+        const clusters = [];
+        let currentCluster = [sortedLines[0]];
+        for (let i = 1; i < sortedLines.length; i++) {
+            if (sortedLines[i].y - currentCluster[currentCluster.length - 1].y < 30) {
+                currentCluster.push(sortedLines[i]);
+            } else {
+                if (currentCluster.length >= 3) clusters.push(currentCluster);
+                currentCluster = [sortedLines[i]];
             }
         }
+        if (currentCluster.length >= 3) clusters.push(currentCluster);
 
-        // Pass 2: Find 5-line staff groups from remaining lines
-        for (let start = 0; start <= sortedLines.length - 5; start++) {
-            if (usedIndices.has(start)) continue;
-
-            // Check if all 5 consecutive lines are unused
-            let allFree = true;
-            for (let i = start; i < start + 5; i++) {
-                if (usedIndices.has(i)) { allFree = false; break; }
-            }
-            if (!allFree) continue;
-
-            const candidate = sortedLines.slice(start, start + 5);
-            const gaps = [];
-            for (let i = 1; i < 5; i++) {
-                gaps.push(candidate[i].y - candidate[i - 1].y);
-            }
-
-            const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
-            const variance = gaps.reduce((sum, g) => sum + Math.pow(g - avgGap, 2), 0) / gaps.length;
-            const stdDev = Math.sqrt(variance);
-
-            if (stdDev < avgGap * 0.15 && avgGap >= 8 && avgGap <= 60) {
-                groups.push({
-                    type: 'staff-candidate',
-                    lines: candidate.map(l => l.y),
-                    spacing: avgGap,
-                    top: candidate[0].y,
-                    bottom: candidate[4].y,
-                });
-                for (let i = start; i < start + 5; i++) usedIndices.add(i);
-                start += 4;
-            }
+        // Step 2: For each cluster, try to fit regular grids (5-line staff or 6-line tab)
+        const groups = [];
+        for (const cluster of clusters) {
+            const fit = this.fitGridToCluster(cluster);
+            if (fit) groups.push(fit);
         }
 
         // Sort by top position
         groups.sort((a, b) => a.top - b.top);
-
         return groups;
+    }
+
+    /**
+     * Try to fit a regular 5-line or 6-line grid to a cluster of detected lines.
+     * Handles missing lines by finding the fundamental spacing from pairwise gaps.
+     * @param {Array} cluster - array of line objects {y, strength}
+     * @returns {Object|null} matched group or null
+     */
+    fitGridToCluster(cluster) {
+        const ys = cluster.map(l => l.y);
+        const totalSpan = ys[ys.length - 1] - ys[0];
+
+        // Compute all consecutive gaps
+        const gaps = [];
+        for (let i = 1; i < ys.length; i++) {
+            gaps.push(ys[i] - ys[i - 1]);
+        }
+
+        // Find the fundamental spacing: the smallest frequent gap
+        // In real images, some lines are missed, so gaps can be 1x, 2x, 3x the real spacing
+        // Use GCD-like approach: find the smallest gap that divides most other gaps
+        const candidateSpacings = this.findCandidateSpacings(gaps);
+
+        let bestResult = null;
+        let bestScore = -Infinity;
+
+        for (const spacing of candidateSpacings) {
+            if (spacing < 4 || spacing > 60) continue;
+
+            // Try both 5-line (staff) and 6-line (tab) grids
+            for (const numLines of [6, 5]) {
+                const expectedSpan = spacing * (numLines - 1);
+
+                // Try each detected line as a potential starting line (any of the numLines positions)
+                for (let startLineIdx = 0; startLineIdx < numLines; startLineIdx++) {
+                    for (const anchor of ys) {
+                        const gridStart = anchor - startLineIdx * spacing;
+                        const expectedYs = Array.from({ length: numLines }, (_, i) => gridStart + i * spacing);
+
+                        // Count matches: each expected Y must be close to a detected line
+                        let matched = 0;
+                        const matchedYs = [];
+                        for (const ey of expectedYs) {
+                            const closest = ys.find(y => Math.abs(y - ey) <= Math.max(2, spacing * 0.15));
+                            if (closest !== undefined) {
+                                matched++;
+                                matchedYs.push(closest);
+                            } else {
+                                matchedYs.push(Math.round(ey)); // infer missing line position
+                            }
+                        }
+
+                        // Require at least 60% of expected lines detected
+                        const matchRatio = matched / numLines;
+                        if (matchRatio < 0.6) continue;
+
+                        // Score: prioritize match ratio, with spacing-based bias
+                        // Staff lines typically have 5-8px spacing, tab lines 8-15px
+                        let spacingBias = 0;
+                        if (numLines === 5 && spacing <= 8) spacingBias = 50;      // staff likely
+                        else if (numLines === 5 && spacing > 8) spacingBias = -100; // staff unlikely with wide spacing
+                        else if (numLines === 6 && spacing >= 7) spacingBias = 50;  // tab likely
+                        else if (numLines === 6 && spacing < 7) spacingBias = -100; // tab unlikely with narrow spacing
+
+                        const score = matchRatio * 1000 + matched * 10 + spacingBias;
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestResult = {
+                                type: numLines === 6 ? 'tab-candidate' : 'staff-candidate',
+                                lines: matchedYs,
+                                spacing,
+                                top: matchedYs[0],
+                                bottom: matchedYs[matchedYs.length - 1],
+                                matchRatio,
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        return bestResult;
+    }
+
+    /**
+     * Find candidate spacings from a set of gaps.
+     * Looks for the fundamental spacing that explains most gaps as integer multiples.
+     * @param {number[]} gaps
+     * @returns {number[]} candidate spacings sorted by likelihood
+     */
+    findCandidateSpacings(gaps) {
+        if (gaps.length === 0) return [];
+
+        const candidates = new Map(); // spacing -> count of gaps it explains
+
+        // Try each gap and its divisors as candidate spacings
+        for (const gap of gaps) {
+            // gap itself is a candidate
+            for (let divisor = 1; divisor <= 4; divisor++) {
+                const spacing = Math.round(gap / divisor);
+                if (spacing < 4) continue;
+
+                // Count how many gaps this spacing explains (within tolerance)
+                let explains = 0;
+                for (const g of gaps) {
+                    const ratio = g / spacing;
+                    const roundedRatio = Math.round(ratio);
+                    if (roundedRatio >= 1 && roundedRatio <= 6 &&
+                        Math.abs(ratio - roundedRatio) < 0.25) {
+                        explains++;
+                    }
+                }
+
+                const existing = candidates.get(spacing) || 0;
+                candidates.set(spacing, Math.max(existing, explains));
+            }
+        }
+
+        // Sort by how many gaps each spacing explains (descending)
+        return [...candidates.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .map(([spacing]) => spacing);
     }
 
     /**
@@ -181,8 +271,10 @@ export class SystemDetector {
                     const nextGroup = lineGroups[j];
                     if (nextGroup.type === 'tab-candidate') {
                         const gap = nextGroup.top - group.bottom;
-                        // Gap should be less than 2x the staff spacing
-                        if (gap > 0 && gap < group.spacing * 3) {
+                        // Gap between staff and tab is typically 30-60px
+                        // Use the larger of the two spacings * 8 as threshold, with minimum 60px
+                        const maxGap = Math.max(60, Math.max(group.spacing, nextGroup.spacing) * 8);
+                        if (gap > 0 && gap < maxGap) {
                             pairedTab = { index: j, group: nextGroup };
                         }
                     }

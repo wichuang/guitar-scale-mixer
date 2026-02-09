@@ -44,13 +44,13 @@ export class CombinedSheetOCR {
             detectChords = true,
         } = options;
 
-        // 1. Detect systems
+        // 1. Detect systems (uses binarized image internally)
         onProgress?.('Detecting notation systems...', 5);
         const detection = await this.systemDetector.detectSystems(imageSource, (msg, pct) => {
             onProgress?.(msg, 5 + pct * 0.15);
         });
 
-        const { systems, canvas, width, height, imageData } = detection;
+        const { systems, canvas: binarizedCanvas, width, height, imageData } = detection;
 
         if (systems.length === 0) {
             return {
@@ -61,6 +61,12 @@ export class CombinedSheetOCR {
                 error: 'No notation systems detected in the image',
             };
         }
+
+        // Load the ORIGINAL image (un-binarized) for OCR cropping.
+        // SystemDetector returns a binarized canvas which is good for line detection
+        // but bad for OCR (double preprocessing destroys quality).
+        const original = await loadImageToCanvas(imageSource);
+        const originalCanvas = original.canvas;
 
         onProgress?.(`Found ${systems.length} system(s)`, 20);
 
@@ -100,27 +106,28 @@ export class CombinedSheetOCR {
 
             if (system.type === SystemType.STAFF_TAB) {
                 // Combined Staff+Tab: use Tab as primary
+                // Pass originalCanvas so TabOCR can do its own preprocessing
                 systemNotes = await this.processStaffTabSystem(
-                    canvas, system, width, height, imageData, noteIndex,
+                    originalCanvas, system, width, height, imageData, noteIndex,
                     (msg, pct) => onProgress?.(msg, progressBase + pct * (50 / systems.length / 100))
                 );
             } else if (system.type === SystemType.TAB) {
-                // Tab only
+                // Tab only - pass originalCanvas
                 systemNotes = await this.processTabSystem(
-                    canvas, system, width, noteIndex,
+                    originalCanvas, system, width, noteIndex,
                     (msg, pct) => onProgress?.(msg, progressBase + pct * (50 / systems.length / 100))
                 );
             } else if (system.type === SystemType.STAFF) {
-                // Staff only
+                // Staff only - uses binarized canvas for note detection
                 systemNotes = await this.processStaffSystem(
-                    canvas, system, width, height, imageData, noteIndex
+                    binarizedCanvas, system, width, height, imageData, noteIndex
                 );
             }
 
-            // Detect chord symbols above this system
+            // Detect chord symbols above this system (binarized is fine for text OCR)
             if (detectChords && system.chordRegionTop !== undefined) {
                 const chords = await this.detectChordsInRegion(
-                    canvas, system.chordRegionTop, system.chordRegionBottom, width
+                    originalCanvas, system.chordRegionTop, system.chordRegionBottom, width
                 );
                 this.associateChordsWithNotes(chords, systemNotes, system);
             }
@@ -128,7 +135,7 @@ export class CombinedSheetOCR {
             // Detect technique marks (for staff+tab)
             if (system.type === SystemType.STAFF_TAB && system.techniqueRegionTop !== undefined) {
                 const techniques = await this.detectTechniqueMarks(
-                    canvas, system.techniqueRegionTop, system.techniqueRegionBottom, width
+                    originalCanvas, system.techniqueRegionTop, system.techniqueRegionBottom, width
                 );
                 this.associateTechniquesWithNotes(techniques, systemNotes, system);
             }
@@ -190,11 +197,18 @@ export class CombinedSheetOCR {
     async processStaffTabSystem(canvas, system, width, height, imageData, startNoteIndex, onProgress) {
         const notes = [];
 
-        // Crop the tab region
+        // Crop the tab region from the ORIGINAL (un-binarized) canvas
         const tabTopY = system.tabLines[0];
         const tabBottomY = system.tabLines[5];
         const tabHeight = tabBottomY - tabTopY;
         const margin = Math.max(10, system.tabSpacing * 0.5);
+
+        /* console.log('[CombinedOCR] Processing Staff+Tab system:', {
+            tabTopY, tabBottomY, tabHeight, margin,
+            tabLines: system.tabLines,
+            tabSpacing: system.tabSpacing,
+            canvasSize: `${canvas.width}x${canvas.height}`,
+        }); */
 
         const tabCanvas = document.createElement('canvas');
         tabCanvas.width = width;
@@ -207,6 +221,7 @@ export class CombinedSheetOCR {
 
         // Adjust tab line positions relative to cropped canvas
         const adjustedTabLines = system.tabLines.map(y => y - tabTopY + margin);
+        // console.log('[CombinedOCR] Adjusted tab lines:', adjustedTabLines);
 
         // Run Tab OCR with pre-detected lines
         try {
@@ -214,6 +229,12 @@ export class CombinedSheetOCR {
                 tabLines: adjustedTabLines,
                 startNoteIndex,
             });
+
+            /* console.log('[CombinedOCR] Tab OCR result:', {
+                notesCount: tabResult.notes?.length || 0,
+                confidence: tabResult.confidence,
+                rawTextLength: tabResult.rawText?.length || 0,
+            }); */
 
             if (tabResult.notes) {
                 notes.push(...tabResult.notes);
