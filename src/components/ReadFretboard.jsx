@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { STRING_TUNINGS, getNoteName, getNoteIndex, getIntervalForNote } from '../data/scaleData';
-import { calculate3NPSPositions, get3NPSInfo, generate3NPSMap } from '../data/jianpuParser';
+import { calculate3NPSPositions, get3NPSInfo, generate3NPSMap } from '../parsers/JianpuParser';
 import './ReadFretboard.css';
 
 function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startString = 5, onStartStringChange, rangeOctave = 0, onRangeOctaveChange, musicKey = 'C', scaleType = 'Major', showScaleGuide = false }) {

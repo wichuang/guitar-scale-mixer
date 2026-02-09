@@ -8,7 +8,7 @@ import {
     notesToJianpuString,
     jianpuToNote,
     calculate3NPSPositions
-} from '../data/jianpuParser';
+} from '../parsers/JianpuParser';
 import { NOTES } from '../data/scaleData';
 import { useAudio } from '../hooks/useAudio';
 import ReadFretboard from './ReadFretboard';

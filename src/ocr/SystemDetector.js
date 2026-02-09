@@ -356,7 +356,7 @@ export class SystemDetector {
         const cropped = document.createElement('canvas');
         cropped.width = canvas.width;
         cropped.height = cropHeight;
-        const ctx = cropped.getContext('2d');
+        const ctx = cropped.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(canvas, 0, topY, canvas.width, cropHeight, 0, 0, canvas.width, cropHeight);
 
         return cropped;

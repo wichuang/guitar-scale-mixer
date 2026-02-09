@@ -213,7 +213,7 @@ export class CombinedSheetOCR {
         const tabCanvas = document.createElement('canvas');
         tabCanvas.width = width;
         tabCanvas.height = tabHeight + margin * 2;
-        const tabCtx = tabCanvas.getContext('2d');
+        const tabCtx = tabCanvas.getContext('2d', { willReadFrequently: true });
         tabCtx.drawImage(canvas,
             0, tabTopY - margin, width, tabHeight + margin * 2,
             0, 0, width, tabHeight + margin * 2
@@ -260,7 +260,7 @@ export class CombinedSheetOCR {
         const tabCanvas = document.createElement('canvas');
         tabCanvas.width = width;
         tabCanvas.height = tabHeight + margin * 2;
-        const tabCtx = tabCanvas.getContext('2d');
+        const tabCtx = tabCanvas.getContext('2d', { willReadFrequently: true });
         tabCtx.drawImage(canvas,
             0, tabTopY - margin, width, tabHeight + margin * 2,
             0, 0, width, tabHeight + margin * 2
@@ -306,7 +306,7 @@ export class CombinedSheetOCR {
         const staffCanvas = document.createElement('canvas');
         staffCanvas.width = width;
         staffCanvas.height = cropHeight;
-        const staffCtx = staffCanvas.getContext('2d');
+        const staffCtx = staffCanvas.getContext('2d', { willReadFrequently: true });
         staffCtx.drawImage(canvas, 0, cropTop, width, cropHeight, 0, 0, width, cropHeight);
 
         // Get image data from cropped canvas
@@ -360,7 +360,7 @@ export class CombinedSheetOCR {
         const chordCanvas = document.createElement('canvas');
         chordCanvas.width = width;
         chordCanvas.height = regionHeight;
-        const ctx = chordCanvas.getContext('2d');
+        const ctx = chordCanvas.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(canvas, 0, topY, width, regionHeight, 0, 0, width, regionHeight);
 
         // OCR with chord-friendly whitelist
@@ -408,7 +408,7 @@ export class CombinedSheetOCR {
         const techCanvas = document.createElement('canvas');
         techCanvas.width = width;
         techCanvas.height = regionHeight;
-        const ctx = techCanvas.getContext('2d');
+        const ctx = techCanvas.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(canvas, 0, topY, width, regionHeight, 0, 0, width, regionHeight);
 
         if (!this.chordWorker) {

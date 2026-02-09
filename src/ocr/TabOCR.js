@@ -158,7 +158,7 @@ export class TabOCR {
             const stripCanvas = document.createElement('canvas');
             stripCanvas.width = width;
             stripCanvas.height = stripHeight;
-            const stripCtx = stripCanvas.getContext('2d');
+            const stripCtx = stripCanvas.getContext('2d', { willReadFrequently: true });
             stripCtx.drawImage(canvas, 0, Math.floor(stripTop), width, stripHeight, 0, 0, width, stripHeight);
 
             // Remove the horizontal tab line from the strip
@@ -174,7 +174,7 @@ export class TabOCR {
                 ocrCanvas = document.createElement('canvas');
                 ocrCanvas.width = width * scale;
                 ocrCanvas.height = stripHeight * scale;
-                const ocrCtx = ocrCanvas.getContext('2d');
+                const ocrCtx = ocrCanvas.getContext('2d', { willReadFrequently: true });
                 ocrCtx.imageSmoothingEnabled = false; // nearest-neighbor for crisp binarized text
                 ocrCtx.drawImage(stripCanvas, 0, 0, ocrCanvas.width, ocrCanvas.height);
             }
@@ -369,7 +369,7 @@ export class TabOCR {
         const regionCanvas = document.createElement('canvas');
         regionCanvas.width = Math.max(1, Math.floor(width));
         regionCanvas.height = Math.max(1, Math.floor(height));
-        const ctx = regionCanvas.getContext('2d');
+        const ctx = regionCanvas.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(
             canvas,
             Math.floor(x), Math.floor(y),
@@ -630,7 +630,7 @@ export class TabOCR {
         const regionCanvas = document.createElement('canvas');
         regionCanvas.width = width;
         regionCanvas.height = height;
-        const ctx = regionCanvas.getContext('2d');
+        const ctx = regionCanvas.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(canvas, x, y, width, height, 0, 0, width, height);
 
         const { data } = await this.worker.recognize(regionCanvas);

@@ -102,7 +102,7 @@ export class HeaderOCR {
         const headerCanvas = document.createElement('canvas');
         headerCanvas.width = width;
         headerCanvas.height = headerBottomY;
-        const headerCtx = headerCanvas.getContext('2d');
+        const headerCtx = headerCanvas.getContext('2d', { willReadFrequently: true });
         headerCtx.drawImage(canvas, 0, 0, width, headerBottomY, 0, 0, width, headerBottomY);
 
         // 4. OCR the header region

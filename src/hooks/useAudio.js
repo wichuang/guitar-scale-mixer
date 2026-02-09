@@ -41,34 +41,44 @@ async function loadInstrumentIfNeeded(name) {
 }
 
 export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const instrumentRef = useRef(null);
     const currentNameRef = useRef(instrumentName);
+    const loadingPromiseRef = useRef(null);
 
-    // Load instrument
-    useEffect(() => {
-        let cancelled = false;
-        currentNameRef.current = instrumentName;
-
+    // Load instrument on demand (called from user gesture context)
+    const ensureLoaded = useCallback(async () => {
+        const name = currentNameRef.current;
+        if (instrumentRef.current && instrumentsCache[name]) {
+            return instrumentRef.current;
+        }
+        if (loadingPromiseRef.current) {
+            return loadingPromiseRef.current;
+        }
         setIsLoading(true);
-
-        loadInstrumentIfNeeded(instrumentName)
+        loadingPromiseRef.current = loadInstrumentIfNeeded(name)
             .then(instrument => {
-                if (!cancelled && currentNameRef.current === instrumentName) {
-                    instrumentRef.current = instrument;
-                    setIsLoading(false);
-                }
+                instrumentRef.current = instrument;
+                setIsLoading(false);
+                loadingPromiseRef.current = null;
+                return instrument;
             })
             .catch(error => {
                 console.error('Failed to load instrument:', error);
-                if (!cancelled) {
-                    setIsLoading(false);
-                }
+                setIsLoading(false);
+                loadingPromiseRef.current = null;
+                return null;
             });
+        return loadingPromiseRef.current;
+    }, []);
 
-        return () => {
-            cancelled = true;
-        };
+    // When instrument name changes, clear cached ref so next play triggers reload
+    useEffect(() => {
+        if (instrumentName !== currentNameRef.current) {
+            currentNameRef.current = instrumentName;
+            instrumentRef.current = instrumentsCache[instrumentName] || null;
+            loadingPromiseRef.current = null;
+        }
     }, [instrumentName]);
 
     // Convert MIDI note number to note name
@@ -84,7 +94,8 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         const ac = getAudioContext();
 
         if (!instrumentRef.current) {
-            console.warn('Instrument not loaded yet');
+            // Trigger lazy load on first play (user gesture context)
+            ensureLoaded();
             return;
         }
 
@@ -99,7 +110,7 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         } catch (err) {
             console.error('Error playing note:', err);
         }
-    }, [midiToNoteName]);
+    }, [midiToNoteName, ensureLoaded]);
 
     // Play note by name (at middle octave)
     const playNoteByName = useCallback((noteName) => {
@@ -112,12 +123,14 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
     }, [playNote]);
 
     const resumeAudio = useCallback(async () => {
+        // Ensure instrument is loaded (called from user gesture context)
+        await ensureLoaded();
         const ac = getAudioContext();
         if (ac.state === 'suspended') {
             await ac.resume();
         }
         return ac;
-    }, []);
+    }, [ensureLoaded]);
 
     return {
         playNote,

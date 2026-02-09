@@ -11,7 +11,7 @@
 export async function loadImageToCanvas(source) {
     // Handle Canvas elements directly (used by CombinedSheetOCR for cropped regions)
     if (source instanceof HTMLCanvasElement) {
-        const ctx = source.getContext('2d');
+        const ctx = source.getContext('2d', { willReadFrequently: true });
         return {
             canvas: source,
             ctx,
@@ -29,7 +29,7 @@ export async function loadImageToCanvas(source) {
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
             canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
             ctx.drawImage(img, 0, 0);
             resolve({
                 canvas,

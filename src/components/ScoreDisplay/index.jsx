@@ -3,7 +3,7 @@
  * 整合簡譜、五線譜、六線譜視圖
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import JianpuView from './JianpuView.jsx';
 import StaffView from './StaffView.jsx';
 import TabView from './TabView.jsx';
@@ -45,9 +45,9 @@ function ScoreDisplay({
         onNotationChange?.(newNotation);
     };
 
-    const handleNoteCoordinates = (coords) => {
+    const handleNoteCoordinates = useCallback((coords) => {
         setNoteXCoordinates(coords);
-    };
+    }, []);
 
     // 決定顯示哪些視圖
     const showJianpu = currentNotation === 'all' || currentNotation === 'jianpu';
