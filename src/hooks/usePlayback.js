@@ -173,21 +173,33 @@ export function usePlayback({
 
         lastNoteIndexRef.current = currentNoteIndex;
 
+        // Skip all consecutive separators and symbols in one setState call
+        // to avoid "Maximum update depth exceeded" from chained synchronous updates
+        let idx = currentNoteIndex;
+        while (idx < notes.length) {
+            const n = notes[idx];
+            if (n.isSeparator || n._type === 'separator') {
+                beatCounterRef.current = 0;
+                idx++;
+            } else if (n.isSymbol || n._type === 'symbol') {
+                idx++;
+            } else {
+                break;
+            }
+        }
+        if (idx !== currentNoteIndex) {
+            if (idx >= notes.length) {
+                setIsPlaying(false);
+                setCurrentNoteIndex(-1);
+                setPlayTime(0);
+                beatCounterRef.current = 0;
+            } else {
+                setCurrentNoteIndex(idx);
+            }
+            return;
+        }
+
         const note = notes[currentNoteIndex];
-
-        // Separator resets beat count (handle both Note instances and plain objects)
-        if (note.isSeparator || note._type === 'separator') {
-            beatCounterRef.current = 0;
-            setCurrentNoteIndex(prev => prev + 1);
-            return;
-        }
-
-        // Skip symbols
-        if (note.isSymbol || note._type === 'symbol') {
-            setCurrentNoteIndex(prev => prev + 1);
-            return;
-        }
-
         const pos = notePositions[currentNoteIndex];
 
         // Determine Accent
