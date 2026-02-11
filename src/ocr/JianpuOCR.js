@@ -19,7 +19,7 @@
  */
 
 import Tesseract from 'tesseract.js';
-import { loadImageToCanvas, grayscale, binarize, adjustContrast, invertColors, isDarkImage, morphologicalOpen } from './imagePreprocess.js';
+import { loadImageToCanvas, grayscale, binarize, adjustContrast, invertColors, isDarkImage, morphologicalOpen, preprocessImage } from './imagePreprocess.js';
 import { Note } from '../core/models/Note.js';
 
 // 簡譜數字對應的音程（相對於 Do）
@@ -184,48 +184,28 @@ export class JianpuOCR {
 
     /**
      * 預處理簡譜圖片 (with adaptive inversion for dark images)
+     * Now uses the unified preprocessImage() pipeline
      * @param {File|Blob|string} source
      * @returns {Promise<Object>}
      */
     async preprocessJianpuImage(source) {
-        const { canvas, ctx, width, height } = await loadImageToCanvas(source);
-
-        // 1. 灰階
-        let imageData = ctx.getImageData(0, 0, width, height);
-        grayscale(imageData);
-        ctx.putImageData(imageData, 0, 0);
-
-        // 2. Adaptive inversion for dark/inverted images
-        imageData = ctx.getImageData(0, 0, width, height);
-        let wasInverted = false;
-        if (isDarkImage(imageData)) {
-            invertColors(imageData);
-            ctx.putImageData(imageData, 0, 0);
-            wasInverted = true;
-        }
-
-        // 3. 對比度增強
-        imageData = ctx.getImageData(0, 0, width, height);
-        adjustContrast(imageData, 1.5);
-        ctx.putImageData(imageData, 0, 0);
-
-        // 4. 二值化
-        imageData = ctx.getImageData(0, 0, width, height);
-        binarize(imageData);
-        ctx.putImageData(imageData, 0, 0);
-
-        // 5. Morphological open to remove noise (helps dot detection)
-        imageData = ctx.getImageData(0, 0, width, height);
-        morphologicalOpen(imageData, width, height, 1);
-        ctx.putImageData(imageData, 0, 0);
+        const result = await preprocessImage(source, {
+            contrast: 1.5,
+            doSharpen: false,
+            binarizeMethod: 'adaptive',
+            autoInvert: true,
+            doScale: true,
+            doDeskew: false,
+            doMorphOpen: true,
+        });
 
         return {
-            canvas,
-            ctx,
-            width,
-            height,
-            imageData,
-            wasInverted,
+            canvas: result.canvas,
+            ctx: result.ctx,
+            width: result.width,
+            height: result.height,
+            imageData: result.imageData,
+            wasInverted: result.wasInverted,
         };
     }
 

@@ -5,7 +5,7 @@
  */
 
 import Tesseract from 'tesseract.js';
-import { loadImageToCanvas, grayscale, binarize, adjustContrast } from './imagePreprocess.js';
+import { loadImageToCanvas, grayscale, binarize, adjustContrast, preprocessImage } from './imagePreprocess.js';
 import { detectStaffLines, findStaffGroups } from './staffPreprocess.js';
 
 /**
@@ -63,20 +63,19 @@ export class HeaderOCR {
 
         onProgress?.('Preprocessing image...', 15);
 
-        // 1. Load and preprocess the full image
-        const { canvas, ctx, width, height } = await loadImageToCanvas(imageSource);
+        // 1. Load and preprocess using unified pipeline
+        const result = await preprocessImage(imageSource, {
+            contrast: 1.3,
+            doSharpen: false,
+            binarizeMethod: 'adaptive',
+            autoInvert: true,
+            doScale: true,
+            doDeskew: false,
+            doMorphOpen: false,
+        });
 
-        let imageData = ctx.getImageData(0, 0, width, height);
-        grayscale(imageData);
-        ctx.putImageData(imageData, 0, 0);
-
-        imageData = ctx.getImageData(0, 0, width, height);
-        adjustContrast(imageData, 1.3);
-        ctx.putImageData(imageData, 0, 0);
-
-        imageData = ctx.getImageData(0, 0, width, height);
-        binarize(imageData);
-        ctx.putImageData(imageData, 0, 0);
+        const { canvas, ctx, width, height } = result;
+        const imageData = result.imageData;
 
         // 2. Detect first system's top boundary
         onProgress?.('Finding header region...', 25);

@@ -4,7 +4,7 @@
  * Returns system boundaries for sequential processing.
  */
 
-import { loadImageToCanvas, grayscale, binarize, adjustContrast, detectHorizontalLines, isDarkImage, invertColors } from './imagePreprocess.js';
+import { loadImageToCanvas, grayscale, binarize, adjustContrast, detectHorizontalLines, isDarkImage, invertColors, preprocessImage } from './imagePreprocess.js';
 
 /**
  * System types
@@ -29,29 +29,18 @@ export class SystemDetector {
     async detectSystems(imageSource, onProgress) {
         onProgress?.('Loading image...', 5);
 
-        // 1. Load and preprocess
-        const { canvas, ctx, width, height } = await loadImageToCanvas(imageSource);
+        // 1. Load and preprocess using unified pipeline
+        const result = await preprocessImage(imageSource, {
+            contrast: 1.3,
+            doSharpen: false,
+            binarizeMethod: 'adaptive',
+            autoInvert: true,
+            doScale: true,
+            doDeskew: false,
+            doMorphOpen: false,
+        });
 
-        let imageData = ctx.getImageData(0, 0, width, height);
-        grayscale(imageData);
-        ctx.putImageData(imageData, 0, 0);
-
-        imageData = ctx.getImageData(0, 0, width, height);
-        adjustContrast(imageData, 1.3);
-        ctx.putImageData(imageData, 0, 0);
-
-        imageData = ctx.getImageData(0, 0, width, height);
-        binarize(imageData);
-        ctx.putImageData(imageData, 0, 0);
-
-        // Check if binarization inverted the image (dark background)
-        // If so, invert it back so lines are black on white
-        imageData = ctx.getImageData(0, 0, width, height);
-        if (isDarkImage(imageData)) {
-            // console.log('[SystemDetector] Image is dark after binarization, inverting...');
-            invertColors(imageData);
-            ctx.putImageData(imageData, 0, 0);
-        }
+        const { canvas, ctx, width, height, imageData, originalCanvas } = result;
 
         onProgress?.('Detecting lines...', 20);
 
@@ -81,6 +70,7 @@ export class SystemDetector {
             height,
             allLines,
             lineGroups,
+            originalCanvas,
         };
     }
 

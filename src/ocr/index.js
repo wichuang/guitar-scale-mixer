@@ -52,12 +52,23 @@ export {
     binarize,
     adjustContrast,
     sharpen,
+    sharpenImageData,
     invertColors,
     isDarkImage,
+    isDarkImageImproved,
     morphologicalOpen,
     detectHorizontalLines,
     findSixStringLines,
-    preprocessTabImage
+    preprocessTabImage,
+    preprocessImage,
+    buildHistogram,
+    detectImageQuality,
+    smartScale,
+    gaussianBlur,
+    binarizeSauvola,
+    binarizeAdaptive,
+    deskewImage,
+    calculateOtsuThreshold,
 } from './imagePreprocess.js';
 
 // Staff-specific preprocessing

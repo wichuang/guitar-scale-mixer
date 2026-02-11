@@ -9,7 +9,7 @@ import Tesseract from 'tesseract.js';
 import { SystemDetector, SystemType } from './SystemDetector.js';
 import { HeaderOCR } from './HeaderOCR.js';
 import { TabOCR } from './TabOCR.js';
-import { loadImageToCanvas, grayscale, binarize, adjustContrast } from './imagePreprocess.js';
+// loadImageToCanvas no longer needed - originalCanvas provided by SystemDetector via preprocessImage
 import { detectNotes, detectBarlines } from './noteDetection.js';
 import { removeStaffLines } from './staffPreprocess.js';
 import { Note } from '../core/models/Note.js';
@@ -50,7 +50,7 @@ export class CombinedSheetOCR {
             onProgress?.(msg, 5 + pct * 0.15);
         });
 
-        const { systems, canvas: binarizedCanvas, width, height, imageData } = detection;
+        const { systems, canvas: binarizedCanvas, width, height, imageData, originalCanvas } = detection;
 
         if (systems.length === 0) {
             return {
@@ -61,12 +61,6 @@ export class CombinedSheetOCR {
                 error: 'No notation systems detected in the image',
             };
         }
-
-        // Load the ORIGINAL image (un-binarized) for OCR cropping.
-        // SystemDetector returns a binarized canvas which is good for line detection
-        // but bad for OCR (double preprocessing destroys quality).
-        const original = await loadImageToCanvas(imageSource);
-        const originalCanvas = original.canvas;
 
         onProgress?.(`Found ${systems.length} system(s)`, 20);
 

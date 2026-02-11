@@ -3,7 +3,7 @@
  * 專門處理五線譜的線條偵測和音符位置計算
  */
 
-import { loadImageToCanvas, grayscale, binarize, adjustContrast } from './imagePreprocess.js';
+import { loadImageToCanvas, grayscale, binarize, adjustContrast, preprocessImage } from './imagePreprocess.js';
 
 /**
  * 偵測五線譜的水平線
@@ -264,23 +264,18 @@ export async function preprocessStaffImage(source, options = {}) {
         removeLines = true
     } = options;
 
-    // 1. 載入圖片
-    const { canvas, ctx, width, height } = await loadImageToCanvas(source);
+    // Use unified preprocessing pipeline
+    const result = await preprocessImage(source, {
+        contrast,
+        doSharpen: false,
+        binarizeMethod: 'adaptive',
+        autoInvert: true,
+        doScale: true,
+        doDeskew: false,
+        doMorphOpen: false,
+    });
 
-    // 2. 灰階
-    let imageData = ctx.getImageData(0, 0, width, height);
-    grayscale(imageData);
-    ctx.putImageData(imageData, 0, 0);
-
-    // 3. 對比度增強
-    imageData = ctx.getImageData(0, 0, width, height);
-    adjustContrast(imageData, contrast);
-    ctx.putImageData(imageData, 0, 0);
-
-    // 4. 二值化
-    imageData = ctx.getImageData(0, 0, width, height);
-    binarize(imageData);
-    ctx.putImageData(imageData, 0, 0);
+    let { canvas, ctx, width, height, imageData } = result;
 
     // 5. 偵測五線譜
     const allLines = detectStaffLines(imageData, width, height);
@@ -301,7 +296,8 @@ export async function preprocessStaffImage(source, options = {}) {
         height,
         imageData,
         staffGroups,
-        allDetectedLines: allLines
+        allDetectedLines: allLines,
+        originalCanvas: result.originalCanvas,
     };
 }
 
