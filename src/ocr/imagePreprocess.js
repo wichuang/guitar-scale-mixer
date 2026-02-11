@@ -151,12 +151,13 @@ export function calculateOtsuThreshold(imageData) {
  */
 export function adjustContrast(imageData, factor = 1.5) {
     const data = imageData.data;
-    const factor255 = (259 * (factor * 255 + 255)) / (255 * (259 - factor * 255));
 
+    // Linear contrast scaling around midpoint 128.
+    // factor=1.0: no change, factor=1.3: 30% more contrast, factor=0.5: 50% less contrast.
     for (let i = 0; i < data.length; i += 4) {
-        data[i] = clamp(factor255 * (data[i] - 128) + 128);
-        data[i + 1] = clamp(factor255 * (data[i + 1] - 128) + 128);
-        data[i + 2] = clamp(factor255 * (data[i + 2] - 128) + 128);
+        data[i] = clamp((data[i] - 128) * factor + 128);
+        data[i + 1] = clamp((data[i + 1] - 128) * factor + 128);
+        data[i + 2] = clamp((data[i + 2] - 128) * factor + 128);
     }
 
     return imageData;

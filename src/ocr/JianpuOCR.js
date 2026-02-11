@@ -154,18 +154,31 @@ export class JianpuOCR {
         onProgress?.('偵測和弦符號...', 88);
         const chordInfo = await this.detectChordSymbols(preprocessed.canvas, wordBboxes);
 
-        // 7. 解析結果 (using bbox-based matching)
+        // 7. 解析結果 (using bbox-based matching, with text fallback for Tesseract v7+)
         onProgress?.('轉換為音符...', 90);
-        const parseResult = this.parseOCRResultWithBboxes(
-            wordBboxes,
-            data.text,
-            key,
-            scaleType,
-            octaveInfo,
-            durationInfo,
-            chordInfo,
-            startNoteIndex
-        );
+        let parseResult;
+        if (wordBboxes.length > 0) {
+            parseResult = this.parseOCRResultWithBboxes(
+                wordBboxes,
+                data.text,
+                key,
+                scaleType,
+                octaveInfo,
+                durationInfo,
+                chordInfo,
+                startNoteIndex
+            );
+        } else {
+            // Fallback: Tesseract.js v7+ may not provide data.words;
+            // use legacy text-based parsing
+            parseResult = this.parseOCRResult(
+                data.text,
+                key,
+                scaleType,
+                octaveInfo,
+                durationInfo
+            );
+        }
 
         onProgress?.('完成', 100);
 
