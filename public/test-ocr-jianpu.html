@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jianpu OCR Test</title>
+    <style>
+        body { background: #1a1a1a; color: #fff; font-family: monospace; padding: 20px; }
+        #log { white-space: pre-wrap; font-size: 13px; line-height: 1.6; }
+        .ok { color: #4caf50; }
+        .err { color: #ff5252; }
+        .info { color: #4fc3f7; }
+    </style>
+</head>
+<body>
+    <h2>Jianpu OCR Test (with preprocessing debug)</h2>
+    <input type="file" id="fileInput" accept="image/*" />
+    <button id="runTest">Run Test</button>
+    <div id="log"></div>
+    <canvas id="debugCanvas" style="margin-top:20px; max-width:100%; border:1px solid #333;"></canvas>
+
+    <script type="module">
+        import { recognizeJianpuImage } from '/guitar-scale-mixer/src/ocr/JianpuOCR.js';
+        import { preprocessImage, loadImageToCanvas, grayscale, isDarkImage, isDarkImageImproved, detectImageQuality, buildHistogram, binarize, binarizeAdaptive, binarizeSauvola } from '/guitar-scale-mixer/src/ocr/imagePreprocess.js';
+
+        const logEl = document.getElementById('log');
+        function log(msg, cls = '') {
+            const div = document.createElement('div');
+            div.className = cls;
+            div.textContent = typeof msg === 'string' ? msg : JSON.stringify(msg);
+            logEl.appendChild(div);
+            console.log(msg);
+        }
+
+        document.getElementById('runTest').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                log('Please select an image file first!', 'err');
+                return;
+            }
+
+            logEl.innerHTML = '';
+            log(`Testing with: ${file.name} (${file.size} bytes)`, 'info');
+
+            // Step 1: Detailed preprocessing debug
+            log('--- Preprocessing Debug ---', 'info');
+            try {
+                // Manual step-by-step to find where inversion goes wrong
+                const loaded = await loadImageToCanvas(file);
+                let imgData = loaded.ctx.getImageData(0, 0, loaded.width, loaded.height);
+                grayscale(imgData);
+
+                // Check dark image detection on grayscale
+                const darkImproved = isDarkImageImproved(imgData, loaded.width, loaded.height);
+                const darkSimple = isDarkImage(imgData);
+
+                // Sample some pixel values
+                const data = imgData.data;
+                const total = loaded.width * loaded.height;
+                let sumBright = 0;
+                for (let i = 0; i < data.length; i += 4) sumBright += data[i];
+                const meanBright = sumBright / total;
+
+                // Histogram analysis
+                const hist = buildHistogram(imgData);
+                let peakBin = 0, peakVal = 0;
+                for (let i = 0; i < 256; i++) {
+                    if (hist[i] > peakVal) { peakVal = hist[i]; peakBin = i; }
+                }
+
+                log(`  Dimensions: ${loaded.width}x${loaded.height}`);
+                log(`  Mean brightness (grayscale): ${meanBright.toFixed(1)}`);
+                log(`  Histogram peak bin: ${peakBin} (count: ${peakVal})`);
+                log(`  isDarkImage (simple): ${darkSimple}`);
+                log(`  isDarkImageImproved: ${darkImproved}`);
+
+                // Test binarization
+                const testData = new ImageData(new Uint8ClampedArray(imgData.data), loaded.width, loaded.height);
+                binarize(testData);
+                const darkAfterOtsu = isDarkImage(testData);
+                log(`  isDarkImage after Otsu binarize: ${darkAfterOtsu}`);
+
+                const testData2 = new ImageData(new Uint8ClampedArray(imgData.data), loaded.width, loaded.height);
+                binarizeAdaptive(testData2);
+                const darkAfterAdaptive = isDarkImage(testData2);
+                let blackCount = 0;
+                for (let i = 0; i < testData2.data.length; i += 4) {
+                    if (testData2.data[i] < 128) blackCount++;
+                }
+                log(`  isDarkImage after adaptive binarize: ${darkAfterAdaptive}`);
+                log(`  Black pixel ratio after adaptive: ${(blackCount / total * 100).toFixed(1)}%`);
+
+                // Now run full pipeline
+                const ppResult = await preprocessImage(file, {
+                    contrast: 1.5,
+                    doSharpen: false,
+                    binarizeMethod: 'adaptive',
+                    autoInvert: true,
+                    doMorphOpen: true,
+                });
+                log(`  Quality detected: ${ppResult.quality}`);
+                log(`  Pipeline wasInverted: ${ppResult.wasInverted}`);
+                log(`  Scale: ${ppResult.scale}`);
+
+                const debugCanvas = document.getElementById('debugCanvas');
+                debugCanvas.width = ppResult.width;
+                debugCanvas.height = ppResult.height;
+                const dCtx = debugCanvas.getContext('2d');
+                dCtx.drawImage(ppResult.canvas, 0, 0);
+            } catch (e) {
+                log(`  Preprocessing error: ${e.message}`, 'err');
+                log(e.stack, 'err');
+            }
+
+            // Step 1b: Check Tesseract data.words structure
+            log('');
+            log('--- Tesseract Words Debug ---', 'info');
+            try {
+                const { JianpuOCR: JOcr } = await import('/guitar-scale-mixer/src/ocr/JianpuOCR.js');
+                const jocr = new JOcr();
+                await jocr.initialize((msg, pct) => {});
+                const pp = await jocr.preprocessJianpuImage(file);
+                const { data: tData } = await jocr.worker.recognize(pp.canvas);
+                log(`  data.text length: ${tData.text?.length}`);
+                log(`  data.words: ${tData.words ? tData.words.length + ' words' : 'UNDEFINED'}`);
+                log(`  data.blocks: ${tData.blocks ? tData.blocks.length + ' blocks' : 'UNDEFINED'}`);
+                log(`  data keys: ${Object.keys(tData).join(', ')}`);
+                log(`  blocks type: ${typeof tData.blocks}, value: ${JSON.stringify(tData.blocks)?.substring(0, 200)}`);
+                log(`  layoutBlocks type: ${typeof tData.layoutBlocks}, isArray: ${Array.isArray(tData.layoutBlocks)}`);
+                if (tData.layoutBlocks && tData.layoutBlocks.length > 0) {
+                    const lb = tData.layoutBlocks[0];
+                    log(`  layoutBlocks[0] keys: ${Object.keys(lb).join(', ')}`);
+                    log(`  layoutBlocks[0]: ${JSON.stringify(lb).substring(0, 300)}`);
+                }
+                // Try hocr parsing for words
+                if (tData.hocr) {
+                    const wordMatches = tData.hocr.match(/ocrx_word/g);
+                    log(`  hocr word count: ${wordMatches ? wordMatches.length : 0}`);
+                    // Extract first word from hocr
+                    const firstWord = tData.hocr.match(/<span class='ocrx_word'[^>]*>([^<]+)<\/span>/);
+                    if (firstWord) log(`  hocr first word: "${firstWord[1]}"`);
+                }
+                // Try tsv for word data
+                if (tData.tsv) {
+                    const tsvLines = tData.tsv.split('\n').filter(l => l.trim());
+                    log(`  tsv lines: ${tsvLines.length}`);
+                    // Word-level entries have level=5
+                    const wordLines = tsvLines.filter(l => l.split('\t')[0] === '5');
+                    log(`  tsv word-level entries: ${wordLines.length}`);
+                    if (wordLines.length > 0) {
+                        log(`  tsv header: ${tsvLines[0]}`);
+                        log(`  tsv word[0]: ${wordLines[0]}`);
+                        log(`  tsv word[1]: ${wordLines[1] || 'N/A'}`);
+                    }
+                }
+                await jocr.terminate();
+            } catch (e) {
+                log(`  Tesseract debug error: ${e.message}`, 'err');
+            }
+
+            // Step 2: Run Jianpu OCR
+            log('');
+            log('--- Jianpu OCR ---', 'info');
+            try {
+                const result = await recognizeJianpuImage(file, (status, percent) => {
+                    log(`  [${Math.round(percent)}%] ${status}`);
+                }, { key: 'C' });
+
+                log('');
+                log('=== RESULTS ===', 'info');
+                log(`Notes: ${result.notes?.length || 0}`);
+                log(`Confidence: ${result.confidence?.toFixed(1)}%`);
+                log(`Raw text: ${result.rawText?.substring(0, 200)}`);
+                log(`Was inverted: ${result.wasInverted}`);
+
+                if (result.notes?.length > 0) {
+                    log('');
+                    log(`SUCCESS: Detected ${result.notes.length} notes!`, 'ok');
+                    log('First 20 notes:', 'info');
+                    result.notes.slice(0, 20).forEach((n, i) => {
+                        if (n.isSeparator) {
+                            log(`  [${i}] --- separator ---`);
+                        } else if (n.isRest) {
+                            log(`  [${i}] REST`);
+                        } else if (n.isExtension) {
+                            log(`  [${i}] EXTENSION (-)`);
+                        } else {
+                            log(`  [${i}] MIDI=${n.midi} ${n.noteName || '?'}${n.octave || '?'} jianpu=${n.jianpu || '?'} dur=${n.duration || '?'}`);
+                        }
+                    });
+                } else {
+                    log('');
+                    log('FAILED: No notes detected', 'err');
+                }
+
+            } catch (err) {
+                log(`ERROR: ${err.message}`, 'err');
+                log(err.stack, 'err');
+            }
+        });
+    </script>
+</body>
+</html>

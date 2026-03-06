@@ -1,0 +1,671 @@
+{
+  "name": "GuitarScore",
+  "data": {
+    "text": "| 0 3 6 1· 2· | 3· 0 1· 7 6 1· | 3 - - 3· 4· 3· | 2· - 7 1· 2· 4· | 3· - - 3· - 2· | 1. - - 2. - 1· | 7 - - 3 - 2# | 3 - 7 - 1· 7 | 6 - - 3· - 2· | 3· - - 1· 7 6 | 3 - - 2. - 3. | 4. - 2. 2. 3. 4. | 3.",
+    "notes": [
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "octave": 4,
+        "index": 1
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 3,
+        "index": 0,
+        "displayStr": "3",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 6,
+        "index": 1,
+        "displayStr": "6",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "G",
+        "octave": 5,
+        "midiNote": 79,
+        "jianpu": 1,
+        "index": 2,
+        "displayStr": "1·",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "A",
+        "octave": 5,
+        "midiNote": 81,
+        "jianpu": 2,
+        "index": 3,
+        "displayStr": "2·",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "B",
+        "octave": 5,
+        "midiNote": 83,
+        "jianpu": 3,
+        "index": 4,
+        "displayStr": "3·",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "octave": 4,
+        "index": 8
+      },
+      {
+        "noteName": "G",
+        "octave": 5,
+        "midiNote": 79,
+        "jianpu": 1,
+        "index": 5,
+        "displayStr": "1·",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 7,
+        "index": 6,
+        "displayStr": "7",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 6,
+        "index": 7,
+        "displayStr": "6",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "G",
+        "octave": 5,
+        "midiNote": 79,
+        "jianpu": 1,
+        "index": 8,
+        "displayStr": "1·",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 3,
+        "index": 9,
+        "displayStr": "3",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "noteName": "B",
+        "octave": 5,
+        "midiNote": 83,
+        "jianpu": 3,
+        "index": 10,
+        "displayStr": "3·",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "C",
+        "octave": 5,
+        "midiNote": 84,
+        "jianpu": 4,
+        "index": 11,
+        "displayStr": "4·",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "B",
+        "octave": 5,
+        "midiNote": 83,
+        "jianpu": 3,
+        "index": 12,
+        "displayStr": "3·",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "A",
+        "octave": 5,
+        "midiNote": 81,
+        "jianpu": 2,
+        "index": 13,
+        "displayStr": "2·",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 7,
+        "index": 14,
+        "displayStr": "7",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "G",
+        "octave": 5,
+        "midiNote": 79,
+        "jianpu": 1,
+        "index": 15,
+        "displayStr": "1·",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "A",
+        "octave": 5,
+        "midiNote": 81,
+        "jianpu": 2,
+        "index": 16,
+        "displayStr": "2·",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "C",
+        "octave": 5,
+        "midiNote": 84,
+        "jianpu": 4,
+        "index": 17,
+        "displayStr": "4·",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "B",
+        "octave": 5,
+        "midiNote": 83,
+        "jianpu": 3,
+        "index": 18,
+        "displayStr": "3·",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "noteName": "B",
+        "octave": 5,
+        "midiNote": 83,
+        "jianpu": 3,
+        "index": 19,
+        "displayStr": "3·",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-.",
+        "isExtension": true,
+        "octave": 5,
+        "index": 0,
+        "midiNote": null,
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "A",
+        "octave": 5,
+        "midiNote": 81,
+        "jianpu": 2,
+        "index": 20,
+        "displayStr": "2·",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "G",
+        "octave": 5,
+        "midiNote": 79,
+        "jianpu": 1,
+        "index": 21,
+        "displayStr": "1.",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": 2,
+        "octave": 5,
+        "midiNote": 81,
+        "noteName": "A",
+        "displayStr": "2.",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-.",
+        "isExtension": true,
+        "octave": 5,
+        "index": 0,
+        "midiNote": null,
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": 1,
+        "octave": 5,
+        "midiNote": 79,
+        "noteName": "G",
+        "displayStr": "1·",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "jianpu": 7,
+        "octave": 4,
+        "midiNote": 78,
+        "noteName": "F#",
+        "displayStr": "7",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": 3,
+        "octave": 4,
+        "midiNote": 71,
+        "noteName": "B",
+        "displayStr": "3",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-.",
+        "isExtension": true,
+        "octave": 5,
+        "index": 0,
+        "midiNote": null,
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": 2,
+        "octave": 4,
+        "midiNote": 70,
+        "noteName": "A#",
+        "displayStr": "2#",
+        "accidentalStr": "#"
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "jianpu": 3,
+        "octave": 4,
+        "midiNote": 71,
+        "noteName": "B",
+        "displayStr": "3",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 7,
+        "index": 22,
+        "displayStr": "7",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-.",
+        "isExtension": true,
+        "octave": 5,
+        "index": 0,
+        "midiNote": null,
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "G",
+        "octave": 5,
+        "midiNote": 79,
+        "jianpu": 1,
+        "index": 23,
+        "displayStr": "1·",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 7,
+        "index": 24,
+        "displayStr": "7",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 6,
+        "index": 25,
+        "displayStr": "6",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "noteName": "B",
+        "octave": 5,
+        "midiNote": 83,
+        "jianpu": 3,
+        "index": 26,
+        "displayStr": "3·",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "noteName": "A",
+        "octave": 5,
+        "midiNote": 81,
+        "jianpu": 2,
+        "index": 27,
+        "displayStr": "2·",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "B",
+        "octave": 5,
+        "midiNote": 83,
+        "jianpu": 3,
+        "index": 28,
+        "displayStr": "3·",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "noteName": "G",
+        "octave": 5,
+        "midiNote": 79,
+        "jianpu": 1,
+        "index": 29,
+        "displayStr": "1·",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 7,
+        "index": 30,
+        "displayStr": "7",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 6,
+        "index": 31,
+        "displayStr": "6",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "jianpu": 3,
+        "octave": 4,
+        "midiNote": 71,
+        "noteName": "B",
+        "displayStr": "3",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": 2,
+        "octave": 5,
+        "midiNote": 81,
+        "noteName": "A",
+        "displayStr": "2.",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-.",
+        "isExtension": true,
+        "octave": 5,
+        "index": 0,
+        "midiNote": null,
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": 3,
+        "octave": 5,
+        "midiNote": 83,
+        "noteName": "B",
+        "displayStr": "3.",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "jianpu": 4,
+        "octave": 5,
+        "midiNote": 84,
+        "noteName": "C",
+        "displayStr": "4.",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": 2,
+        "octave": 5,
+        "midiNote": 81,
+        "noteName": "A",
+        "displayStr": "2.",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": 2,
+        "octave": 5,
+        "midiNote": 81,
+        "noteName": "A",
+        "displayStr": "2.",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": 3,
+        "octave": 5,
+        "midiNote": 83,
+        "noteName": "B",
+        "displayStr": "3.",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": 4,
+        "octave": 5,
+        "midiNote": 84,
+        "noteName": "C",
+        "displayStr": "4.",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "jianpu": 3,
+        "octave": 5,
+        "midiNote": 83,
+        "noteName": "B",
+        "displayStr": "3.",
+        "accidentalStr": ""
+      }
+    ],
+    "key": "G",
+    "scaleType": "Major",
+    "tempo": 120,
+    "startString": 5,
+    "octaveOffset": -1
+  }
+}

@@ -7,6 +7,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { recognizeCombinedImage } from '../ocr/CombinedSheetOCR.js';
 import NotePreview from './NotePreview.jsx';
+import ImageCropper from './ImageCropper.jsx';
 
 function CombinedImageImporter({ onImport, onClose }) {
     const [imageFile, setImageFile] = useState(null);
@@ -15,6 +16,8 @@ function CombinedImageImporter({ onImport, onClose }) {
     const [progress, setProgress] = useState({ status: '', percent: 0 });
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
+    const [cropMode, setCropMode] = useState(false);
+    const [originalImagePreview, setOriginalImagePreview] = useState(null);
 
     const fileInputRef = useRef(null);
     const dropZoneRef = useRef(null);
@@ -31,9 +34,28 @@ function CombinedImageImporter({ onImport, onClose }) {
         setResult(null);
 
         const reader = new FileReader();
-        reader.onload = (e) => setImagePreview(e.target.result);
+        reader.onload = (e) => {
+            setOriginalImagePreview(e.target.result);
+            setCropMode(true);
+        };
         reader.readAsDataURL(file);
     }, []);
+
+    const handleCrop = async (croppedImageUrl) => {
+        setCropMode(false);
+        setImagePreview(croppedImageUrl);
+
+        const response = await fetch(croppedImageUrl);
+        const blob = await response.blob();
+        const newFile = new File([blob], "cropped_combined.jpg", { type: "image/jpeg" });
+        setImageFile(newFile);
+    };
+
+    const handleCancelCrop = () => {
+        setCropMode(false);
+        setOriginalImagePreview(null);
+        setImageFile(null);
+    };
 
     const handleDrop = useCallback((e) => {
         e.preventDefault();
@@ -104,10 +126,22 @@ function CombinedImageImporter({ onImport, onClose }) {
     const handleReset = useCallback(() => {
         setImageFile(null);
         setImagePreview(null);
+        setOriginalImagePreview(null);
+        setCropMode(false);
         setResult(null);
         setError(null);
         setProgress({ status: '', percent: 0 });
     }, []);
+
+    if (cropMode && originalImagePreview) {
+        return (
+            <ImageCropper
+                imageSrc={originalImagePreview}
+                onCrop={handleCrop}
+                onCancel={handleCancelCrop}
+            />
+        );
+    }
 
     return (
         <div style={{

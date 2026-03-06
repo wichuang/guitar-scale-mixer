@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OCR Pipeline Test</title>
+    <style>
+        body { background: #1a1a1a; color: #fff; font-family: monospace; padding: 20px; }
+        #log { white-space: pre-wrap; font-size: 13px; line-height: 1.6; }
+        .ok { color: #4caf50; }
+        .err { color: #ff5252; }
+        .info { color: #4fc3f7; }
+    </style>
+</head>
+<body>
+    <h2>Combined Staff+Tab OCR Test</h2>
+    <input type="file" id="fileInput" accept="image/*" />
+    <button id="runTest" onclick="runTest()">Run Test</button>
+    <div id="log"></div>
+
+    <script type="module">
+        import { recognizeCombinedImage } from '../src/ocr/CombinedSheetOCR.js';
+
+        const logEl = document.getElementById('log');
+        function log(msg, cls = '') {
+            const div = document.createElement('div');
+            div.className = cls;
+            div.textContent = msg;
+            logEl.appendChild(div);
+            console.log(msg);
+        }
+
+        window.runTest = async function() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                log('Please select an image file first!', 'err');
+                return;
+            }
+
+            logEl.innerHTML = '';
+            log(`Testing with: ${file.name} (${file.size} bytes)`, 'info');
+            log('Starting Combined OCR...', 'info');
+
+            try {
+                const result = await recognizeCombinedImage(file, (status, percent) => {
+                    log(`  [${Math.round(percent)}%] ${status}`);
+                });
+
+                log('');
+                log('=== RESULTS ===', 'info');
+                log(`Notes: ${result.notes?.length || 0}`);
+                log(`Confidence: ${result.confidence?.toFixed(1)}%`);
+                log(`Systems: ${result.systemCount || 0}`);
+                log(`Error: ${result.error || 'none'}`);
+
+                if (result.metadata) {
+                    log(`Metadata: ${JSON.stringify(result.metadata, null, 2)}`, 'info');
+                }
+
+                if (result.notes?.length > 0) {
+                    log('', 'ok');
+                    log(`SUCCESS: Detected ${result.notes.length} notes!`, 'ok');
+                    log('');
+                    log('First 10 notes:', 'info');
+                    result.notes.slice(0, 10).forEach((n, i) => {
+                        if (n.isSeparator) {
+                            log(`  [${i}] --- separator ---`);
+                        } else {
+                            log(`  [${i}] MIDI=${n.midi} ${n.noteName || '?'}${n.octave || '?'} string=${n.stringIndex} fret=${n.fret} conf=${n.confidence?.toFixed(0)}%`);
+                        }
+                    });
+                } else {
+                    log('', 'err');
+                    log('FAILED: No notes detected', 'err');
+                }
+
+                if (result.systemResults) {
+                    log('');
+                    log('System details:', 'info');
+                    result.systemResults.forEach(sr => {
+                        log(`  System ${sr.systemIndex}: type=${sr.type}, notes=${sr.notes.length}`);
+                    });
+                }
+
+            } catch (err) {
+                log(`ERROR: ${err.message}`, 'err');
+                log(err.stack, 'err');
+            }
+        };
+    </script>
+</body>
+</html>

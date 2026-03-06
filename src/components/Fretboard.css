@@ -184,6 +184,11 @@
 
 .fretboard .note-marker.multi-scale {
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.25);
+  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.8), 0px 0px 3px rgba(0, 0, 0, 1);
+}
+
+.fretboard .note-marker.multi-scale.bw-root {
+  text-shadow: none;
 }
 
 /* Detected note from live input */

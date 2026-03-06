@@ -18,32 +18,34 @@ export function detectStaffLines(imageData, width, height) {
 
     // 計算每一行的黑色像素密度
     for (let y = 0; y < height; y++) {
-        let blackCount = 0;
         let consecutiveBlack = 0;
         let maxConsecutive = 0;
+        let totalBlack = 0;
 
         for (let x = 0; x < width; x++) {
             const idx = (y * width + x) * 4;
             const isBlack = data[idx] < 128;
 
             if (isBlack) {
-                blackCount++;
                 consecutiveBlack++;
+                totalBlack++;
                 maxConsecutive = Math.max(maxConsecutive, consecutiveBlack);
             } else {
                 consecutiveBlack = 0;
             }
         }
 
-        const density = blackCount / width;
         const lineRatio = maxConsecutive / width;
+        const totalRatio = totalBlack / width;
 
-        // 五線譜的線條特徵：高連續性、適中密度
-        if (lineRatio > 0.6 && density > 0.1 && density < 0.8) {
+        // 五線譜的線條特徵：連續性、密度
+        // 採用與 SystemDetector 相同的演算法：
+        // 1. 連續長度大於 15% (處理拼接中斷)
+        // 2. OR 總黑點密度大於 40% (處理被密集音符覆蓋的線)
+        if (lineRatio > 0.15 || totalRatio > 0.4) {
             lines.push({
                 y,
-                strength: lineRatio,
-                density
+                strength: Math.max(lineRatio, totalRatio)
             });
         }
     }
@@ -121,8 +123,8 @@ export function findStaffGroups(allLines) {
         const variance = gaps.reduce((sum, g) => sum + Math.pow(g - avgGap, 2), 0) / gaps.length;
         const stdDev = Math.sqrt(variance);
 
-        // 間距應該一致（標準差小）且合理（10-50 像素）
-        if (stdDev < avgGap * 0.15 && avgGap >= 8 && avgGap <= 60) {
+        // 間距應該一致（極度放寬標準差至 0.5，容忍長截圖拼接的傾斜與落差）且合理（5-150 像素，適應高解析度）
+        if (stdDev < avgGap * 0.5 && avgGap >= 5 && avgGap <= 150) {
             staffGroups.push({
                 lines: candidate.map(l => l.y),
                 spacing: avgGap,
@@ -260,7 +262,7 @@ export function removeStaffLines(imageData, width, height, staffLines, lineThick
  */
 export async function preprocessStaffImage(source, options = {}) {
     const {
-        contrast = 1.4,
+        contrast = 1.1,
         removeLines = true
     } = options;
 
@@ -324,7 +326,7 @@ export function findTabGroups(allLines) {
         const variance = gaps.reduce((sum, g) => sum + Math.pow(g - avgGap, 2), 0) / gaps.length;
         const stdDev = Math.sqrt(variance);
 
-        if (stdDev < avgGap * 0.2 && avgGap >= 5 && avgGap <= 60) {
+        if (stdDev < avgGap * 0.2 && avgGap >= 5 && avgGap <= 150) {
             tabGroups.push({
                 lines: candidate.map(l => l.y),
                 spacing: avgGap,

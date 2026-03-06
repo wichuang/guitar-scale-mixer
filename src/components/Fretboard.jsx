@@ -17,11 +17,11 @@ const SCALE_COLORS = [
     { bg: '#e91e63', border: '#76ff03' },      // Scale 3 - pink with lime root
 ];
 
-// Black & white colors for interval mode
-const BW_COLORS = [
-    { bg: '#ffffff', text: '#000000', border: '#ffd700' },   // Scale 1 - white
-    { bg: '#888888', text: '#ffffff', border: '#00e5ff' },   // Scale 2 - gray
-    { bg: '#333333', text: '#ffffff', border: '#76ff03' },   // Scale 3 - dark gray
+// Grayscale colors for disabled/muted scales
+const DISABLED_COLORS = [
+    { bg: '#cccccc', text: '#333333', border: '#999999' },   // Scale 1 - light gray
+    { bg: '#888888', text: '#ffffff', border: '#555555' },   // Scale 2 - mid gray
+    { bg: '#444444', text: '#ffffff', border: '#111111' },   // Scale 3 - dark gray
 ];
 
 // Visible frets (controlled from Settings)
@@ -31,6 +31,7 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
     const scrollRef = useRef(null);
     const containerRef = useRef(null);
     const [fretWidth, setFretWidth] = useState(60);
+    const [disabledScales, setDisabledScales] = useState(new Set());
 
     const isIntervalMode = displayMode === 'intervals';
 
@@ -98,6 +99,19 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
         return interval || noteName;
     };
 
+    // Toggle a scale on/off
+    const toggleScale = (idx) => {
+        setDisabledScales(prev => {
+            const next = new Set(prev);
+            if (next.has(idx)) {
+                next.delete(idx);
+            } else {
+                next.add(idx);
+            }
+            return next;
+        });
+    };
+
     return (
         <div className={`fretboard-container ${isIntervalMode ? 'bw-mode' : ''}`} ref={containerRef}>
             <div className="fretboard-wrapper">
@@ -105,15 +119,25 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                 <div className="fretboard-header">
                     <div className="fretboard-legend">
                         {scales.map((s, idx) => (
-                            <div key={idx} className="legend-item">
+                            <div
+                                key={idx}
+                                className={`legend-item ${disabledScales.has(idx) ? 'disabled' : ''}`}
+                                onClick={() => toggleScale(idx)}
+                                style={{ cursor: 'pointer', opacity: disabledScales.has(idx) ? 0.6 : 1 }}
+                                title="Click to toggle scale visibility"
+                            >
                                 <div
                                     className="legend-marker"
                                     style={{
-                                        backgroundColor: isIntervalMode ? BW_COLORS[idx].bg : SCALE_COLORS[idx].bg,
-                                        border: isIntervalMode ? '1px solid #666' : 'none'
+                                        backgroundColor: disabledScales.has(idx)
+                                            ? DISABLED_COLORS[idx].bg
+                                            : SCALE_COLORS[idx].bg,
+                                        border: disabledScales.has(idx)
+                                            ? `1px solid ${DISABLED_COLORS[idx].border}`
+                                            : 'none'
                                     }}
                                 />
-                                <span>Scale {idx + 1}</span>
+                                <span style={{ textDecoration: disabledScales.has(idx) ? 'line-through' : 'none' }}>Scale {idx + 1}</span>
                             </div>
                         ))}
                         {isLoading && (
@@ -185,28 +209,43 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                         const isRoot = isRootOf.length > 0;
                                         const inMultiple = enabledInScales.length > 1;
 
-                                        // Choose colors based on mode
-                                        let bgColor, textColor, borderColor;
-                                        if (isIntervalMode) {
-                                            if (isRoot) {
-                                                bgColor = '#ffffff';
-                                                textColor = '#000000';
-                                                borderColor = '#ffffff';
-                                            } else {
-                                                bgColor = BW_COLORS[primaryScaleIdx].bg;
-                                                textColor = BW_COLORS[primaryScaleIdx].text;
-                                                borderColor = 'transparent';
-                                            }
-                                        } else {
-                                            bgColor = SCALE_COLORS[primaryScaleIdx].bg;
-                                            textColor = '#fff';
-                                            borderColor = isRoot ? SCALE_COLORS[isRootOf[0]].border : 'transparent';
-                                        }
+                                        // Generate gradient or solid background
+                                        const generateBackground = (colors) => {
+                                            if (colors.length === 1) return colors[0];
+                                            if (colors.length === 2) return `linear-gradient(135deg, ${colors[0]} 50%, ${colors[1]} 50%)`;
+                                            if (colors.length === 3) return `linear-gradient(135deg, ${colors[0]} 33.33%, ${colors[1]} 33.33% 66.66%, ${colors[2]} 66.66%)`;
+                                            const step = 100 / colors.length;
+                                            const stops = colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(', ');
+                                            return `linear-gradient(135deg, ${stops})`;
+                                        };
+
+                                        let backgroundStyle, textColor, borderColor;
 
                                         let markerClass = 'note-marker';
                                         if (isActive) markerClass += ' active';
                                         if (isRoot) markerClass += ' root';
                                         if (inMultiple) markerClass += ' multi-scale';
+
+                                        const isFullyDisabled = enabledInScales.every(s => disabledScales.has(s.idx));
+
+                                        // Find an active root if any
+                                        let activeRootIndex = isRoot ? isRootOf.find(idx => !disabledScales.has(idx)) : undefined;
+                                        if (isRoot && activeRootIndex === undefined) activeRootIndex = isRootOf[0]; // fallback
+
+                                        const colors = enabledInScales.map(s => {
+                                            return disabledScales.has(s.idx) ? DISABLED_COLORS[s.idx].bg : SCALE_COLORS[s.idx].bg;
+                                        });
+                                        backgroundStyle = generateBackground(colors);
+
+                                        if (isFullyDisabled) {
+                                            textColor = inMultiple ? '#ffffff' : DISABLED_COLORS[primaryScaleIdx].text;
+                                        } else {
+                                            textColor = '#fff';
+                                        }
+
+                                        borderColor = isRoot
+                                            ? (disabledScales.has(activeRootIndex) ? DISABLED_COLORS[activeRootIndex].border : SCALE_COLORS[activeRootIndex].border)
+                                            : 'transparent';
 
                                         const displayText = getDisplayText(noteName, primaryScaleIdx);
 
@@ -219,7 +258,7 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                                 <button
                                                     className={markerClass}
                                                     style={{
-                                                        backgroundColor: bgColor,
+                                                        background: backgroundStyle,
                                                         borderColor: borderColor,
                                                         color: textColor,
                                                     }}

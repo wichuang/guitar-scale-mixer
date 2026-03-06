@@ -6,6 +6,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { recognizeStaffImage } from '../ocr/StaffOCR.js';
 import NotePreview from './NotePreview.jsx';
+import ImageCropper from './ImageCropper.jsx';
 
 function StaffImageImporter({ onImport, onClose }) {
     const [imageFile, setImageFile] = useState(null);
@@ -15,6 +16,8 @@ function StaffImageImporter({ onImport, onClose }) {
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
     const [clef, setClef] = useState('treble');
+    const [cropMode, setCropMode] = useState(false);
+    const [originalImagePreview, setOriginalImagePreview] = useState(null);
 
     const fileInputRef = useRef(null);
     const dropZoneRef = useRef(null);
@@ -36,10 +39,27 @@ function StaffImageImporter({ onImport, onClose }) {
 
         const reader = new FileReader();
         reader.onload = (e) => {
-            setImagePreview(e.target.result);
+            setOriginalImagePreview(e.target.result);
+            setCropMode(true);
         };
         reader.readAsDataURL(file);
     }, []);
+
+    const handleCrop = async (croppedImageUrl) => {
+        setCropMode(false);
+        setImagePreview(croppedImageUrl);
+
+        const response = await fetch(croppedImageUrl);
+        const blob = await response.blob();
+        const newFile = new File([blob], "cropped_staff.jpg", { type: "image/jpeg" });
+        setImageFile(newFile);
+    };
+
+    const handleCancelCrop = () => {
+        setCropMode(false);
+        setOriginalImagePreview(null);
+        setImageFile(null);
+    };
 
     /**
      * 處理拖放
@@ -120,10 +140,22 @@ function StaffImageImporter({ onImport, onClose }) {
     const handleReset = useCallback(() => {
         setImageFile(null);
         setImagePreview(null);
+        setOriginalImagePreview(null);
+        setCropMode(false);
         setResult(null);
         setError(null);
         setProgress({ status: '', percent: 0 });
     }, []);
+
+    if (cropMode && originalImagePreview) {
+        return (
+            <ImageCropper
+                imageSrc={originalImagePreview}
+                onCrop={handleCrop}
+                onCancel={handleCancelCrop}
+            />
+        );
+    }
 
     return (
         <div style={{

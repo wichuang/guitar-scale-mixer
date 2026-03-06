@@ -6,6 +6,13 @@
  * smart scaling, Gaussian blur, deskew, and image quality detection.
  */
 
+import {
+    cvGrayscale,
+    cvBinarize,
+    cvGaussianBlur,
+    cvMorphologicalOpen
+} from './cvUtils';
+
 /**
  * 載入圖片到 Canvas
  * @param {File|Blob|string} source - 圖片來源
@@ -61,6 +68,14 @@ export async function loadImageToCanvas(source) {
  * @returns {ImageData}
  */
 export function grayscale(imageData) {
+    if (window.cv && window.cv.Mat) {
+        try {
+            return cvGrayscale(imageData);
+        } catch (e) {
+            console.warn("OpenCV grayscale failed, falling back to pure JS:", e);
+        }
+    }
+
     const data = imageData.data;
     for (let i = 0; i < data.length; i += 4) {
         const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
@@ -79,6 +94,14 @@ export function grayscale(imageData) {
  * @returns {ImageData}
  */
 export function binarize(imageData, threshold = null) {
+    if (window.cv && window.cv.Mat && threshold === null) {
+        try {
+            return cvBinarize(imageData);
+        } catch (e) {
+            console.warn("OpenCV binarize failed, falling back to pure JS:", e);
+        }
+    }
+
     const data = imageData.data;
 
     // 如果沒有提供閾值，計算最佳閾值
@@ -283,6 +306,14 @@ export function isDarkImage(imageData) {
  * @returns {ImageData}
  */
 export function morphologicalOpen(imageData, width, height, radius = 1) {
+    if (window.cv && window.cv.Mat) {
+        try {
+            return cvMorphologicalOpen(imageData, radius);
+        } catch (e) {
+            console.warn("OpenCV morphologicalOpen failed, falling back to pure JS:", e);
+        }
+    }
+
     const data = imageData.data;
     const temp = new Uint8ClampedArray(data);
 
@@ -492,7 +523,7 @@ export function detectImageQuality(imageData, width, height) {
             const up = data[((y - 1) * width + x) * 4];
             const down = data[((y + 1) * width + x) * 4];
             const diff = Math.abs(center - left) + Math.abs(center - right) +
-                         Math.abs(center - up) + Math.abs(center - down);
+                Math.abs(center - up) + Math.abs(center - down);
             noiseSum += diff / 4;
             noiseSamples++;
         }
@@ -592,7 +623,7 @@ export function isDarkImageImproved(imageData, width, height) {
  */
 export function smartScale(canvas, ctx, width, height, options = {}) {
     const {
-        maxDimension = 3000,
+        maxDimension = 8000,
         minDimension = 500,
     } = options;
 
@@ -640,6 +671,14 @@ export function smartScale(canvas, ctx, width, height, options = {}) {
  * @returns {ImageData}
  */
 export function gaussianBlur(imageData, width, height, radius = 1) {
+    if (window.cv && window.cv.Mat) {
+        try {
+            return cvGaussianBlur(imageData, radius);
+        } catch (e) {
+            console.warn("OpenCV gaussianBlur failed, falling back to pure JS:", e);
+        }
+    }
+
     if (radius < 1) return imageData;
 
     const data = imageData.data;
@@ -745,9 +784,9 @@ export function binarizeSauvola(imageData, windowSize = 0, k = 0.2, R = 128) {
     const rectSum = (integral, x0, y0, x1, y1) => {
         const w1 = width + 1;
         return integral[(y1 + 1) * w1 + (x1 + 1)]
-             - integral[y0 * w1 + (x1 + 1)]
-             - integral[(y1 + 1) * w1 + x0]
-             + integral[y0 * w1 + x0];
+            - integral[y0 * w1 + (x1 + 1)]
+            - integral[(y1 + 1) * w1 + x0]
+            + integral[y0 * w1 + x0];
     };
 
     // Apply Sauvola threshold per pixel
@@ -807,7 +846,7 @@ export function binarizeAdaptive(imageData) {
     for (let i = 2; i < 254; i++) {
         if (smoothed[i] > smoothed[i - 1] && smoothed[i] > smoothed[i + 1] &&
             smoothed[i] > smoothed[i - 2] && smoothed[i] > smoothed[i + 2] &&
-            smoothed[i] > total * 0.01) {
+            smoothed[i] > total * 0.001) {
             peaks++;
             peakPositions.push(i);
         }
@@ -815,7 +854,7 @@ export function binarizeAdaptive(imageData) {
 
     // Check bimodality: two well-separated peaks indicate good global threshold
     const isBimodal = peaks === 2 && peakPositions.length === 2 &&
-                      Math.abs(peakPositions[1] - peakPositions[0]) > 60;
+        Math.abs(peakPositions[1] - peakPositions[0]) > 60;
 
     if (isBimodal) {
         return binarize(imageData);
@@ -993,7 +1032,7 @@ export async function preprocessImage(source, options = {}) {
     let scale = 1;
     if (doScale) {
         const scaled = smartScale(canvas, ctx, width, height, {
-            maxDimension: options.maxDimension || 3000,
+            maxDimension: options.maxDimension || 8000,
             minDimension: options.minDimension || 500,
         });
         canvas = scaled.canvas;

@@ -6,6 +6,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { recognizeTabImage } from '../ocr/TabOCR.js';
 import NotePreview from './NotePreview.jsx';
+import ImageCropper from './ImageCropper.jsx';
 
 function TabImageImporter({ onImport, onClose }) {
     const [imageFile, setImageFile] = useState(null);
@@ -14,6 +15,8 @@ function TabImageImporter({ onImport, onClose }) {
     const [progress, setProgress] = useState({ status: '', percent: 0 });
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
+    const [cropMode, setCropMode] = useState(false);
+    const [originalImagePreview, setOriginalImagePreview] = useState(null);
 
     const fileInputRef = useRef(null);
     const dropZoneRef = useRef(null);
@@ -37,10 +40,28 @@ function TabImageImporter({ onImport, onClose }) {
         // 建立預覽
         const reader = new FileReader();
         reader.onload = (e) => {
-            setImagePreview(e.target.result);
+            setOriginalImagePreview(e.target.result);
+            setCropMode(true); // 開啟裁切模式
         };
         reader.readAsDataURL(file);
     }, []);
+
+    const handleCrop = async (croppedImageUrl) => {
+        setCropMode(false);
+        setImagePreview(croppedImageUrl);
+
+        // 為了讓 OCR 可以讀取，將 data URL 轉換回 File 物件
+        const response = await fetch(croppedImageUrl);
+        const blob = await response.blob();
+        const newFile = new File([blob], "cropped_image.jpg", { type: "image/jpeg" });
+        setImageFile(newFile);
+    };
+
+    const handleCancelCrop = () => {
+        setCropMode(false);
+        setOriginalImagePreview(null);
+        setImageFile(null);
+    };
 
     /**
      * 處理拖放
@@ -116,10 +137,22 @@ function TabImageImporter({ onImport, onClose }) {
     const handleReset = useCallback(() => {
         setImageFile(null);
         setImagePreview(null);
+        setOriginalImagePreview(null);
+        setCropMode(false);
         setResult(null);
         setError(null);
         setProgress({ status: '', percent: 0 });
     }, []);
+
+    if (cropMode && originalImagePreview) {
+        return (
+            <ImageCropper
+                imageSrc={originalImagePreview}
+                onCrop={handleCrop}
+                onCancel={handleCancelCrop}
+            />
+        );
+    }
 
     return (
         <div style={{

@@ -1,0 +1,2226 @@
+{
+  "name": "GuitarScore",
+  "data": {
+    "text": "| _7 _6 _6 1 2 1 _7 _6 _3 - - 0 | _7 _6 _7 1 2 _5 5 4 | 4 3 3 - 0 | 2 3 _6 4 4 0 | 1 2 3 3. 3. 0 | _3 _5 _6 3 2 _7 | _6 _6 _6 - 0 _7 _6 _6 1 2 1 _7 _6 | 0 _3 - - 0 _7 _6 _7 1 2 _5 5 4 | 4 3 3 - 0 | 2 3 _6 4 4 0 | 1 2 3 _6 _6 0 | _6 _7 1 5 _7 - 1 | _6 _6 _6 - 0 | 6 1 _7 _7 _7 _7 | 6 7 5 1 1 | _6 _7 1 1 6 5 5 0 3 2 | 2 3 5 3 3 | 6 1 _7 _7 _7 _7 | 6 7 5 1 1 | _6 _7 1 5 _7 1 | _6 _6 _6 | 0 0 0 0 0 | _6 _6 _6 - - | 6 1 _7 _7 _7 _7 | 6 7 5 1 1 | _6 _7 1 6 5 5 0 3 2 | 2 3 5 3 3 | 6 1 _7 _7 _7 _7 | 6 7 5 1 1 | _6 _7 1 5 _7 1 | _6 _6 _6 - - | _6 _7 1 1 5 5 _7 _7 | 1 _6 _6 - - |",
+    "notes": [
+      {
+        "index": 0,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 1,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 2,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 3,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 4,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 5,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 6,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 7,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 8,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 3,
+        "midiNote": 63,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 9,
+        "displayStr": "_3",
+        "isNote": true
+      },
+      {
+        "index": 10,
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "noteName": "-",
+        "octave": 4
+      },
+      {
+        "index": 11,
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "noteName": "-",
+        "octave": 4
+      },
+      {
+        "index": 12,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "index": 13,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 14,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 15,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 16,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 17,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 19,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 3,
+        "midiNote": 66,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 20,
+        "displayStr": "_5",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 21,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 4,
+        "accidentalStr": "",
+        "index": 22,
+        "displayStr": "4",
+        "isNote": true
+      },
+      {
+        "index": 23,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 4,
+        "accidentalStr": "",
+        "index": 24,
+        "displayStr": "4",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 25,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 26,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "index": 27,
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "noteName": "-",
+        "octave": 4
+      },
+      {
+        "index": 28,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "index": 29,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 30,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 31,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 32,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 4,
+        "accidentalStr": "",
+        "index": 33,
+        "displayStr": "4",
+        "isNote": true
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 4,
+        "accidentalStr": "",
+        "index": 34,
+        "displayStr": "4",
+        "isNote": true
+      },
+      {
+        "index": 35,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "index": 36,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 37,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 38,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 39,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 5,
+        "midiNote": 87,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 40,
+        "displayStr": "3.",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 5,
+        "midiNote": 87,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 41,
+        "displayStr": "3.",
+        "isNote": true
+      },
+      {
+        "index": 42,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "index": 43,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "D#",
+        "octave": 3,
+        "midiNote": 63,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 44,
+        "displayStr": "_3",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 3,
+        "midiNote": 66,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 45,
+        "displayStr": "_5",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 46,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 47,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 48,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 49,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "index": 50,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 51,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 52,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 53,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "index": 54,
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "noteName": "-",
+        "octave": 4
+      },
+      {
+        "index": 55,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 56,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 57,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 58,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 59,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 60,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 61,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 62,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 63,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "index": 64,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "index": 65,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "noteName": "D#",
+        "octave": 3,
+        "midiNote": 63,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 66,
+        "displayStr": "_3",
+        "isNote": true
+      },
+      {
+        "index": 67,
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "noteName": "-",
+        "octave": 4
+      },
+      {
+        "index": 68,
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "noteName": "-",
+        "octave": 4
+      },
+      {
+        "index": 69,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 70,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 71,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 72,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 73,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 74,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 3,
+        "midiNote": 66,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 75,
+        "displayStr": "_5",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 76,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 4,
+        "accidentalStr": "",
+        "index": 77,
+        "displayStr": "4",
+        "isNote": true
+      },
+      {
+        "index": 78,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "jianpu": "4",
+        "octave": 4,
+        "midiNote": 76,
+        "noteName": "E",
+        "displayStr": "4"
+      },
+      {
+        "jianpu": "3",
+        "octave": 4,
+        "midiNote": 75,
+        "noteName": "D#",
+        "displayStr": "3"
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 80,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "index": 81,
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "noteName": "-",
+        "octave": 4
+      },
+      {
+        "index": 82,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "index": 83,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 84,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 85,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 86,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": 4,
+        "accidentalStr": "",
+        "index": 87,
+        "displayStr": "4",
+        "isNote": true
+      },
+      {
+        "noteName": "E",
+        "octave": 4,
+        "midiNote": 76,
+        "jianpu": "4",
+        "accidentalStr": "",
+        "index": 88,
+        "displayStr": "4",
+        "isNote": true
+      },
+      {
+        "index": 89,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 90,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 91,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 92,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 93,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "jianpu": "6",
+        "octave": 3,
+        "midiNote": 68,
+        "noteName": "G#",
+        "displayStr": "_6",
+        "accidentalStr": ""
+      },
+      {
+        "index": 94,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 96,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 97,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 98,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 99,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 100,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "index": 101,
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "noteName": "-",
+        "octave": 4
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 102,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "index": 103,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 104,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 105,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 106,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "index": 107,
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "noteName": "-",
+        "octave": 4
+      },
+      {
+        "index": 108,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 4,
+        "midiNote": 80,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 109,
+        "displayStr": "6",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 110,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 111,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 112,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 113,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 114,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 4,
+        "midiNote": 80,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 117,
+        "displayStr": "6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 4,
+        "midiNote": 82,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 118,
+        "displayStr": "7",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 119,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 120,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 121,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "index": 122,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 123,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 124,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 125,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 126,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 4,
+        "midiNote": 80,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 127,
+        "displayStr": "6",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 128,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 129,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "index": 130,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 131,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 132,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "index": 133,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 134,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 135,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 136,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 137,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 138,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 4,
+        "midiNote": 80,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 140,
+        "displayStr": "6",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 141,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 142,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 143,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 144,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 145,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "index": 146,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 4,
+        "midiNote": 80,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 147,
+        "displayStr": "6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 4,
+        "midiNote": 82,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 148,
+        "displayStr": "7",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 149,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 150,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 151,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "index": 152,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 153,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 154,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 155,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 156,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 157,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 158,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "index": 159,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 160,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 161,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 162,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "index": 163,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "index": 164,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "index": 165,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "index": 166,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "index": 167,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 168,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 169,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "jianpu": "6",
+        "octave": 3,
+        "midiNote": 68,
+        "noteName": "G#",
+        "displayStr": "_6",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "jianpu": "6",
+        "octave": 4,
+        "midiNote": 80,
+        "noteName": "G#",
+        "displayStr": "6"
+      },
+      {
+        "jianpu": "1",
+        "octave": 4,
+        "midiNote": 71,
+        "noteName": "B",
+        "displayStr": "1"
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 174,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 175,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 176,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 177,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "index": 178,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 4,
+        "midiNote": 80,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 179,
+        "displayStr": "6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 4,
+        "midiNote": 82,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 180,
+        "displayStr": "7",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 181,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 182,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 183,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "index": 184,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 185,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 186,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "jianpu": "1",
+        "octave": 4,
+        "midiNote": 71,
+        "noteName": "B",
+        "displayStr": "1"
+      },
+      {
+        "noteName": "G#",
+        "octave": 4,
+        "midiNote": 80,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 188,
+        "displayStr": "6",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 189,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 190,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "index": 191,
+        "jianpu": "0",
+        "displayStr": "0",
+        "isRest": true,
+        "noteName": "Rest",
+        "octave": 4
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 192,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 193,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "C#",
+        "octave": 4,
+        "midiNote": 73,
+        "jianpu": 2,
+        "accidentalStr": "",
+        "index": 194,
+        "displayStr": "2",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 195,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 196,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 197,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "noteName": "D#",
+        "octave": 4,
+        "midiNote": 75,
+        "jianpu": 3,
+        "accidentalStr": "",
+        "index": 198,
+        "displayStr": "3",
+        "isNote": true
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 4,
+        "midiNote": 80,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 200,
+        "displayStr": "6",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 201,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 202,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 203,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 204,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 205,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "index": 206,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 4,
+        "midiNote": 80,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 207,
+        "displayStr": "6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 4,
+        "midiNote": 82,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 208,
+        "displayStr": "7",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 209,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 210,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 211,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 212,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 213,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 214,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 215,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "noteName": "A#",
+        "octave": 3,
+        "midiNote": 70,
+        "jianpu": 7,
+        "accidentalStr": "",
+        "index": 217,
+        "displayStr": "_7",
+        "isNote": true
+      },
+      {
+        "noteName": "B",
+        "octave": 4,
+        "midiNote": 71,
+        "jianpu": 1,
+        "accidentalStr": "",
+        "index": 218,
+        "displayStr": "1",
+        "isNote": true
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 219,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "jianpu": "6",
+        "octave": 3,
+        "midiNote": 68,
+        "noteName": "G#",
+        "displayStr": "_6",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "6",
+        "octave": 3,
+        "midiNote": 68,
+        "noteName": "G#",
+        "displayStr": "_6",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "index": 220,
+        "isSeparator": true,
+        "displayStr": "|",
+        "jianpu": "|"
+      },
+      {
+        "jianpu": "6",
+        "octave": 3,
+        "midiNote": 68,
+        "noteName": "G#",
+        "displayStr": "_6",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "7",
+        "octave": 3,
+        "midiNote": 70,
+        "noteName": "A#",
+        "displayStr": "_7",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "1",
+        "octave": 4,
+        "midiNote": 71,
+        "noteName": "B",
+        "displayStr": "1"
+      },
+      {
+        "jianpu": "1",
+        "octave": 4,
+        "midiNote": 71,
+        "noteName": "B",
+        "displayStr": "1"
+      },
+      {
+        "noteName": "F#",
+        "octave": 4,
+        "midiNote": 78,
+        "jianpu": 5,
+        "accidentalStr": "",
+        "index": 222,
+        "displayStr": "5",
+        "isNote": true
+      },
+      {
+        "jianpu": "5",
+        "octave": 4,
+        "midiNote": 78,
+        "noteName": "F#",
+        "displayStr": "5"
+      },
+      {
+        "jianpu": "7",
+        "octave": 3,
+        "midiNote": 70,
+        "noteName": "A#",
+        "displayStr": "_7",
+        "accidentalStr": ""
+      },
+      {
+        "jianpu": "7",
+        "octave": 3,
+        "midiNote": 70,
+        "noteName": "A#",
+        "displayStr": "_7",
+        "accidentalStr": ""
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      },
+      {
+        "jianpu": "1",
+        "octave": 4,
+        "midiNote": 71,
+        "noteName": "B",
+        "displayStr": "1"
+      },
+      {
+        "jianpu": "6",
+        "octave": 3,
+        "midiNote": 68,
+        "noteName": "G#",
+        "displayStr": "_6",
+        "accidentalStr": ""
+      },
+      {
+        "noteName": "G#",
+        "octave": 3,
+        "midiNote": 68,
+        "jianpu": 6,
+        "accidentalStr": "",
+        "index": 223,
+        "displayStr": "_6",
+        "isNote": true
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "jianpu": "-",
+        "displayStr": "-",
+        "isExtension": true,
+        "octave": 4,
+        "index": 0
+      },
+      {
+        "isSeparator": true,
+        "jianpu": "|",
+        "displayStr": "|"
+      }
+    ],
+    "key": "B",
+    "scaleType": "Major",
+    "tempo": 120,
+    "startString": 3,
+    "octaveOffset": 0
+  }
+}
