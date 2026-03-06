@@ -58,16 +58,16 @@ export class GuitarProParser extends ParserInterface {
         const notes = [];
         let noteIndex = 0;
 
-        // 我們目前只取第一個有最多音符的吉他音軌 (Track)
-        if (!song.tracks || song.tracks.length === 0) {
-            return notes;
-        }
+        // 預設取第一軌 (Track 0)
+        let track = song.tracks[0];
 
-        // 找出音符最多的 track
-        let bestTrack = song.tracks[0];
+        // 但如果第一軌完全沒有音符（或是空白軌），我們再退而求其次找音符最多的軌道
+        let track0HasNotes = false;
         let maxNotes = 0;
+        let bestFallbackTrack = track;
 
-        for (const t of song.tracks) {
+        for (let i = 0; i < song.tracks.length; i++) {
+            const t = song.tracks[i];
             let noteCount = 0;
             for (const bar of t.bars) {
                 for (const beat of bar.beats) {
@@ -76,13 +76,20 @@ export class GuitarProParser extends ParserInterface {
                     }
                 }
             }
+
+            if (i === 0 && noteCount > 0) {
+                track0HasNotes = true;
+            }
+
             if (noteCount > maxNotes) {
                 maxNotes = noteCount;
-                bestTrack = t;
+                bestFallbackTrack = t;
             }
         }
 
-        const track = bestTrack;
+        if (!track0HasNotes) {
+            track = bestFallbackTrack;
+        }
 
         let measureCount = 0;
 
