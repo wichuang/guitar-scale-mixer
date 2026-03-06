@@ -205,7 +205,6 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                             );
                                         }
 
-                                        const primaryScaleIdx = enabledInScales[0].idx;
                                         const isRoot = isRootOf.length > 0;
                                         const inMultiple = enabledInScales.length > 1;
 
@@ -228,6 +227,13 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
 
                                         const isFullyDisabled = enabledInScales.every(s => disabledScales.has(s.idx));
 
+                                        // Find visibly active scales for text/root priority
+                                        const visibleScales = isFullyDisabled
+                                            ? enabledInScales
+                                            : enabledInScales.filter(s => !disabledScales.has(s.idx));
+
+                                        const primaryScaleIdx = visibleScales[0].idx;
+
                                         // Find an active root if any
                                         let activeRootIndex = isRoot ? isRootOf.find(idx => !disabledScales.has(idx)) : undefined;
                                         if (isRoot && activeRootIndex === undefined) activeRootIndex = isRootOf[0]; // fallback
@@ -247,7 +253,19 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                             ? (disabledScales.has(activeRootIndex) ? DISABLED_COLORS[activeRootIndex].border : SCALE_COLORS[activeRootIndex].border)
                                             : 'transparent';
 
-                                        const displayText = getDisplayText(noteName, primaryScaleIdx);
+                                        let displayText;
+                                        if (visibleScales.length > 1) {
+                                            if (isIntervalMode) {
+                                                const intervals = visibleScales.map(s => getDisplayText(noteName, s.idx));
+                                                displayText = [...new Set(intervals)].join('/');
+                                            } else {
+                                                displayText = noteName;
+                                            }
+                                        } else {
+                                            displayText = getDisplayText(noteName, primaryScaleIdx);
+                                        }
+
+                                        const isLongText = displayText.length > 3;
 
                                         return (
                                             <div
@@ -261,6 +279,8 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                                         background: backgroundStyle,
                                                         borderColor: borderColor,
                                                         color: textColor,
+                                                        fontSize: isLongText ? '8px' : undefined,
+                                                        lineHeight: isLongText ? '1' : undefined
                                                     }}
                                                     onClick={() => handleNoteClick(midiNote, stringIdx, noteName)}
                                                     title={`${noteName} (Fret ${fret})`}
