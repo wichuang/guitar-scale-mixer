@@ -58,13 +58,31 @@ export class GuitarProParser extends ParserInterface {
         const notes = [];
         let noteIndex = 0;
 
-        // 我們目前只取第一個音軌(Track)的資料
+        // 我們目前只取第一個有最多音符的吉他音軌 (Track)
         if (!song.tracks || song.tracks.length === 0) {
             return notes;
         }
 
-        // 以第一個吉他音軌為主
-        const track = song.tracks[0];
+        // 找出音符最多的 track
+        let bestTrack = song.tracks[0];
+        let maxNotes = 0;
+
+        for (const t of song.tracks) {
+            let noteCount = 0;
+            for (const bar of t.bars) {
+                for (const beat of bar.beats) {
+                    if (!beat.isRest) {
+                        noteCount += beat.notes.length;
+                    }
+                }
+            }
+            if (noteCount > maxNotes) {
+                maxNotes = noteCount;
+                bestTrack = t;
+            }
+        }
+
+        const track = bestTrack;
 
         let measureCount = 0;
 
@@ -101,15 +119,12 @@ export class GuitarProParser extends ParserInterface {
                     else if (beatNote.harmonic) technique = 'harmonic';
 
                     // 找出這個 string 在 tuning 中的對應 midi
-                    // guitarpro-parser 中: tuning 是從低音到高音 (0=最低音弦)
-                    // 所以 string = 0 (在 gp 中是最細的弦) 等於 tuning 中 index = tuning.length - 1
-
-                    // track.tuningMidi 是由低到高（例如 Drop D：38, 45, 50, 55, 59, 64）
-                    // 我們的 stringIndex 0 是高音弦 (64)，剛好對應 tuningMidi 的最後一個
-                    const gpStringIdx = (track.tuningMidi.length - 1) - beatNote.string;
+                    // guitarpro-parser 中: tuning 是從高音到低音 (0=最高音弦)
+                    // 本系統的 stringIndex 也是 0=高E，因此直接對應
+                    const gpStringIdx = beatNote.string;
                     const baseMidi = track.tuningMidi[gpStringIdx] !== undefined
                         ? track.tuningMidi[gpStringIdx]
-                        : (64 - beatNote.string * 5); // Fallback assumption (standard tuning rough offset)
+                        : (64 - beatNote.string * 5); // Fallback assumption
 
                     const midiNode = baseMidi + beatNote.fret + (track.capoFret || 0);
 
