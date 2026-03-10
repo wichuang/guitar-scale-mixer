@@ -1,0 +1,72 @@
+.chord-panel {
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1px solid #333;
+    flex: 1;
+    min-width: 250px;
+    max-width: 400px;
+}
+
+.chord-theme {
+    border-color: #4CAF50;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.1);
+}
+
+.chord-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #333;
+}
+
+.chord-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #4CAF50;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.chord-selectors {
+    display: flex;
+    gap: 12px;
+}
+
+.selector-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.selector-group label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.chord-select {
+    background: #2a2a2a;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 13px;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chord-select:hover {
+    border-color: #666;
+}
+
+.chord-select:focus {
+    outline: none;
+    border-color: #4CAF50;
+}

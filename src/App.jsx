@@ -4,6 +4,7 @@ import Fretboard from './components/Fretboard';
 import LiveMode from './components/LiveMode';
 import ReadMode from './components/ReadMode/index.jsx';
 import ScalePanelCompact from './components/ScalePanelCompact';
+import ChordMode from './components/ChordMode';
 import SettingsPage from './components/SettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import YouTubeSync from './components/YouTubeSync';
@@ -143,6 +144,12 @@ function MainContent() {
                   onClick={() => setMode('scale')}
                 >
                   📚 Scales
+                </button>
+                <button
+                  className={`mode-btn ${mode === 'chord' ? 'active' : ''}`}
+                  onClick={() => setMode('chord')}
+                >
+                  🎹 Chords
                 </button>
                 <button
                   className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
@@ -286,6 +293,15 @@ function MainContent() {
               />
             </div>
           </div>
+        )}
+
+        {/* Chord Mode */}
+        {mode === 'chord' && (
+          <ChordMode
+            guitarType={guitarType}
+            displayMode={displayMode}
+            fretCount={fretCount}
+          />
         )}
 
         {/* Live Mode */}

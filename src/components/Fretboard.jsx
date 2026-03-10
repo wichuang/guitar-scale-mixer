@@ -94,7 +94,19 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
         if (!isIntervalMode) return noteName;
         const scale = scales[scaleIdx];
         if (!scale) return noteName;
-        const interval = getIntervalForNote(noteName, scale.root, scale.scale);
+        let interval = getIntervalForNote(noteName, scale.root, scale.scale);
+
+        if (scale.isChord && interval) {
+            // Promote diatonic steps to chord extensions
+            if (interval === '2') interval = '9';
+            if (interval === '♭2') interval = '♭9';
+            if (interval === '♯2') interval = '♯9';
+            if (interval === '4') interval = '11';
+            if (interval === '♯4') interval = '♯11';
+            if (interval === '6') interval = '13';
+            if (interval === '♭6') interval = '♭13';
+        }
+
         if (interval === '1') return 'R';
         return interval || noteName;
     };
