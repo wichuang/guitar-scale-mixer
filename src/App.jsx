@@ -28,7 +28,7 @@ const GUITAR_BACKGROUNDS = {
   'distortion_guitar': getBackgroundPath('distortion_guitar'),
 };
 
-const GUITAR_OPTIONS = [
+export const GUITAR_OPTIONS = [
   { value: 'acoustic_guitar_nylon', label: 'Nylon' },
   { value: 'acoustic_guitar_steel', label: 'Steel' },
   { value: 'electric_guitar_clean', label: 'Clean' },
@@ -299,7 +299,9 @@ function MainContent() {
         {mode === 'chord' && (
           <ChordMode
             guitarType={guitarType}
+            setGuitarType={setGuitarType}
             displayMode={displayMode}
+            setDisplayMode={setDisplayMode}
             fretCount={fretCount}
           />
         )}

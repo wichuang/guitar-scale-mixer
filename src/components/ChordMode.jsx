@@ -2,8 +2,9 @@ import React, { useState, useMemo } from 'react';
 import Fretboard from './Fretboard';
 import ChordPanel from './ChordPanel';
 import { getChordNotes } from '../data/chordData';
+import { GUITAR_OPTIONS } from '../App';
 
-function ChordMode({ guitarType, displayMode, fretCount }) {
+function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fretCount }) {
     const [chordCount, setChordCount] = useState(1);
 
     // Default chords
@@ -50,6 +51,33 @@ function ChordMode({ guitarType, displayMode, fretCount }) {
                             >{n}</button>
                         ))}
                     </div>
+                </div>
+
+                <div className="control-section">
+                    <label className="section-label">Display</label>
+                    <div className="btn-group">
+                        <button
+                            className={`sm-btn ${displayMode === 'notes' ? 'active' : ''}`}
+                            onClick={() => setDisplayMode('notes')}
+                        >ABC</button>
+                        <button
+                            className={`sm-btn ${displayMode === 'intervals' ? 'active' : ''}`}
+                            onClick={() => setDisplayMode('intervals')}
+                        >123</button>
+                    </div>
+                </div>
+
+                <div className="control-section">
+                    <label className="section-label">Sound</label>
+                    <select
+                        className="sm-select"
+                        value={guitarType}
+                        onChange={(e) => setGuitarType(e.target.value)}
+                    >
+                        {GUITAR_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
