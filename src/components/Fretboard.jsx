@@ -63,8 +63,8 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
         setTimeout(() => setActiveNote(null), 150);
     }, [playNote, isLoading]);
 
-    const fretMarkers = [3, 5, 7, 9, 12, 15, 17, 19, 21];
-    const doubleDotFrets = [12];
+    const fretMarkers = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24];
+    const doubleDotFrets = [12, 24];
 
     // Check if a note is enabled in a scale
     const isNoteEnabled = (noteName, scaleIdx) => {

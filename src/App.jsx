@@ -40,7 +40,7 @@ const DEFAULT_STATE = {
   scaleCount: 2,
   displayMode: 'notes',
   guitarType: 'acoustic_guitar_steel',
-  fretCount: 15,
+  fretCount: 26,
   scales: [
     { root: 'A', scale: 'harmonic-minor', enabledNotes: null },
     { root: 'A', scale: 'minor-pentatonic', enabledNotes: null },

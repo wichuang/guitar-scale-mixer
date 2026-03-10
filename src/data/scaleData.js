@@ -47,7 +47,7 @@ export const SCALES = {
 // E4=64, B3=59, G3=55, D3=50, A2=45, E2=40
 export const STRING_TUNINGS = [64, 59, 55, 50, 45, 40];
 export const STRING_NAMES = ['E', 'B', 'G', 'D', 'A', 'E'];
-export const NUM_FRETS = 22;
+export const NUM_FRETS = 26;
 
 // Helper functions
 export function getNoteIndex(noteName) {

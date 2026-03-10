@@ -14,8 +14,8 @@ function SettingsPage({
     const [newPresetName, setNewPresetName] = useState('');
     const [showSaveInput, setShowSaveInput] = useState(false);
 
-    // 產生 12 到 22 的選項
-    const fretOptions = Array.from({ length: 11 }, (_, i) => i + 12);
+    // 產生 12 到 26 的選項
+    const fretOptions = Array.from({ length: 15 }, (_, i) => i + 12);
 
     const handleSave = () => {
         if (newPresetName.trim()) {
