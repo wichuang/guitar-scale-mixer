@@ -99,6 +99,8 @@
   flex-direction: column;
   align-items: center;
   gap: 1px;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .fretboard .fret-number {
@@ -150,6 +152,8 @@
   align-items: center;
   position: relative;
   z-index: 2;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .fretboard .note-marker {
@@ -165,6 +169,8 @@
   justify-content: center;
   transition: transform 0.1s ease;
   font-family: inherit;
+  box-sizing: border-box;
+  padding: 0;
 }
 
 .fretboard .note-marker:hover {
@@ -176,15 +182,11 @@
 }
 
 .fretboard .note-marker.root {
-  box-shadow: 0 0 6px currentColor;
-  font-weight: 900;
-  /* 更粗的文字 */
   font-size: 11px;
 }
 
 .fretboard .note-marker.multi-scale {
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.25);
-  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.8), 0px 0px 3px rgba(0, 0, 0, 1);
 }
 
 .fretboard .note-marker.multi-scale.bw-root {
@@ -231,6 +233,8 @@
   width: 48px;
   flex-shrink: 0;
   border-right: 1px solid rgba(120, 100, 80, 0.25);
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .fretboard .fret-line.nut {

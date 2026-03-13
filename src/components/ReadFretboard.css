@@ -44,6 +44,8 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 .read-fretboard .fret-number-cell.in-position .fret-number {
@@ -103,6 +105,8 @@
     position: relative;
     z-index: 2;
     transition: background 0.2s;
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 .read-fretboard .fret-space.in-position {
@@ -126,22 +130,23 @@
     transition: all 0.15s;
     z-index: 3;
     white-space: nowrap;
+    box-sizing: border-box;
 }
 
 /* Score Notes (Active Melody) */
 .read-fretboard .note-marker.has-note {
-    background: #d32f2f;
+    background: #c62828;
     /* Red */
-    color: white;
+    color: #000000;
     border-color: #b71c1c;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .read-fretboard .note-marker.root-note {
-    background: #43a047;
+    background: #2e7d32;
     /* Green */
-    color: white;
-    border-color: #2e7d32;
+    color: #000000;
+    border-color: #1b5e20;
 }
 
 .read-fretboard .note-marker.has-note:hover {
@@ -152,9 +157,9 @@
 
 /* Current Playing Note */
 .read-fretboard .note-marker.current {
-    background: linear-gradient(135deg, #ff9800, #f57c00);
-    color: white;
-    border-color: #ff9800;
+    background: linear-gradient(135deg, #ef6c00, #e65100);
+    color: #000000;
+    border-color: #e65100;
     transform: scale(1.2);
     box-shadow: 0 4px 16px rgba(255, 152, 0, 0.6);
     animation: pulse 0.5s ease-in-out infinite alternate;
@@ -198,6 +203,8 @@
     height: 100%;
     border-left: 2px solid rgba(139, 105, 20, 0.6);
     transition: border-color 0.2s;
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 .read-fretboard .fret-line.in-position {

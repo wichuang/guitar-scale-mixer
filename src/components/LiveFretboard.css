@@ -82,6 +82,8 @@
     align-items: center;
     justify-content: flex-end;
     height: 24px;
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 .live-fret-number {
@@ -130,6 +132,8 @@
     height: 100%;
     position: relative;
     z-index: 1;
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 .live-note-marker {
@@ -142,12 +146,13 @@
     font-size: 10px;
     font-weight: 700;
     transition: all 0.1s ease;
+    box-sizing: border-box;
 }
 
 .live-note-marker.detected {
-    background: #4caf50;
-    color: #fff;
-    box-shadow: 0 0 15px #4caf50, 0 0 30px rgba(76, 175, 80, 0.5);
+    background: #388e3c;
+    color: #000000;
+    box-shadow: 0 0 15px #388e3c, 0 0 30px rgba(56, 142, 60, 0.5);
     animation: glow-detected 0.3s ease-in-out infinite alternate;
     transform: scale(1.2);
 }
@@ -181,6 +186,8 @@
 .live-fret-line {
     border-right: 1px solid rgba(255, 255, 255, 0.15);
     height: 100%;
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 .live-fret-line.nut {

@@ -12,9 +12,9 @@ import './Fretboard.css';
 
 // High contrast scale colors for color mode
 const SCALE_COLORS = [
-    { bg: '#2196f3', border: '#ffd700' },      // Scale 1 - bright blue with gold root
-    { bg: '#ff9800', border: '#00e5ff' },      // Scale 2 - orange with cyan root  
-    { bg: '#e91e63', border: '#76ff03' },      // Scale 3 - pink with lime root
+    { bg: '#6085a1', border: '#b0c4de' },      // Scale 1 - muted blue
+    { bg: '#d0a375', border: '#ffe4b5' },      // Scale 2 - tan/brown (matched to screenshot)
+    { bg: '#b56d83', border: '#ffb6c1' },      // Scale 3 - muted pink/red
 ];
 
 // Grayscale colors for disabled/muted scales
@@ -40,9 +40,10 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
         const updateFretWidth = () => {
             if (containerRef.current) {
                 const containerWidth = containerRef.current.offsetWidth - 32;
-                // 確保 fretCount 有效，最小為 12
-                const count = Math.max(12, fretCount || 15);
-                const width = Math.max(30, Math.floor(containerWidth / (count + 0.5)));
+                // Use a standard count (15) to calculate width so it remains consistent
+                // regardless of the user's selected fretCount
+                const standardCount = 15;
+                const width = Math.max(30, Math.floor(containerWidth / (standardCount + 0.5)));
                 setFretWidth(width);
             }
         };
@@ -76,15 +77,25 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
 
     // Check which scales contain this note
     const getNoteScaleInfo = (noteName) => {
-        const inScales = scaleNotesArray.map((notes, idx) => {
-            const inScale = isNoteInScale(noteName, notes);
-            const enabled = isNoteEnabled(noteName, idx);
-            return inScale ? { idx, enabled } : null;
-        }).filter(x => x !== null);
+        // Only look at scales up to current scales.length
+        const inScales = [];
+        for (let i = 0; i < scales.length; i++) {
+            const notes = scaleNotesArray[i];
+            if (!notes) continue;
 
-        const isRootOf = rootNotes
-            .map((root, idx) => root === noteName ? idx : -1)
-            .filter(idx => idx !== -1);
+            const inScale = isNoteInScale(noteName, notes);
+            const enabled = isNoteEnabled(noteName, i);
+            if (inScale) {
+                inScales.push({ idx: i, enabled });
+            }
+        }
+
+        const isRootOf = [];
+        for (let i = 0; i < scales.length; i++) {
+            if (rootNotes[i] === noteName) {
+                isRootOf.push(i);
+            }
+        }
 
         return { inScales, isRootOf };
     };
@@ -189,7 +200,7 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
 
                         {/* Strings */}
                         {STRING_TUNINGS.map((openMidi, stringIdx) => {
-                            const stringThickness = 1 + (5 - stringIdx) * 0.4;
+                            const stringThickness = 1 + stringIdx * 0.4;
 
                             return (
                                 <div key={stringIdx} className="string-row">
@@ -210,7 +221,7 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                         if (enabledInScales.length === 0) {
                                             return (
                                                 <div
-                                                    key={fret}
+                                                    key={`${stringIdx}-${fret}`}
                                                     className="fret-space"
                                                     style={{ width: fretWidth }}
                                                 />
@@ -222,12 +233,17 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
 
                                         // Generate gradient or solid background
                                         const generateBackground = (colors) => {
+                                            if (colors.length === 0) return 'transparent';
                                             if (colors.length === 1) return colors[0];
-                                            if (colors.length === 2) return `linear-gradient(135deg, ${colors[0]} 50%, ${colors[1]} 50%)`;
-                                            if (colors.length === 3) return `linear-gradient(135deg, ${colors[0]} 33.33%, ${colors[1]} 33.33% 66.66%, ${colors[2]} 66.66%)`;
+
+                                            // Create clean hard stops for gradients
+                                            const stops = [];
                                             const step = 100 / colors.length;
-                                            const stops = colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(', ');
-                                            return `linear-gradient(135deg, ${stops})`;
+                                            for (let i = 0; i < colors.length; i++) {
+                                                stops.push(`${colors[i]} ${i * step}%`);
+                                                stops.push(`${colors[i]} ${(i + 1) * step}%`);
+                                            }
+                                            return `linear-gradient(to right, ${stops.join(', ')})`;
                                         };
 
                                         let backgroundStyle, textColor, borderColor;
@@ -250,15 +266,16 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                         let activeRootIndex = isRoot ? isRootOf.find(idx => !disabledScales.has(idx)) : undefined;
                                         if (isRoot && activeRootIndex === undefined) activeRootIndex = isRootOf[0]; // fallback
 
-                                        const colors = enabledInScales.map(s => {
+                                        const colors = visibleScales.map(s => {
                                             return disabledScales.has(s.idx) ? DISABLED_COLORS[s.idx].bg : SCALE_COLORS[s.idx].bg;
                                         });
                                         backgroundStyle = generateBackground(colors);
 
                                         if (isFullyDisabled) {
-                                            textColor = inMultiple ? '#ffffff' : DISABLED_COLORS[primaryScaleIdx].text;
+                                            textColor = inMultiple ? '#000000' : DISABLED_COLORS[primaryScaleIdx].text;
                                         } else {
-                                            textColor = '#fff';
+                                            // overlapping notes are black, single scale notes are gray
+                                            textColor = inMultiple ? '#000000' : '#424242';
                                         }
 
                                         borderColor = isRoot
@@ -271,17 +288,20 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                                 const intervals = visibleScales.map(s => getDisplayText(noteName, s.idx));
                                                 displayText = [...new Set(intervals)].join('/');
                                             } else {
-                                                displayText = noteName;
+                                                displayText = (fret === 0 && stringIdx === 0 && noteName === 'E') ? 'e' : noteName;
                                             }
                                         } else {
                                             displayText = getDisplayText(noteName, primaryScaleIdx);
+                                            if (!isIntervalMode && fret === 0 && stringIdx === 0 && displayText === 'E') {
+                                                displayText = 'e';
+                                            }
                                         }
 
                                         const isLongText = displayText.length > 3;
 
                                         return (
                                             <div
-                                                key={fret}
+                                                key={`${stringIdx}-${fret}`}
                                                 className="fret-space"
                                                 style={{ width: fretWidth }}
                                             >

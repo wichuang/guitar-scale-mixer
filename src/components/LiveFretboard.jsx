@@ -71,7 +71,7 @@ function LiveFretboard({ detectedNote, noteHistory, isListening }) {
 
                     {/* Strings */}
                     {STRING_TUNINGS.map((openMidi, stringIdx) => {
-                        const stringThickness = 1 + (5 - stringIdx) * 0.3;
+                        const stringThickness = 1 + stringIdx * 0.3;
 
                         return (
                             <div key={stringIdx} className="live-string-row">
@@ -110,7 +110,7 @@ function LiveFretboard({ detectedNote, noteHistory, isListening }) {
                                                     opacity: isDetected ? 1 : (1 - trailIndex * 0.2)
                                                 }}
                                             >
-                                                {noteName}
+                                                {(fret === 0 && stringIdx === 0 && noteName === 'E') ? 'e' : noteName}
                                             </div>
                                         </div>
                                     );

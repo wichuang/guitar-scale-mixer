@@ -35,7 +35,8 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
 
     // 計算格子寬度
     const visibleFrets = fretCount || 19; // Allow wider range
-    const fretWidth = Math.max(35, Math.floor((window.innerWidth - 64) / (visibleFrets + 0.5)));
+    const standardCount = 15;
+    const fretWidth = Math.max(35, Math.floor((window.innerWidth - 64) / (standardCount + 0.5)));
 
     // 把位標記
     const fretMarkers = [3, 5, 7, 9, 12, 15, 17, 19, 21];
@@ -188,6 +189,10 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                 }
 
                                 if (isCurrent) classNames += ' current';
+
+                                if (fret === 0 && stringIdx === 0 && label === 'E') {
+                                    label = 'e';
+                                }
 
                                 return (
                                     <div
