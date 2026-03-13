@@ -8,7 +8,9 @@ import {
     getIntervalForNote,
 } from '../data/scaleData';
 import { useAudio } from '../hooks/useAudio';
+import { useDrawingCanvas, HIGHLIGHTER_COLORS } from '../hooks/useDrawingCanvas';
 import './Fretboard.css';
+import './DrawingOverlay.css';
 
 // High contrast scale colors for color mode
 const SCALE_COLORS = [
@@ -30,8 +32,23 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
     const [activeNote, setActiveNote] = useState(null);
     const scrollRef = useRef(null);
     const containerRef = useRef(null);
+    const canvasRef = useRef(null);
+    const fretboardRef = useRef(null);
     const [fretWidth, setFretWidth] = useState(60);
     const [disabledScales, setDisabledScales] = useState(new Set());
+
+    const {
+        drawingEnabled,
+        currentColor,
+        setCurrentColor,
+        strokeHistory,
+        toggleDrawing,
+        startStroke,
+        continueStroke,
+        endStroke,
+        undo,
+        clearAll,
+    } = useDrawingCanvas(canvasRef, fretboardRef);
 
     const isIntervalMode = displayMode === 'intervals';
 
@@ -169,11 +186,53 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                             </div>
                         )}
                     </div>
+
+                    {/* Drawing toolbar */}
+                    <div className="drawing-toolbar">
+                        <button
+                            className={`draw-toggle ${drawingEnabled ? 'active' : ''}`}
+                            onClick={toggleDrawing}
+                            title={drawingEnabled ? 'Disable drawing' : 'Enable drawing'}
+                        >
+                            ✏
+                        </button>
+                        {drawingEnabled && (
+                            <>
+                                <div className="color-swatches">
+                                    {HIGHLIGHTER_COLORS.map(c => (
+                                        <button
+                                            key={c.name}
+                                            className={`color-swatch ${currentColor === c.value ? 'selected' : ''}`}
+                                            style={{ backgroundColor: c.display }}
+                                            onClick={() => setCurrentColor(c.value)}
+                                            title={c.name}
+                                        />
+                                    ))}
+                                </div>
+                                <button
+                                    className="draw-action"
+                                    onClick={undo}
+                                    disabled={strokeHistory.length === 0}
+                                    title="Undo"
+                                >
+                                    ↩
+                                </button>
+                                <button
+                                    className="draw-action"
+                                    onClick={clearAll}
+                                    disabled={strokeHistory.length === 0}
+                                    title="Clear all"
+                                >
+                                    ✕
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Fretboard content */}
                 <div className="fretboard-main">
-                    <div className="fretboard">
+                    <div className="fretboard" ref={fretboardRef}>
                         {/* Fret numbers */}
                         <div className="fret-numbers">
                             {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
@@ -328,6 +387,16 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                 />
                             ))}
                         </div>
+
+                        {/* Drawing canvas overlay */}
+                        <canvas
+                            ref={canvasRef}
+                            className={`drawing-canvas ${drawingEnabled ? 'active' : ''}`}
+                            onPointerDown={drawingEnabled ? startStroke : undefined}
+                            onPointerMove={drawingEnabled ? continueStroke : undefined}
+                            onPointerUp={drawingEnabled ? endStroke : undefined}
+                            onPointerLeave={drawingEnabled ? endStroke : undefined}
+                        />
                     </div>
                 </div>
             </div>
