@@ -235,15 +235,7 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                         const generateBackground = (colors) => {
                                             if (colors.length === 0) return 'transparent';
                                             if (colors.length === 1) return colors[0];
-
-                                            // Create clean hard stops for gradients
-                                            const stops = [];
-                                            const step = 100 / colors.length;
-                                            for (let i = 0; i < colors.length; i++) {
-                                                stops.push(`${colors[i]} ${i * step}%`);
-                                                stops.push(`${colors[i]} ${(i + 1) * step}%`);
-                                            }
-                                            return `linear-gradient(to right, ${stops.join(', ')})`;
+                                            return `linear-gradient(to right, ${colors.join(', ')})`;
                                         };
 
                                         let backgroundStyle, textColor, borderColor;
