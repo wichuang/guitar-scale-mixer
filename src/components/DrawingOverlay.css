@@ -127,7 +127,7 @@
 /* Canvas overlay */
 .drawing-canvas {
   position: absolute;
-  top: 32px;
+  top: 0;
   left: 0;
   z-index: 5;
   pointer-events: none;
