@@ -9,7 +9,14 @@ export const HIGHLIGHTER_COLORS = [
   { name: 'Red',    value: 'rgba(229, 57, 53, 0.4)',   display: '#e53935' },
 ];
 
-const LINE_WIDTH = 18;
+export const BRUSH_SIZES = [
+  { name: 'S', value: 5 },
+  { name: 'M', value: 9 },
+  { name: 'L', value: 16 },
+  { name: 'XL', value: 26 },
+];
+
+const DEFAULT_BRUSH_SIZE = 9;
 
 function getPointerPos(canvas, e) {
   const rect = canvas.getBoundingClientRect();
@@ -19,8 +26,9 @@ function getPointerPos(canvas, e) {
 }
 
 function drawStroke(ctx, stroke) {
+  if (!stroke) return;
   const { color, lineWidth, points } = stroke;
-  if (points.length < 2) return;
+  if (!points || points.length < 2) return;
 
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
@@ -37,7 +45,6 @@ function drawStroke(ctx, stroke) {
     ctx.quadraticCurveTo(points[i].x, points[i].y, midX, midY);
   }
 
-  // Last segment
   const last = points[points.length - 1];
   ctx.lineTo(last.x, last.y);
   ctx.stroke();
@@ -54,6 +61,7 @@ function redrawAll(canvas, history) {
 export function useDrawingCanvas(canvasRef, containerRef) {
   const [drawingEnabled, setDrawingEnabled] = useState(false);
   const [currentColor, setCurrentColor] = useState(HIGHLIGHTER_COLORS[0].value);
+  const [brushSize, setBrushSize] = useState(DEFAULT_BRUSH_SIZE);
   const [strokeHistory, setStrokeHistory] = useState([]);
 
   const isDrawingRef = useRef(false);
@@ -101,10 +109,10 @@ export function useDrawingCanvas(canvasRef, containerRef) {
     const pos = getPointerPos(canvas, e);
     currentStrokeRef.current = {
       color: currentColor,
-      lineWidth: LINE_WIDTH * (window.devicePixelRatio || 1),
+      lineWidth: brushSize * (window.devicePixelRatio || 1),
       points: [pos],
     };
-  }, [canvasRef, currentColor]);
+  }, [canvasRef, currentColor, brushSize]);
 
   const continueStroke = useCallback((e) => {
     if (!isDrawingRef.current) return;
@@ -124,10 +132,12 @@ export function useDrawingCanvas(canvasRef, containerRef) {
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
 
-    if (currentStrokeRef.current && currentStrokeRef.current.points.length >= 2) {
-      setStrokeHistory(prev => [...prev, currentStrokeRef.current]);
-    }
+    const finishedStroke = currentStrokeRef.current;
     currentStrokeRef.current = null;
+
+    if (finishedStroke && finishedStroke.points.length >= 2) {
+      setStrokeHistory(prev => [...prev, finishedStroke]);
+    }
   }, []);
 
   const undo = useCallback(() => {
@@ -156,6 +166,8 @@ export function useDrawingCanvas(canvasRef, containerRef) {
     drawingEnabled,
     currentColor,
     setCurrentColor,
+    brushSize,
+    setBrushSize,
     strokeHistory,
     toggleDrawing,
     startStroke,

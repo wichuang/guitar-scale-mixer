@@ -8,7 +8,7 @@ import {
     getIntervalForNote,
 } from '../data/scaleData';
 import { useAudio } from '../hooks/useAudio';
-import { useDrawingCanvas, HIGHLIGHTER_COLORS } from '../hooks/useDrawingCanvas';
+import { useDrawingCanvas, HIGHLIGHTER_COLORS, BRUSH_SIZES } from '../hooks/useDrawingCanvas';
 import './Fretboard.css';
 import './DrawingOverlay.css';
 
@@ -41,6 +41,8 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
         drawingEnabled,
         currentColor,
         setCurrentColor,
+        brushSize,
+        setBrushSize,
         strokeHistory,
         toggleDrawing,
         startStroke,
@@ -207,6 +209,21 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
                                             onClick={() => setCurrentColor(c.value)}
                                             title={c.name}
                                         />
+                                    ))}
+                                </div>
+                                <div className="brush-sizes">
+                                    {BRUSH_SIZES.map(s => (
+                                        <button
+                                            key={s.name}
+                                            className={`brush-size-btn ${brushSize === s.value ? 'selected' : ''}`}
+                                            onClick={() => setBrushSize(s.value)}
+                                            title={s.name}
+                                        >
+                                            <span
+                                                className="brush-size-dot"
+                                                style={{ width: s.value, height: s.value }}
+                                            />
+                                        </button>
                                     ))}
                                 </div>
                                 <button
