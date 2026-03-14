@@ -94,6 +94,29 @@ export const SCALE_TYPES = {
     'minor': 'aeolian'
 };
 
+// CAGED Position System
+export const CAGED_SHAPES = ['C', 'A', 'G', 'E', 'D'];
+
+const CAGED_OFFSETS = {
+    'E': [-1, 3], 'D': [2, 5], 'C': [4, 7], 'A': [6, 9], 'G': [9, 12],
+};
+
+export function getCAGEDFretRange(root, shape) {
+    const rootFret = (getNoteIndex(root) - getNoteIndex('E') + 12) % 12;
+    const [lo, hi] = CAGED_OFFSETS[shape];
+    let start = rootFret + lo;
+    let end = rootFret + hi;
+    if (start < 0) { start += 12; end += 12; }
+    return { startFret: start, endFret: end };
+}
+
+export function isInCAGEDPosition(fret, startFret, endFret) {
+    for (let oct = -12; oct <= 24; oct += 12) {
+        if (fret >= startFret + oct && fret <= endFret + oct) return true;
+    }
+    return false;
+}
+
 // Get interval name for a note within a scale
 export function getIntervalForNote(noteName, root, scaleType) {
     const mappedType = SCALE_TYPES[scaleType] || scaleType.toLowerCase();

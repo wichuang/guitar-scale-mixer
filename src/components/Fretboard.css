@@ -218,6 +218,11 @@
   opacity: 0.25;
 }
 
+.fretboard .note-marker.caged-dim {
+  opacity: 0.15;
+  filter: grayscale(0.8);
+}
+
 /* Fret lines */
 .fretboard .fret-lines {
   position: absolute;

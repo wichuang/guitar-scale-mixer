@@ -6,6 +6,8 @@ import {
     getScaleNotes,
     isNoteInScale,
     getIntervalForNote,
+    getCAGEDFretRange,
+    isInCAGEDPosition,
 } from '../data/scaleData';
 import { useAudio } from '../hooks/useAudio';
 import { useDrawingCanvas, HIGHLIGHTER_COLORS, BRUSH_SIZES } from '../hooks/useDrawingCanvas';
@@ -27,7 +29,7 @@ const DISABLED_COLORS = [
 ];
 
 // Visible frets (controlled from Settings)
-function Fretboard({ scales, guitarType, displayMode, fretCount }) {
+function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition }) {
     const { playNote, isLoading } = useAudio(guitarType);
     const [activeNote, setActiveNote] = useState(null);
     const scrollRef = useRef(null);
@@ -53,6 +55,11 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
     } = useDrawingCanvas(canvasRef, fretboardRef);
 
     const isIntervalMode = displayMode === 'intervals';
+
+    // CAGED position fret range
+    const cagedRange = cagedPosition && scales.length > 0
+        ? getCAGEDFretRange(scales[0].root, cagedPosition)
+        : null;
 
     // Calculate fret width based on container and visible frets
     useEffect(() => {
@@ -316,10 +323,13 @@ function Fretboard({ scales, guitarType, displayMode, fretCount }) {
 
                                         let backgroundStyle, textColor, borderColor;
 
+                                        const isCagedDim = cagedRange && !isInCAGEDPosition(fret, cagedRange.startFret, cagedRange.endFret);
+
                                         let markerClass = 'note-marker';
                                         if (isActive) markerClass += ' active';
                                         if (isRoot) markerClass += ' root';
                                         if (inMultiple) markerClass += ' multi-scale';
+                                        if (isCagedDim) markerClass += ' caged-dim';
 
                                         const isFullyDisabled = enabledInScales.every(s => disabledScales.has(s.idx));
 

@@ -13,7 +13,7 @@ import RegisterPage from './pages/RegisterPage';
 import { usePresets, useAutoSave, getInitialState } from './hooks/usePresets';
 import { usePitchDetection } from './hooks/usePitchDetection';
 import { useAuth } from './contexts/AuthContext';
-import { getScaleNotes } from './data/scaleData';
+import { getScaleNotes, CAGED_SHAPES } from './data/scaleData';
 import './App.css';
 
 const getBackgroundPath = (name) => `${import.meta.env.BASE_URL}backgrounds/${name}.png`;
@@ -68,6 +68,7 @@ function MainContent() {
   // New features state
   const [showYouTube, setShowYouTube] = useState(false);
   const [blackScreenMode, setBlackScreenMode] = useState(false);
+  const [cagedPosition, setCagedPosition] = useState(null);
 
   const currentState = useMemo(() => ({
     scaleCount, displayMode, guitarType, scales, fretCount
@@ -251,6 +252,23 @@ function MainContent() {
                 </div>
 
                 <div className="control-section">
+                  <label className="section-label">Position</label>
+                  <div className="btn-group">
+                    <button
+                      className={`sm-btn ${cagedPosition === null ? 'active' : ''}`}
+                      onClick={() => setCagedPosition(null)}
+                    >All</button>
+                    {CAGED_SHAPES.map(shape => (
+                      <button
+                        key={shape}
+                        className={`sm-btn ${cagedPosition === shape ? 'active' : ''}`}
+                        onClick={() => setCagedPosition(shape)}
+                      >{shape}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="control-section">
                   <label className="section-label">Sound</label>
                   <select
                     className="sm-select"
@@ -290,6 +308,7 @@ function MainContent() {
                 guitarType={guitarType}
                 displayMode={displayMode}
                 fretCount={fretCount}
+                cagedPosition={cagedPosition}
               />
             </div>
           </div>

@@ -2,10 +2,12 @@ import React, { useState, useMemo } from 'react';
 import Fretboard from './Fretboard';
 import ChordPanel from './ChordPanel';
 import { getChordNotes } from '../data/chordData';
+import { CAGED_SHAPES } from '../data/scaleData';
 import { GUITAR_OPTIONS } from '../App';
 
 function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fretCount }) {
     const [chordCount, setChordCount] = useState(1);
+    const [cagedPosition, setCagedPosition] = useState(null);
 
     // Default chords
     const [chords, setChords] = useState([
@@ -68,6 +70,23 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
                 </div>
 
                 <div className="control-section">
+                    <label className="section-label">Position</label>
+                    <div className="btn-group">
+                        <button
+                            className={`sm-btn ${cagedPosition === null ? 'active' : ''}`}
+                            onClick={() => setCagedPosition(null)}
+                        >All</button>
+                        {CAGED_SHAPES.map(shape => (
+                            <button
+                                key={shape}
+                                className={`sm-btn ${cagedPosition === shape ? 'active' : ''}`}
+                                onClick={() => setCagedPosition(shape)}
+                            >{shape}</button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="control-section">
                     <label className="section-label">Sound</label>
                     <select
                         className="sm-select"
@@ -102,6 +121,7 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
                     guitarType={guitarType}
                     displayMode={displayMode}
                     fretCount={fretCount}
+                    cagedPosition={cagedPosition}
                 />
             </div>
         </div>
