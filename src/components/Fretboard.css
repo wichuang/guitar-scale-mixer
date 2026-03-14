@@ -157,9 +157,9 @@
 }
 
 .fretboard .note-marker {
-  width: 30px;
-  height: 20px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   border: 2px solid transparent;
   font-size: 10px;
   font-weight: 700;
