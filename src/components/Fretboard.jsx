@@ -14,9 +14,9 @@ import './DrawingOverlay.css';
 
 // High contrast scale colors for color mode
 const SCALE_COLORS = [
-    { bg: '#6085a1', border: '#b0c4de' },      // Scale 1 - muted blue
-    { bg: '#d0a375', border: '#ffe4b5' },      // Scale 2 - tan/brown (matched to screenshot)
-    { bg: '#b56d83', border: '#ffb6c1' },      // Scale 3 - muted pink/red
+    { bg: '#4A90D9', border: '#8AB8F0' },      // Scale 1 - vivid blue
+    { bg: '#E8943A', border: '#F5C078' },      // Scale 2 - vivid orange
+    { bg: '#D94A7B', border: '#F08AAB' },      // Scale 3 - vivid rose
 ];
 
 // Grayscale colors for disabled/muted scales
