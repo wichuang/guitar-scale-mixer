@@ -98,7 +98,7 @@ export const SCALE_TYPES = {
 export const CAGED_SHAPES = ['C', 'A', 'G', 'E', 'D'];
 
 const CAGED_OFFSETS = {
-    'E': [-1, 3], 'D': [2, 5], 'C': [4, 7], 'A': [6, 9], 'G': [9, 12],
+    'E': [-1, 2], 'D': [1, 5], 'C': [4, 7], 'A': [6, 10], 'G': [8, 12],
 };
 
 export function getCAGEDFretRange(root, shape) {

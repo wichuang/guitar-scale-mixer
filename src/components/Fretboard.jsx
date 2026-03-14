@@ -66,10 +66,8 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition }
         const updateFretWidth = () => {
             if (containerRef.current) {
                 const containerWidth = containerRef.current.offsetWidth - 32;
-                // Use a standard count (15) to calculate width so it remains consistent
-                // regardless of the user's selected fretCount
-                const standardCount = 15;
-                const width = Math.max(30, Math.floor(containerWidth / (standardCount + 0.5)));
+                const count = fretCount || 15;
+                const width = Math.max(24, Math.floor(containerWidth / (count + 0.5)));
                 setFretWidth(width);
             }
         };
