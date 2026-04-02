@@ -54,15 +54,15 @@ function ScoreDisplay({
     const showStaff = currentNotation === 'all' || currentNotation === 'staff';
     const showTab = currentNotation === 'all' || currentNotation === 'tab';
 
-    // 計算動態高度
+    // 計算動態高度 (五線譜縮小 80%: 180*0.8=144)
     let containerHeight = 100;
-    if (showJianpu) containerHeight += 60;
+    if (showJianpu) containerHeight += 80;
     if (showStaff) containerHeight += 150;
     if (showTab) containerHeight += 150;
 
     // 計算 stave Y 位置
-    const jianpuHeight = showJianpu ? 60 : 0;
-    const staffY = showJianpu ? 50 : 20;
+    const jianpuHeight = showJianpu ? 80 : 0;
+    const staffY = showJianpu ? 70 : 20;
     const tabY = showStaff ? (staffY + 110) : (jianpuHeight + 20);
 
     return (
@@ -98,7 +98,7 @@ function ScoreDisplay({
                         notes={notes}
                         noteXCoordinates={noteXCoordinates}
                         currentNoteIndex={currentNoteIndex}
-                        height={60}
+                        height={80}
                     />
                 )}
 

@@ -1,10 +1,33 @@
 /**
  * StaffView - 五線譜視圖元件
- * 使用 VexFlow 渲染標準五線譜
+ * 使用 VexFlow 渲染標準五線譜，支援音符時值
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Factory, StaveNote, Stave, Voice, Formatter, Accidental } from 'vexflow';
+import { Factory, StaveNote, Stave, Voice, Formatter, Accidental, Dot } from 'vexflow';
+
+/**
+ * 將 Note.duration 轉換為 VexFlow duration 字串
+ * @param {string} duration - 音符時值
+ * @param {boolean} isRest - 是否為休止符
+ * @returns {string} VexFlow duration code
+ */
+function toVexDuration(duration, isRest = false) {
+    const map = {
+        'whole': 'w',
+        'half': 'h',
+        'quarter': 'q',
+        'eighth': '8',
+        '8th': '8',
+        '16th': '16',
+        'sixteenth': '16',
+        '32nd': '32',
+        'thirty-second': '32',
+        '64th': '64',
+    };
+    const vexCode = map[duration] || 'q';
+    return isRest ? vexCode + 'r' : vexCode;
+}
 
 function StaffView({
     notes,
@@ -25,7 +48,7 @@ function StaffView({
 
         // 計算動態寬度
         const calculatedWidth = width || Math.max(800, notes.length * 60 + 100);
-        const height = 150;
+        const height = 200;
 
         const vf = new Factory({
             renderer: { elementId: containerRef.current, width: calculatedWidth, height }
@@ -42,12 +65,11 @@ function StaffView({
 
             try {
                 let keys = ["b/4"];
-                let duration = "q";
-                let isRest = note.isRest || note.displayStr === '0';
+                const isRest = note.isRest || note.displayStr === '0';
+                const duration = toVexDuration(note.duration || 'quarter', isRest);
 
                 if (isRest) {
                     keys = ["b/4"];
-                    duration = "qr";
                 } else if (notePositions[index] && typeof notePositions[index].midi === 'number') {
                     const pos = notePositions[index];
                     const noteIndex = ((pos.midi % 12) + 12) % 12;
@@ -67,8 +89,16 @@ function StaffView({
                     clef: "treble"
                 });
 
+                // 升降記號
                 if (!isRest && note.noteName?.includes('#')) sNote.addModifier(new Accidental("#"));
                 else if (!isRest && note.noteName?.includes('b')) sNote.addModifier(new Accidental("b"));
+
+                // 附點音符
+                if (note.dotted && note.dotted >= 1) {
+                    for (let d = 0; d < note.dotted; d++) {
+                        Dot.buildAndAttach([sNote]);
+                    }
+                }
 
                 staveNotes.push(sNote);
                 noteMapping.push(staveNotes.length - 1);
@@ -98,13 +128,14 @@ function StaffView({
 
         voice.draw(context, stave);
 
-        // 回傳音符座標
+        // 回傳音符座標（需乘以 scale 因子）
         if (onNoteCoordinates) {
+            const scale = 0.8;
             const coords = notes.map((note, idx) => {
                 const vfIndex = noteMapping[idx];
                 if (vfIndex !== null && staveNotes[vfIndex]) {
                     const noteX = staveNotes[vfIndex].getAbsoluteX();
-                    return isNaN(noteX) ? null : noteX;
+                    return isNaN(noteX) ? null : noteX * scale;
                 }
                 return null;
             });
@@ -117,7 +148,11 @@ function StaffView({
         <div
             ref={containerRef}
             className="staff-view"
-            style={{ filter: 'invert(100%)' }}
+            style={{
+                filter: 'invert(100%)',
+                transform: 'scale(0.8)',
+                transformOrigin: 'top left',
+            }}
         />
     );
 }

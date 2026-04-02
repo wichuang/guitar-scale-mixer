@@ -9,6 +9,7 @@ import {
     jianpuToNote,
     calculate3NPSPositions
 } from '../../parsers/JianpuParser.js';
+import { Note } from '../../core/models/Note.js';
 import { useAudio } from '../../hooks/useAudio.js';
 import { usePlayback } from '../../hooks/usePlayback.js';
 import { useAutosave } from '../../hooks/useAutosave.js';
@@ -96,7 +97,14 @@ function ReadMode({ guitarType, fretCount }) {
         [notes, startString, key, scaleType, rangeOctave]
     );
 
-    // 播放 Hook
+    // Loop Section Hook
+    const loopSection = useLoopSection({
+        totalNotes: notes.length,
+        onLoopStart: () => console.log('Loop started'),
+        onLoopEnd: () => console.log('Loop ended')
+    });
+
+    // 播放 Hook（含 loop section 整合）
     const {
         isPlaying,
         currentNoteIndex,
@@ -117,14 +125,8 @@ function ReadMode({ guitarType, fretCount }) {
         timeSignature,
         playNote,
         audioLoading,
-        resumeAudio
-    });
-
-    // Loop Section Hook
-    const loopSection = useLoopSection({
-        totalNotes: notes.length,
-        onLoopStart: () => console.log('Loop started'),
-        onLoopEnd: () => console.log('Loop ended')
+        resumeAudio,
+        loopSection
     });
 
     // Metronome Hook
@@ -132,6 +134,12 @@ function ReadMode({ guitarType, fretCount }) {
         initialBpm: tempo,
         initialTimeSignature: timeSignature
     });
+
+    // 同步 Metronome BPM 與播放 tempo
+    const metronomSetBpm = metronome.setBpm;
+    useEffect(() => {
+        metronomSetBpm(tempo);
+    }, [tempo, metronomSetBpm]);
 
     // Practice Timer Hook
     const practiceTimer = usePracticeTimer({
@@ -248,8 +256,31 @@ function ReadMode({ guitarType, fretCount }) {
     // ===== 調號/音階變更時更新音符 =====
     useEffect(() => {
         setNotes(prevNotes => prevNotes.map(note => {
-            if (note.isSeparator || note.isRest || note.isExtension) return note;
+            if (note.isSeparator || note.isRest || note.isExtension || note.isSymbol) return note;
 
+            // 有 MIDI 值的音符（GP 匯入等）：從 MIDI 重新計算簡譜，保持絕對音高不變
+            const midiVal = note.midi ?? note.midiNote;
+            if (midiVal != null) {
+                const recalc = Note.fromMidi(midiVal, {
+                    key, scaleType,
+                    index: note.index,
+                    duration: note.duration,
+                    stringIndex: note.stringIndex,
+                    fret: note.fret,
+                    technique: note.technique,
+                    format: note.format
+                });
+                return {
+                    ...note,
+                    jianpu: recalc.jianpu,
+                    noteName: recalc.noteName,
+                    displayStr: recalc.displayStr,
+                    accidentalStr: recalc.accidentalStr,
+                    octave: recalc.octave
+                };
+            }
+
+            // 無 MIDI 的音符（手動簡譜輸入）：保持原有邏輯（移調）
             const noteOctaveOffset = (note.octave || 4) - 4;
             let acc = note.accidentalStr || '';
             if (!acc && note.displayStr) {

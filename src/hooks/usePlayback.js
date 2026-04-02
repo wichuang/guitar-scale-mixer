@@ -1,10 +1,46 @@
 /**
  * usePlayback - 播放邏輯 Hook
  * 封裝播放狀態、count-in、節拍追蹤和重音邏輯
+ * 支援音符時值（duration）、附點、三連音
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { STRING_TUNINGS } from '../data/scaleData.js';
+
+/**
+ * 音符時值對應的拍數 (quarter = 1 beat)
+ */
+const DURATION_BEATS = {
+    'whole': 4,
+    'half': 2,
+    'quarter': 1,
+    'eighth': 0.5,
+    '16th': 0.25,
+    '32nd': 0.125,
+    '64th': 0.0625
+};
+
+/**
+ * 計算音符實際拍數
+ * @param {string} duration - 時值名稱
+ * @param {number} dotted - 附點數量 (0, 1, 2)
+ * @param {Object|null} tuplet - 連音符 { num, den }
+ * @returns {number} 拍數
+ */
+function getDurationBeats(duration, dotted = 0, tuplet = null) {
+    let beats = DURATION_BEATS[duration] ?? 1;
+
+    // 附點: 第一個附點加 50%, 第二個附點再加 25%
+    if (dotted >= 1) beats *= 1.5;
+    if (dotted >= 2) beats *= 1.25;
+
+    // 三連音等連音符
+    if (tuplet && tuplet.num && tuplet.den) {
+        beats *= tuplet.den / tuplet.num;
+    }
+
+    return beats;
+}
 
 /**
  * 播放 Click 聲音
@@ -33,6 +69,7 @@ const playClickSound = (high = false) => {
  * @param {Function} options.playNote - 播放音符函數
  * @param {boolean} options.audioLoading - 音頻是否載入中
  * @param {Function} options.resumeAudio - 恢復音頻上下文
+ * @param {Object} options.loopSection - Loop Section Hook 實例
  * @returns {Object}
  */
 export function usePlayback({
@@ -42,7 +79,8 @@ export function usePlayback({
     timeSignature = '4/4',
     playNote,
     audioLoading = false,
-    resumeAudio
+    resumeAudio,
+    loopSection = null
 }) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
@@ -53,6 +91,8 @@ export function usePlayback({
     const playTimeoutRef = useRef(null);
     const beatCounterRef = useRef(0);
     const lastNoteIndexRef = useRef(-1);
+    const loopSectionRef = useRef(loopSection);
+    loopSectionRef.current = loopSection;
 
     /**
      * 開始倒數
@@ -163,6 +203,15 @@ export function usePlayback({
     useEffect(() => {
         if (!isPlaying || currentNoteIndex < 0 || currentNoteIndex >= notes.length) {
             if (currentNoteIndex >= notes.length) {
+                // 檢查 loop section
+                const ls = loopSectionRef.current;
+                if (ls && ls.hasValidLoop && ls.isLoopEnabled) {
+                    const result = ls.checkLoop(currentNoteIndex);
+                    if (result && result.shouldLoop) {
+                        setCurrentNoteIndex(result.nextIndex);
+                        return;
+                    }
+                }
                 setIsPlaying(false);
                 setCurrentNoteIndex(-1);
                 setPlayTime(0);
@@ -174,7 +223,6 @@ export function usePlayback({
         lastNoteIndexRef.current = currentNoteIndex;
 
         // Skip all consecutive separators and symbols in one setState call
-        // to avoid "Maximum update depth exceeded" from chained synchronous updates
         let idx = currentNoteIndex;
         while (idx < notes.length) {
             const n = notes[idx];
@@ -189,6 +237,14 @@ export function usePlayback({
         }
         if (idx !== currentNoteIndex) {
             if (idx >= notes.length) {
+                const ls = loopSectionRef.current;
+                if (ls && ls.hasValidLoop && ls.isLoopEnabled) {
+                    const result = ls.checkLoop(idx);
+                    if (result && result.shouldLoop) {
+                        setCurrentNoteIndex(result.nextIndex);
+                        return;
+                    }
+                }
                 setIsPlaying(false);
                 setCurrentNoteIndex(-1);
                 setPlayTime(0);
@@ -202,28 +258,80 @@ export function usePlayback({
         const note = notes[currentNoteIndex];
         const pos = notePositions[currentNoteIndex];
 
+        // 使用音符自帶的 beatTempo（GP 檔案中段速度變更）或全域 tempo
+        const effectiveTempo = note.beatTempo || tempo;
+
+        // 計算基礎 interval（一拍的時間，毫秒）
+        const beatInterval = (60 / effectiveTempo) * 1000;
+
+        // 計算此音符的實際時值拍數
+        const durationBeats = getDurationBeats(
+            note.duration || 'quarter',
+            note.dotted || 0,
+            note.tuplet || null
+        );
+
+        // 此音符的實際播放時間
+        const noteInterval = beatInterval * durationBeats;
+
         // Determine Accent
         const beatsPerBar = parseInt(timeSignature.split('/')[0]) || 4;
         const isAccent = beatCounterRef.current % beatsPerBar === 0;
 
-        if (pos && !audioLoading && playNote) {
+        // 播放音符（休止符和延長符不發聲，但佔時間）
+        const isRest = note.isRest || note._type === 'rest';
+        const isExtension = note.isExtension || note._type === 'extension';
+
+        if (!isRest && !isExtension && pos && !audioLoading && playNote) {
             const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : (note.midiNote ?? note.midi));
             playNote(targetMidi, pos.string, { gain: isAccent ? 1.3 : 0.7 });
         }
 
-        beatCounterRef.current++;
+        // 和弦處理：同一 beat 的後續和弦音同時發聲，不佔額外時間
+        let chordSkip = 0;
+        if (note.isChord) {
+            let ci = currentNoteIndex + 1;
+            while (ci < notes.length && notes[ci].isChord && notes[ci].chordPosition > 0) {
+                const chordNote = notes[ci];
+                const chordPos = notePositions[ci];
+                if (chordPos && !audioLoading && playNote) {
+                    const chordMidi = chordPos.midi || (chordPos.string !== undefined ? STRING_TUNINGS[chordPos.string] + chordPos.fret : (chordNote.midiNote ?? chordNote.midi));
+                    playNote(chordMidi, chordPos.string, { gain: isAccent ? 1.3 : 0.7 });
+                }
+                chordSkip++;
+                ci++;
+            }
+        }
 
-        const interval = (60 / tempo) * 1000;
+        beatCounterRef.current += durationBeats;
+
         playTimeoutRef.current = setTimeout(() => {
-            setCurrentNoteIndex(prev => prev + 1);
-            setPlayTime(prev => prev + (interval / 1000));
-        }, interval);
+            const nextIndex = currentNoteIndex + 1 + chordSkip;
+
+            // Loop section 檢查 (透過 ref 取得最新值)
+            const ls = loopSectionRef.current;
+            if (ls && ls.hasValidLoop && ls.isLoopEnabled) {
+                if (nextIndex > ls.loopEnd) {
+                    const result = ls.checkLoop(nextIndex);
+                    if (result && result.shouldLoop) {
+                        beatCounterRef.current = 0;
+                        setCurrentNoteIndex(result.nextIndex);
+                        setPlayTime(prev => prev + (noteInterval / 1000));
+                        return;
+                    }
+                }
+            }
+
+            setCurrentNoteIndex(nextIndex);
+            setPlayTime(prev => prev + (noteInterval / 1000));
+        }, noteInterval);
 
         return () => {
             if (playTimeoutRef.current) {
                 clearTimeout(playTimeoutRef.current);
             }
         };
+    // loopSection 透過 ref 存取，不放入 dependency array 避免不必要的 re-run
     }, [isPlaying, currentNoteIndex, notes, notePositions, tempo, playNote, audioLoading, timeSignature]);
 
     /**

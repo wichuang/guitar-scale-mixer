@@ -1,10 +1,30 @@
 /**
  * TabView - 六線譜視圖元件
- * 使用 VexFlow 渲染吉他六線譜
+ * 使用 VexFlow 渲染吉他六線譜，支援音符時值
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Factory, TabNote, TabStave, Voice, Formatter } from 'vexflow';
+import { Factory, TabNote, TabStave, Voice, Formatter, Dot } from 'vexflow';
+
+/**
+ * 將 Note.duration 轉換為 VexFlow duration 字串
+ */
+function toVexDuration(duration, isRest = false) {
+    const map = {
+        'whole': 'w',
+        'half': 'h',
+        'quarter': 'q',
+        'eighth': '8',
+        '8th': '8',
+        '16th': '16',
+        'sixteenth': '16',
+        '32nd': '32',
+        'thirty-second': '32',
+        '64th': '64',
+    };
+    const vexCode = map[duration] || 'q';
+    return isRest ? vexCode + 'r' : vexCode;
+}
 
 function TabView({
     notes,
@@ -40,8 +60,8 @@ function TabView({
             }
 
             try {
-                let duration = "q";
-                let isRest = note.isRest || note.displayStr === '0';
+                const isRest = note.isRest || note.displayStr === '0';
+                const duration = toVexDuration(note.duration || 'quarter', isRest);
                 const pos = notePositions[index];
 
                 let tNote;
@@ -52,7 +72,6 @@ function TabView({
                         type: "r"
                     });
                 } else if (pos && typeof pos.string === 'number') {
-                    // Map 0-indexed string to VexFlow 1-indexed
                     tNote = new TabNote({
                         positions: [{ str: pos.string + 1, fret: pos.fret || 0 }],
                         duration: duration
@@ -63,11 +82,17 @@ function TabView({
                         duration: duration
                     });
                 } else {
-                    // Fallback
                     tNote = new TabNote({
                         positions: [{ str: 3, fret: 0 }],
                         duration: duration
                     });
+                }
+
+                // 附點音符
+                if (note.dotted && note.dotted >= 1) {
+                    for (let d = 0; d < note.dotted; d++) {
+                        Dot.buildAndAttach([tNote]);
+                    }
                 }
 
                 tabNotes.push(tNote);
