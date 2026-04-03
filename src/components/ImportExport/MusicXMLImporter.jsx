@@ -12,7 +12,7 @@ import { GuitarProParser } from '../../parsers/GuitarProParser.js';
 function MusicXMLImporter({
     onImport,
     onError,
-    acceptFormats = ['.xml', '.musicxml', '.abc', '.txt', '.gp', '.gpx', '.gp5', '.gp4', '.gp3']
+    acceptFormats = ['.xml', '.musicxml', '.abc', '.txt', '.gp', '.gpx', '.gp5', '.gp4', '.gp3', 'application/octet-stream', '*/*']
 }) {
     const fileInputRef = useRef(null);
     const [isLoading, setIsLoading] = useState(false);
