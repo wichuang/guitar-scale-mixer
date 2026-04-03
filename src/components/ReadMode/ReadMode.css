@@ -295,12 +295,21 @@
 @media (max-width: 768px) {
     .note-editor-area {
         flex-direction: column;
+        height: auto;
+        min-height: unset;
+        max-height: unset;
     }
 
     .editor-panel {
         width: 100%;
         border-right: none;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        overflow-y: visible;
+    }
+
+    .notes-list-area {
+        min-height: 400px;
+        max-height: 70vh;
     }
 }
 
