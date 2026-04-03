@@ -381,6 +381,7 @@ function NoteEditor({
     playNote
 }) {
     const [hoverInfo, setHoverInfo] = useState('');
+    const [editPanelOpen, setEditPanelOpen] = useState(false);
 
     /**
      * 同步更新 editableText
@@ -715,10 +716,28 @@ function NoteEditor({
 
     return (
         <div className="note-editor-area">
-            {/* 左側：編輯面板 */}
-            <div className="editor-panel">
-                <h4>Edit Panel</h4>
+            {/* 左側：編輯面板（可收合） */}
+            <div className="editor-panel" style={editPanelOpen ? {} : { width: 'auto', minWidth: '40px', padding: '8px', gap: '8px' }}>
+                <h4
+                    onClick={() => setEditPanelOpen(prev => !prev)}
+                    style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                    <span style={{
+                        display: 'inline-block',
+                        transition: 'transform 0.2s',
+                        transform: editPanelOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                        fontSize: '12px'
+                    }}>&#9654;</span>
+                    {editPanelOpen ? 'Edit Panel' : 'Edit'}
+                </h4>
 
+                {!editPanelOpen && selectedNote && !selectedNote.isSeparator && (
+                    <div style={{ writingMode: 'vertical-rl', fontSize: '13px', color: '#4caf50', whiteSpace: 'nowrap' }}>
+                        {selectedNote.displayStr || selectedNote.jianpu}({selectedNote.noteName}{selectedNote.octave})
+                    </div>
+                )}
+
+                {editPanelOpen && <>
                 {/* 選中音符資訊 */}
                 <div className="selected-note-info">
                     <span className="selected-label">選中音符：</span>
@@ -930,6 +949,7 @@ function NoteEditor({
                 >
                     刪除此{selectedNote?.isSeparator ? '區隔線' : '音符'}
                 </button>
+                </>}
             </div>
 
             {/* 右側：簡譜樂譜顯示 */}
