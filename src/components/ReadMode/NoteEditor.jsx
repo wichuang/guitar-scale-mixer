@@ -67,6 +67,11 @@ function JianpuNoteCell({ note, idx, isActive, isSelected, onNoteSelect }) {
     const technique = note.technique ? (TECHNIQUE_LABELS[note.technique] || note.technique) : '';
     const hasFret = typeof note.fret === 'number' && typeof note.stringIndex === 'number';
 
+    // Tab 位置：優先使用 chordFrets（和弦全部位置），否則用單音的 string/fret
+    const tabPositions = note.chordFrets && note.chordFrets.length > 0
+        ? note.chordFrets
+        : (hasFret ? [{ string: note.stringIndex, fret: note.fret }] : []);
+
     const color = isActive ? '#4caf50' : '#eee';
     const dimColor = isActive ? '#4caf50' : '#777';
 
@@ -139,14 +144,14 @@ function JianpuNoteCell({ note, idx, isActive, isSelected, onNoteSelect }) {
                 ))}
             </div>
 
-            {/* Tab 六線譜 (6 strings with fret number on correct string) */}
+            {/* Tab 六線譜 (6 strings with fret numbers) */}
             <div style={{
                 width: '100%',
                 height: '30px',
                 position: 'relative',
                 marginTop: '3px'
             }}>
-                {/* 6 弦線 (stringIndex 0=高E on top, 5=低E on bottom) */}
+                {/* 6 弦線 */}
                 {[0, 1, 2, 3, 4, 5].map(s => (
                     <div key={s} style={{
                         position: 'absolute',
@@ -157,11 +162,11 @@ function JianpuNoteCell({ note, idx, isActive, isSelected, onNoteSelect }) {
                         background: '#444'
                     }} />
                 ))}
-                {/* Fret 數字 */}
-                {hasFret && !isRest && (
-                    <span style={{
+                {/* Fret 數字（顯示所有和弦位置） */}
+                {!isRest && tabPositions.map((pos, pi) => (
+                    <span key={pi} style={{
                         position: 'absolute',
-                        top: `${note.stringIndex * 5 - 3}px`,
+                        top: `${pos.string * 5 - 3}px`,
                         left: '50%',
                         transform: 'translateX(-50%)',
                         fontSize: '9px',
@@ -172,9 +177,9 @@ function JianpuNoteCell({ note, idx, isActive, isSelected, onNoteSelect }) {
                         lineHeight: '1',
                         zIndex: 1
                     }}>
-                        {note.fret}
+                        {pos.fret}
                     </span>
-                )}
+                ))}
             </div>
         </div>
     );

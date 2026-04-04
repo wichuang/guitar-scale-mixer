@@ -333,12 +333,19 @@ export class GuitarProParser extends ParserInterface {
                     notes.push(beatNotes[0]);
                     noteIndex++;
                 } else if (beatNotes.length > 1) {
+                    // 收集所有和弦音的 Tab 位置
+                    const chordFrets = beatNotes
+                        .filter(n => typeof n.stringIndex === 'number' && typeof n.fret === 'number')
+                        .map(n => ({ string: n.stringIndex, fret: n.fret }));
+
                     if (chordMode === 'highest') {
                         const best = beatNotes.reduce((a, b) => (a.midi > b.midi ? a : b));
+                        best.chordFrets = chordFrets;
                         notes.push(best);
                         noteIndex++;
                     } else if (chordMode === 'lowest') {
                         const best = beatNotes.reduce((a, b) => (a.midi < b.midi ? a : b));
+                        best.chordFrets = chordFrets;
                         notes.push(best);
                         noteIndex++;
                     } else {
