@@ -143,10 +143,8 @@ export class Note {
             }
         }
 
-        // 簡譜八度：以調的根音為分界（不是 C）
-        // 例如 G 大調中，B4(71) 和 C5(72) 在同一個簡譜八度
-        // 計算方式：將 MIDI 減去根音偏移後再算八度
-        const jianpuOctave = Math.floor((midiNote - keyOffset) / 12) - 1;
+        // 簡譜八度：使用 MIDI 八度（C 分界）
+        const jianpuOctave = midiOctave;
 
         // Build display string
         const dispOct = jianpuOctave + displayOctaveShift;
