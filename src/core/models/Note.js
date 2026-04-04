@@ -102,10 +102,9 @@ export class Note {
     static fromMidi(midiNote, options = {}) {
         const noteIndex = ((midiNote % 12) + 12) % 12;
         const noteName = NOTES[noteIndex];
-        const octave = Math.floor(midiNote / 12) - 1;
+        const midiOctave = Math.floor(midiNote / 12) - 1;
 
         // displayOctaveShift: 吉他等移調樂器記譜比實音高一個八度，傳 1
-        // 存為獨立屬性，不改變 octave 本身
         const displayOctaveShift = options.displayOctaveShift || 0;
 
         // Calculate jianpu (in C major by default)
@@ -144,8 +143,13 @@ export class Note {
             }
         }
 
-        // Build display string (使用 octave + displayOctaveShift)
-        const dispOct = octave + displayOctaveShift;
+        // 簡譜八度：以調的根音為分界（不是 C）
+        // 例如 G 大調中，B4(71) 和 C5(72) 在同一個簡譜八度
+        // 計算方式：將 MIDI 減去根音偏移後再算八度
+        const jianpuOctave = Math.floor((midiNote - keyOffset) / 12) - 1;
+
+        // Build display string
+        const dispOct = jianpuOctave + displayOctaveShift;
         let displayStr = jianpu ? String(jianpu) : noteName;
         if (dispOct > 4) displayStr += '.'.repeat(dispOct - 4);
         if (dispOct === 3) displayStr = '_' + displayStr;
@@ -155,7 +159,7 @@ export class Note {
         return new Note({
             midi: midiNote,
             noteName: noteName + (accidentalStr === '#' ? '#' : accidentalStr === 'b' ? 'b' : ''),
-            octave,
+            octave: jianpuOctave,
             jianpu,
             accidentalStr,
             displayStr,
