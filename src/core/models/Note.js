@@ -111,26 +111,32 @@ export class Note {
         const mappedType = SCALE_MAPPING[scaleType] || 'major';
         const scale = SCALES[mappedType] || SCALES['major'];
 
-        // Find jianpu degree
+        // Find jianpu degree — 先找完全匹配，再找升降記號
         const semitoneFromKey = ((noteIndex - keyOffset) % 12 + 12) % 12;
         let jianpu = null;
         let accidentalStr = '';
 
+        // Pass 1: exact match (自然音)
         for (let i = 0; i < scale.intervals.length; i++) {
             if (scale.intervals[i] === semitoneFromKey) {
                 jianpu = i + 1;
                 break;
             }
-            // Check for accidentals
-            if (scale.intervals[i] === semitoneFromKey - 1) {
-                jianpu = i + 1;
-                accidentalStr = '#';
-                break;
-            }
-            if (scale.intervals[i] === semitoneFromKey + 1) {
-                jianpu = i + 1;
-                accidentalStr = 'b';
-                break;
+        }
+
+        // Pass 2: accidentals (只在沒有完全匹配時)
+        if (jianpu === null) {
+            for (let i = 0; i < scale.intervals.length; i++) {
+                if (scale.intervals[i] === semitoneFromKey - 1) {
+                    jianpu = i + 1;
+                    accidentalStr = '#';
+                    break;
+                }
+                if (scale.intervals[i] === semitoneFromKey + 1) {
+                    jianpu = i + 1;
+                    accidentalStr = 'b';
+                    break;
+                }
             }
         }
 
