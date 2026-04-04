@@ -86,7 +86,12 @@ export class GuitarProParser extends ParserInterface {
      * @returns {{ tracks: Array<{ index: number, name: string, noteCount: number }>, song: Object }}
      */
     parseSong(data, fileName) {
-        const song = parseTabFile(data, fileName);
+        let song;
+        try {
+            song = parseTabFile(data, fileName);
+        } catch (err) {
+            throw new Error(`無法解析 Guitar Pro 檔案: ${err.message}`);
+        }
         this._song = song;
         this._title = song.title || '';
         this._artist = song.artist || '';

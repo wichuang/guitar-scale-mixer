@@ -75,6 +75,9 @@ export class Note {
         // Format tracking
         this.format = props.format ?? null;
 
+        // 簡譜八度顯示偏移（吉他=1）
+        this.displayOctaveShift = props.displayOctaveShift ?? 0;
+
         // Type flags
         this._type = props.type ?? 'note';
     }
