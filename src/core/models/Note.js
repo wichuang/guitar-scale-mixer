@@ -102,7 +102,8 @@ export class Note {
         const octave = Math.floor(midiNote / 12) - 1;
 
         // displayOctaveShift: 吉他等移調樂器記譜比實音高一個八度，傳 1
-        const displayOctave = octave + (options.displayOctaveShift || 0);
+        // 存為獨立屬性，不改變 octave 本身
+        const displayOctaveShift = options.displayOctaveShift || 0;
 
         // Calculate jianpu (in C major by default)
         const key = options.key || 'C';
@@ -140,20 +141,22 @@ export class Note {
             }
         }
 
-        // Build display string (使用 displayOctave)
+        // Build display string (使用 octave + displayOctaveShift)
+        const dispOct = octave + displayOctaveShift;
         let displayStr = jianpu ? String(jianpu) : noteName;
-        if (displayOctave > 4) displayStr += '.'.repeat(displayOctave - 4);
-        if (displayOctave === 3) displayStr = '_' + displayStr;
-        if (displayOctave === 2) displayStr = '__' + displayStr;
+        if (dispOct > 4) displayStr += '.'.repeat(dispOct - 4);
+        if (dispOct === 3) displayStr = '_' + displayStr;
+        if (dispOct === 2) displayStr = '__' + displayStr;
         if (accidentalStr) displayStr += accidentalStr;
 
         return new Note({
             midi: midiNote,
             noteName: noteName + (accidentalStr === '#' ? '#' : accidentalStr === 'b' ? 'b' : ''),
-            octave: displayOctave,
+            octave,
             jianpu,
             accidentalStr,
             displayStr,
+            displayOctaveShift,
             index: options.index ?? 0,
             duration: options.duration ?? 'quarter',
             type: 'note',

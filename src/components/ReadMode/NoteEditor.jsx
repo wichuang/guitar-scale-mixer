@@ -59,7 +59,7 @@ function JianpuNoteCell({ note, idx, isActive, isSelected, onNoteSelect }) {
     // 升降號（獨立顯示在數字上方）
     const acc = note.accidentalStr || '';
 
-    const octDiff = isSpecial ? 0 : ((note.octave || 4) - 4);
+    const octDiff = isSpecial ? 0 : ((note.octave || 4) + (note.displayOctaveShift || 0) - 4);
     const underlines = getUnderlineCount(note.duration);
     const isHalf = note.duration === 'half';
     const isWhole = note.duration === 'whole';

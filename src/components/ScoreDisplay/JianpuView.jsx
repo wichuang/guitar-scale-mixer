@@ -171,7 +171,7 @@ function JianpuView({
                 if (note.isExtension) char = '–';
 
                 // 八度差異 (相對於中央 C = 4)
-                const octDiff = (note.octave || 4) - 4;
+                const octDiff = (note.octave || 4) + (note.displayOctaveShift || 0) - 4;
 
                 // 是否為當前播放的音符
                 const isActive = index === currentNoteIndex;

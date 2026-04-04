@@ -269,7 +269,7 @@ function ReadMode({ guitarType, fretCount }) {
                     fret: note.fret,
                     technique: note.technique,
                     format: note.format,
-                    displayOctaveShift: note.format === 'guitarpro' ? 1 : 0
+                    displayOctaveShift: note.displayOctaveShift || 0
                 });
                 return {
                     ...note,
@@ -277,7 +277,8 @@ function ReadMode({ guitarType, fretCount }) {
                     noteName: recalc.noteName,
                     displayStr: recalc.displayStr,
                     accidentalStr: recalc.accidentalStr,
-                    octave: recalc.octave
+                    octave: recalc.octave,
+                    displayOctaveShift: recalc.displayOctaveShift
                 };
             }
 
