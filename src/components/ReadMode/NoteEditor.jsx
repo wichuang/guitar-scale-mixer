@@ -490,6 +490,7 @@ function NoteEditor({
                 jianpu: '0',
                 displayStr: '0',
                 isRest: true,
+                _type: 'rest',
                 octave: 4,
                 index: 0
             };
@@ -498,6 +499,16 @@ function NoteEditor({
                 jianpu: '-',
                 displayStr: '-',
                 isExtension: true,
+                _type: 'extension',
+                octave: 4,
+                index: 0
+            };
+        } else if (symbol === '|') {
+            newNote = {
+                jianpu: '|',
+                displayStr: '|',
+                isSeparator: true,
+                _type: 'separator',
                 octave: 4,
                 index: 0
             };
@@ -506,6 +517,7 @@ function NoteEditor({
                 jianpu: symbol,
                 displayStr: symbol,
                 isSymbol: true,
+                _type: 'symbol',
                 octave: 4,
                 index: 0
             };
@@ -695,14 +707,27 @@ function NoteEditor({
     const selectedNote = selectedNoteIndex >= 0 && selectedNoteIndex < notes.length ? notes[selectedNoteIndex] : null;
     const isNoteEditable = selectedNoteIndex >= 0 && selectedNote && !selectedNote.isSeparator && !selectedNote.isSymbol;
 
-    // 時值選項
+    // 時值 SVG 圖示（跨平台一致顯示）
+    const NoteSvg = ({ filled = true, stem = true, flags = 0, size = 20 }) => (
+        <svg width={size} height={size} viewBox="0 0 20 24" style={{ display: 'block' }}>
+            {/* 符頭 */}
+            <ellipse cx="8" cy="18" rx="5" ry="3.5" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" transform="rotate(-20,8,18)" />
+            {/* 符桿 */}
+            {stem && <line x1="12.5" y1="17" x2="12.5" y2="3" stroke="currentColor" strokeWidth="1.5" />}
+            {/* 符尾 */}
+            {flags >= 1 && <path d="M12.5 3 Q16 6 13 10" stroke="currentColor" strokeWidth="1.3" fill="none" />}
+            {flags >= 2 && <path d="M12.5 7 Q16 10 13 14" stroke="currentColor" strokeWidth="1.3" fill="none" />}
+            {flags >= 3 && <path d="M12.5 11 Q16 14 13 18" stroke="currentColor" strokeWidth="1.3" fill="none" />}
+        </svg>
+    );
+
     const DURATION_OPTIONS = [
-        { value: 'whole',    label: '𝅝', title: '全音符 (4 beats)' },
-        { value: 'half',     label: '𝅗𝅥', title: '二分音符 (2 beats)' },
-        { value: 'quarter',  label: '♩', title: '四分音符 (1 beat)' },
-        { value: 'eighth',   label: '♪', title: '八分音符 (1/2 beat)' },
-        { value: '16th',     label: '𝅘𝅥𝅯', title: '十六分音符 (1/4 beat)' },
-        { value: '32nd',     label: '𝅘𝅥𝅰', title: '三十二分音符 (1/8 beat)' },
+        { value: 'whole',    icon: <NoteSvg filled={false} stem={false} />,  title: '全音符 (4 beats)' },
+        { value: 'half',     icon: <NoteSvg filled={false} stem={true} />,   title: '二分音符 (2 beats)' },
+        { value: 'quarter',  icon: <NoteSvg filled={true} stem={true} />,    title: '四分音符 (1 beat)' },
+        { value: 'eighth',   icon: <NoteSvg filled={true} flags={1} />,      title: '八分音符 (1/2 beat)' },
+        { value: '16th',     icon: <NoteSvg filled={true} flags={2} />,      title: '十六分音符 (1/4 beat)' },
+        { value: '32nd',     icon: <NoteSvg filled={true} flags={3} />,      title: '三十二分音符 (1/8 beat)' },
     ];
 
     // 連音符選項
@@ -738,54 +763,34 @@ function NoteEditor({
                 )}
 
                 {editPanelOpen && <>
-                {/* 選中音符資訊 */}
+                {/* ── 選中音符 ── */}
                 <div className="selected-note-info">
-                    <span className="selected-label">選中音符：</span>
+                    <span className="selected-label">選中：</span>
                     <span className="selected-value">
                         {selectedNote
                             ? (selectedNote.isSeparator
-                                ? '區隔線 |'
-                                : `${selectedNote.displayStr || selectedNote.jianpu}(${selectedNote.noteName}${selectedNote.octave})`)
-                            : '未選擇'
-                        }
+                                ? '| 小節線'
+                                : `${selectedNote.displayStr || selectedNote.jianpu} (${selectedNote.noteName}${selectedNote.octave})`)
+                            : '未選擇'}
                     </span>
                 </div>
 
-                {/* 八度控制 */}
+                {/* ── 音高 ── */}
                 <div className="editor-group">
-                    <span className="editor-label">八度</span>
+                    <span className="editor-label">音高</span>
                     <div className="editor-buttons">
-                        <button
-                            className="editor-btn"
-                            onClick={() => handleShiftOctave(1)}
-                            disabled={selectedNoteIndex < 0 || selectedNote?.isSeparator}
-                        >+8度</button>
-                        <button
-                            className="editor-btn"
-                            onClick={() => handleShiftOctave(-1)}
-                            disabled={selectedNoteIndex < 0 || selectedNote?.isSeparator}
-                        >-8度</button>
+                        <button className={`editor-btn ${selectedNote?.accidentalStr === '#' ? 'active' : ''}`} onClick={() => handleToggleAccidental('sharp')} disabled={!isNoteEditable} onMouseEnter={() => setHoverInfo('升記號 #')} onMouseLeave={() => setHoverInfo('')}>#</button>
+                        <button className={`editor-btn ${selectedNote?.accidentalStr === 'b' ? 'active' : ''}`} onClick={() => handleToggleAccidental('flat')} disabled={!isNoteEditable} onMouseEnter={() => setHoverInfo('降記號 b')} onMouseLeave={() => setHoverInfo('')}>b</button>
+                        <button className="editor-btn" onClick={() => handleShiftOctave(1)} disabled={!isNoteEditable} onMouseEnter={() => setHoverInfo('升八度')} onMouseLeave={() => setHoverInfo('')}>+8ve</button>
+                        <button className="editor-btn" onClick={() => handleShiftOctave(-1)} disabled={!isNoteEditable} onMouseEnter={() => setHoverInfo('降八度')} onMouseLeave={() => setHoverInfo('')}>-8ve</button>
                     </div>
-                    {/* Global Octave Shift */}
                     <div className="editor-buttons" style={{ marginTop: '4px' }}>
-                        <button
-                            className="editor-btn secondary"
-                            onClick={() => handleShiftAllOctaves(1)}
-                            title="全曲升八度"
-                        >
-                            全+8
-                        </button>
-                        <button
-                            className="editor-btn secondary"
-                            onClick={() => handleShiftAllOctaves(-1)}
-                            title="全曲降八度"
-                        >
-                            全-8
-                        </button>
+                        <button className="editor-btn secondary" onClick={() => handleShiftAllOctaves(1)} onMouseEnter={() => setHoverInfo('全曲升八度')} onMouseLeave={() => setHoverInfo('')}>全+8</button>
+                        <button className="editor-btn secondary" onClick={() => handleShiftAllOctaves(-1)} onMouseEnter={() => setHoverInfo('全曲降八度')} onMouseLeave={() => setHoverInfo('')}>全-8</button>
                     </div>
                 </div>
 
-                {/* ===== 時值控制 ===== */}
+                {/* ── 時值 ── */}
                 <div className="editor-group">
                     <span className="editor-label">時值</span>
                     <div className="editor-buttons" style={{ flexWrap: 'wrap', gap: '4px' }}>
@@ -798,155 +803,67 @@ function NoteEditor({
                                 title={opt.title}
                                 onMouseEnter={() => setHoverInfo(opt.title)}
                                 onMouseLeave={() => setHoverInfo('')}
-                                style={{ fontSize: '16px', minWidth: '36px' }}
-                            >
-                                {opt.label}
-                            </button>
+                                style={{ minWidth: '32px', display: 'inline-flex', justifyContent: 'center', alignItems: 'center', padding: '4px' }}
+                            >{opt.icon}</button>
                         ))}
                     </div>
-                </div>
-
-                {/* ===== 附點 ===== */}
-                <div className="editor-group">
-                    <span className="editor-label">附點</span>
-                    <div className="editor-buttons">
+                    {/* 附點 + 連音 (同一區塊) */}
+                    <div className="editor-buttons" style={{ marginTop: '6px', gap: '4px' }}>
                         <button
                             className={`editor-btn ${(selectedNote?.dotted || 0) >= 1 ? 'active' : ''}`}
                             onClick={handleToggleDotted}
                             disabled={!isNoteEditable}
-                            title="附點 (時值 ×1.5)"
-                            onMouseEnter={() => setHoverInfo(`附點：0→單附點(×1.5)→複附點(×1.75)→無`)}
+                            onMouseEnter={() => setHoverInfo('附點：無→單(×1.5)→複(×1.75)→無')}
                             onMouseLeave={() => setHoverInfo('')}
-                        >
-                            {(selectedNote?.dotted || 0) === 0 ? '·  無' :
-                             (selectedNote?.dotted || 0) === 1 ? '·  單附點' : '·· 複附點'}
-                        </button>
+                            style={{ flex: 1 }}
+                        >{(selectedNote?.dotted || 0) === 0 ? '· 無' : (selectedNote?.dotted || 0) === 1 ? '· 單附點' : '·· 複附點'}</button>
                     </div>
-                </div>
-
-                {/* ===== 連音符 ===== */}
-                <div className="editor-group">
-                    <span className="editor-label">連音</span>
-                    <div className="editor-buttons" style={{ flexWrap: 'wrap', gap: '4px' }}>
+                    <div className="editor-buttons" style={{ marginTop: '4px', gap: '4px' }}>
                         {TUPLET_OPTIONS.map((opt, i) => {
-                            const currentTuplet = selectedNote?.tuplet;
-                            const isActive = opt.value === null
-                                ? !currentTuplet
-                                : (currentTuplet?.num === opt.value?.num && currentTuplet?.den === opt.value?.den);
+                            const ct = selectedNote?.tuplet;
+                            const active = opt.value === null ? !ct : (ct?.num === opt.value?.num && ct?.den === opt.value?.den);
                             return (
-                                <button
-                                    key={i}
-                                    className={`editor-btn small ${isActive ? 'active' : ''}`}
-                                    onClick={() => handleSetTuplet(opt.value)}
-                                    disabled={!isNoteEditable}
-                                    title={opt.title}
-                                    onMouseEnter={() => setHoverInfo(opt.title)}
-                                    onMouseLeave={() => setHoverInfo('')}
-                                >
-                                    {opt.label}
-                                </button>
+                                <button key={i} className={`editor-btn small ${active ? 'active' : ''}`} onClick={() => handleSetTuplet(opt.value)} disabled={!isNoteEditable} title={opt.title} onMouseEnter={() => setHoverInfo(opt.title)} onMouseLeave={() => setHoverInfo('')}>{opt.label}</button>
                             );
                         })}
                     </div>
                 </div>
 
-                {/* ===== 段落速度變更 ===== */}
+                {/* ── 速度 ── */}
                 <div className="editor-group">
-                    <span className="editor-label">段落速度</span>
+                    <span className="editor-label">速度</span>
                     <div className="editor-buttons" style={{ alignItems: 'center' }}>
-                        <input
-                            type="number"
-                            min="20"
-                            max="300"
-                            placeholder="BPM"
-                            value={selectedNote?.beatTempo ?? ''}
-                            onChange={(e) => handleSetBeatTempo(e.target.value)}
-                            disabled={!isNoteEditable}
-                            onMouseEnter={() => setHoverInfo('從此音符起變更播放速度 (留空=沿用全域 BPM)')}
-                            onMouseLeave={() => setHoverInfo('')}
-                            style={{
-                                width: '72px',
-                                padding: '4px 6px',
-                                background: '#333',
-                                color: 'white',
-                                border: '1px solid #555',
-                                borderRadius: '4px',
-                                fontSize: '13px',
-                                textAlign: 'center'
-                            }}
-                        />
+                        <input type="number" min="20" max="300" placeholder="BPM" value={selectedNote?.beatTempo ?? ''} onChange={(e) => handleSetBeatTempo(e.target.value)} disabled={!isNoteEditable} onMouseEnter={() => setHoverInfo('從此音符起變更播放速度 (留空=沿用全域)')} onMouseLeave={() => setHoverInfo('')} style={{ width: '72px', padding: '4px 6px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', fontSize: '13px', textAlign: 'center' }} />
                         <span style={{ fontSize: '12px', color: '#aaa', marginLeft: '4px' }}>BPM</span>
                         {selectedNote?.beatTempo && (
-                            <button
-                                className="editor-btn small"
-                                onClick={() => handleSetBeatTempo('')}
-                                title="清除段落速度"
-                                style={{ marginLeft: '4px' }}
-                            >
-                                ✕
-                            </button>
+                            <button className="editor-btn small" onClick={() => handleSetBeatTempo('')} title="清除" style={{ marginLeft: '4px' }}>✕</button>
                         )}
                     </div>
                 </div>
 
-                {/* 插入符號 */}
+                {/* ── 符號/插入 ── */}
                 <div className="editor-group">
-                    <span className="editor-label">插入空格</span>
+                    <span className="editor-label">插入</span>
                     <div className="editor-buttons">
-                        <button
-                            className="editor-btn"
-                            onClick={() => handleInsertSymbol('0', 'before')}
-                            disabled={selectedNoteIndex < 0}
-                            onMouseEnter={() => setHoverInfo('在當前音符「前」插入空格 (休止符 0)')}
-                            onMouseLeave={() => setHoverInfo('')}
-                        >前</button>
-                        <button
-                            className="editor-btn"
-                            onClick={() => handleInsertSymbol('0', 'after')}
-                            disabled={selectedNoteIndex < 0}
-                            onMouseEnter={() => setHoverInfo('在當前音符「後」插入空格 (休止符 0)')}
-                            onMouseLeave={() => setHoverInfo('')}
-                        >後</button>
+                        <button className="editor-btn" onClick={() => handleInsertSymbol('0', 'before')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('前方插入休止符')} onMouseLeave={() => setHoverInfo('')}>前</button>
+                        <button className="editor-btn" onClick={() => handleInsertSymbol('0', 'after')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('後方插入休止符')} onMouseLeave={() => setHoverInfo('')}>後</button>
                     </div>
-
-                    {/* 特殊符號插入 */}
-                    <div className="editor-insert-row" style={{ marginTop: '8px' }}>
-                        <span>符號：</span>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol('0')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('插入休止符 (Rest 0)')} onMouseLeave={() => setHoverInfo('')}>0</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol('-')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('插入延音線 (Extension -)')} onMouseLeave={() => setHoverInfo('')}>-</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol('(')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('圓滑線 / 連音開始')} onMouseLeave={() => setHoverInfo('')}>(</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol(')')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('圓滑線 / 連音結束')} onMouseLeave={() => setHoverInfo('')}>)</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol(':')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('冒號 / 反覆記號')} onMouseLeave={() => setHoverInfo('')}>:</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol('_')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('底線 / 八分音符')} onMouseLeave={() => setHoverInfo('')}>_</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol('=')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('雙底線 / 十六分音符')} onMouseLeave={() => setHoverInfo('')}>=</button>
+                    <div className="editor-insert-row" style={{ marginTop: '6px' }}>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('0')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('休止符 0')} onMouseLeave={() => setHoverInfo('')}>0</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('-')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('延音線 –')} onMouseLeave={() => setHoverInfo('')}>–</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('|')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('小節線 |')} onMouseLeave={() => setHoverInfo('')}>|</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('(')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('圓滑線開始')} onMouseLeave={() => setHoverInfo('')}>(</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol(')')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('圓滑線結束')} onMouseLeave={() => setHoverInfo('')}>)</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol(':')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('反覆記號')} onMouseLeave={() => setHoverInfo('')}>:</button>
                         <button className="editor-btn small" onClick={() => handleInsertSymbol('>')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('重音')} onMouseLeave={() => setHoverInfo('')}>&gt;</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol('[')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('三連音開始')} onMouseLeave={() => setHoverInfo('')}>[</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol(']')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('三連音結束')} onMouseLeave={() => setHoverInfo('')}>]</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol('|')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('小節線')} onMouseLeave={() => setHoverInfo('')}>|</button>
                     </div>
                 </div>
 
-                {/* 功能說明欄 */}
-                <div className="editor-info-bar" style={{
-                    minHeight: '24px',
-                    margin: '8px 0',
-                    padding: '4px 8px',
-                    background: '#333',
-                    borderRadius: '4px',
-                    color: '#4caf50',
-                    fontSize: '0.9rem',
-                    display: 'flex',
-                    alignItems: 'center'
-                }}>
+                {/* 說明 + 刪除 */}
+                <div className="editor-info-bar" style={{ minHeight: '22px', padding: '4px 8px', background: '#333', borderRadius: '4px', color: '#4caf50', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
                     {hoverInfo || '滑鼠移至按鈕可查看說明'}
                 </div>
-
-                {/* 刪除按鈕 */}
-                <button
-                    className="delete-note-btn"
-                    onClick={handleDeleteNote}
-                    disabled={selectedNoteIndex < 0}
-                >
+                <button className="delete-note-btn" onClick={handleDeleteNote} disabled={selectedNoteIndex < 0}>
                     刪除此{selectedNote?.isSeparator ? '區隔線' : '音符'}
                 </button>
                 </>}

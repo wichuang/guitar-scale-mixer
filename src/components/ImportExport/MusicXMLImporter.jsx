@@ -23,6 +23,7 @@ function MusicXMLImporter({
     const [gpParser, setGpParser] = useState(null);
     const [gpFileName, setGpFileName] = useState('');
     const [selectedTrackIndex, setSelectedTrackIndex] = useState(0);
+    const [chordMode, setChordMode] = useState('highest');
 
     const staffParser = new StaffParser();
     const tabParser = new TabParser();
@@ -91,8 +92,8 @@ function MusicXMLImporter({
                     return;
                 }
 
-                // 單音軌：直接匯入
-                notes = parser.convertTrack(0);
+                // 單音軌：直接匯入（預設取最高音）
+                notes = parser.convertTrack(0, { chordMode: 'highest' });
                 format = 'guitarpro';
 
                 staffParser.title = parser.title;
@@ -146,7 +147,7 @@ function MusicXMLImporter({
         if (!gpParser) return;
 
         try {
-            const notes = gpParser.convertTrack(selectedTrackIndex);
+            const notes = gpParser.convertTrack(selectedTrackIndex, { chordMode });
 
             if (notes.length > 0) {
                 onImport?.({
@@ -170,7 +171,7 @@ function MusicXMLImporter({
 
         setGpTracks(null);
         setGpParser(null);
-    }, [gpParser, selectedTrackIndex, gpFileName, onImport, onError]);
+    }, [gpParser, selectedTrackIndex, gpFileName, chordMode, onImport, onError]);
 
     /**
      * 取消音軌選擇
@@ -280,6 +281,36 @@ function MusicXMLImporter({
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    {/* 和弦模式選擇 */}
+                    <div style={{ marginBottom: '12px' }}>
+                        <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '6px' }}>和弦（同時多音符）處理方式</div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            {[
+                                { value: 'highest', label: '最高音', desc: '只保留最高音（旋律）' },
+                                { value: 'lowest',  label: '最低音', desc: '只保留最低音（低音）' },
+                                { value: 'all',     label: '全部',   desc: '保留所有和弦音符' },
+                            ].map(opt => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => setChordMode(opt.value)}
+                                    title={opt.desc}
+                                    style={{
+                                        flex: 1,
+                                        padding: '8px 6px',
+                                        background: chordMode === opt.value ? 'rgba(33,150,243,0.3)' : 'rgba(255,255,255,0.05)',
+                                        border: chordMode === opt.value ? '2px solid #2196F3' : '2px solid transparent',
+                                        borderRadius: '6px',
+                                        color: '#fff',
+                                        fontSize: '13px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* 操作按鈕 */}

@@ -268,7 +268,8 @@ function ReadMode({ guitarType, fretCount }) {
                     stringIndex: note.stringIndex,
                     fret: note.fret,
                     technique: note.technique,
-                    format: note.format
+                    format: note.format,
+                    displayOctaveShift: note.format === 'guitarpro' ? 1 : 0
                 });
                 return {
                     ...note,

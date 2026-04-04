@@ -313,7 +313,8 @@ export class GuitarProParser extends ParserInterface {
                         technique,
                         format: 'guitarpro',
                         key: this._key,
-                        scaleType: 'Major'
+                        scaleType: 'Major',
+                        displayOctaveShift: 1  // 吉他記譜比實音高一個八度
                     });
 
                     // 儲存額外的節拍資訊，供播放引擎使用
@@ -324,17 +325,30 @@ export class GuitarProParser extends ParserInterface {
                     beatNotes.push(note);
                 }
 
-                // 如果同一個 beat 有多個音符，將它們視為和弦
+                // 處理和弦（同 beat 多音符）
+                // chordMode: 'all'=全部匯入, 'highest'=只取最高音, 'lowest'=只取最低音
+                const chordMode = options.chordMode || 'all';
+
                 if (beatNotes.length === 1) {
                     notes.push(beatNotes[0]);
                     noteIndex++;
                 } else if (beatNotes.length > 1) {
-                    beatNotes.forEach((n, i) => {
-                        n.isChord = true;
-                        n.chordPosition = i;
-                        notes.push(n);
-                    });
-                    noteIndex++;
+                    if (chordMode === 'highest') {
+                        const best = beatNotes.reduce((a, b) => (a.midi > b.midi ? a : b));
+                        notes.push(best);
+                        noteIndex++;
+                    } else if (chordMode === 'lowest') {
+                        const best = beatNotes.reduce((a, b) => (a.midi < b.midi ? a : b));
+                        notes.push(best);
+                        noteIndex++;
+                    } else {
+                        beatNotes.forEach((n, i) => {
+                            n.isChord = true;
+                            n.chordPosition = i;
+                            notes.push(n);
+                        });
+                        noteIndex++;
+                    }
                 }
             }
         }
