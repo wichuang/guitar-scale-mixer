@@ -35,6 +35,17 @@ const AUTOSAVE_KEY = 'guitar-mixer-readmode-autosave';
  * Note class getters (midiNote, isSeparator, etc.) are lost after JSON serialization.
  * This ensures all notes have the expected plain properties.
  */
+/**
+ * 從 displayStr 推算簡譜八度偏移（不依賴 note.octave，避免被 Note.fromMidi 污染）
+ */
+function getOctaveOffsetFromDisplay(displayStr) {
+    if (!displayStr) return 0;
+    if (displayStr.startsWith('₌') || displayStr.startsWith('__')) return -2;
+    if (displayStr.startsWith('₋') || (displayStr.startsWith('_') && !displayStr.startsWith('__'))) return -1;
+    const cleaned = displayStr.replace(/[#b♯♭]/g, '');
+    return (cleaned.match(/[.·]/g) || []).length;
+}
+
 function normalizeNotes(notes) {
     if (!notes || !Array.isArray(notes)) return [];
     return notes.map(n => {
@@ -50,6 +61,13 @@ function normalizeNotes(notes) {
             out.isExtension = out._type === 'extension';
             out.isSeparator = out._type === 'separator';
             out.isSymbol = out._type === 'symbol';
+        }
+        // 修復簡譜音符的 octave（從 displayStr 推算，避免 C 分界八度污染）
+        if (out.jianpu >= 1 && out.jianpu <= 7 && out.displayStr) {
+            const correctOctave = 4 + getOctaveOffsetFromDisplay(out.displayStr);
+            if (out.octave !== correctOctave) {
+                out.octave = correctOctave;
+            }
         }
         return out;
     });
@@ -258,7 +276,36 @@ function ReadMode({ guitarType, fretCount }) {
         setNotes(prevNotes => prevNotes.map(note => {
             if (note.isSeparator || note.isRest || note.isExtension || note.isSymbol) return note;
 
-            // 有 MIDI 值的音符（GP 匯入等）：從 MIDI 重新計算簡譜，保持絕對音高不變
+            // 簡譜音符（有 jianpu 1-7）：用 jianpuToNote 重算，保持簡譜八度一致
+            if (note.jianpu >= 1 && note.jianpu <= 7) {
+                // 從 displayStr 推算八度偏移（比 note.octave 更可靠，不受 Note.fromMidi 污染）
+                let noteOctaveOffset = 0;
+                const ds = note.displayStr || '';
+                if (ds.startsWith('₌') || ds.startsWith('__')) {
+                    noteOctaveOffset = -2;
+                } else if (ds.startsWith('₋') || (ds.startsWith('_') && !ds.startsWith('__'))) {
+                    noteOctaveOffset = -1;
+                } else {
+                    // 計算高八度點數（只算非升降號的 ·/.）
+                    const cleaned = ds.replace(/[#b♯♭]/g, '');
+                    const dots = (cleaned.match(/[.·]/g) || []).length;
+                    noteOctaveOffset = dots;
+                }
+
+                let acc = note.accidentalStr || '';
+                if (!acc && ds) {
+                    if (ds.includes('#')) acc = '#';
+                    if (ds.includes('b')) acc = 'b';
+                }
+                const noteInput = String(note.jianpu) + acc;
+                const noteData = jianpuToNote(noteInput, noteOctaveOffset, key, scaleType);
+                if (noteData) {
+                    return { ...note, ...noteData, accidentalStr: acc };
+                }
+                return note;
+            }
+
+            // 非簡譜音符（GP 匯入等）：從 MIDI 重新計算簡譜，保持絕對音高不變
             const midiVal = note.midi ?? note.midiNote;
             if (midiVal != null) {
                 const recalc = Note.fromMidi(midiVal, {
@@ -282,24 +329,6 @@ function ReadMode({ guitarType, fretCount }) {
                 };
             }
 
-            // 無 MIDI 的音符（手動簡譜輸入）：保持原有邏輯（移調）
-            const noteOctaveOffset = (note.octave || 4) - 4;
-            let acc = note.accidentalStr || '';
-            if (!acc && note.displayStr) {
-                if (note.displayStr.includes('#')) acc = '#';
-                if (note.displayStr.includes('b')) acc = 'b';
-            }
-
-            const noteInput = String(note.jianpu) + acc;
-            const noteData = jianpuToNote(noteInput, noteOctaveOffset, key, scaleType);
-
-            if (noteData) {
-                return {
-                    ...note,
-                    ...noteData,
-                    accidentalStr: acc
-                };
-            }
             return note;
         }));
     }, [key, scaleType]);
@@ -444,6 +473,8 @@ function ReadMode({ guitarType, fretCount }) {
                     audioLoading={audioLoading}
                     musicKey={key}
                     scaleType={scaleType}
+                    tempo={tempo}
+                    onTempoChange={setTempo}
                     onNotesChange={setNotes}
                     onTextChange={setEditableText}
                     onSelectedNoteChange={setSelectedNoteIndex}

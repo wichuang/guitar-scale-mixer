@@ -191,9 +191,11 @@ export function usePlayback({
 
         const note = notes[index];
         const pos = notePositions[index];
-        if (pos && !audioLoading && playNote) {
-            const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : (note.midiNote ?? note.midi));
-            playNote(targetMidi, pos.string);
+        if (!audioLoading && playNote) {
+            const targetMidi = note.midiNote ?? note.midi ?? (pos && pos.midi);
+            if (targetMidi) {
+                playNote(targetMidi, pos ? pos.string : 2);
+            }
         }
     }, [notes, notePositions, audioLoading, playNote]);
 
@@ -278,13 +280,17 @@ export function usePlayback({
         const beatsPerBar = parseInt(timeSignature.split('/')[0]) || 4;
         const isAccent = beatCounterRef.current % beatsPerBar === 0;
 
-        // 播放音符（休止符和延長符不發聲，但佔時間）
+        // 播放音符（休止符、延長符、延音結束音不發聲，但佔時間）
         const isRest = note.isRest || note._type === 'rest';
         const isExtension = note.isExtension || note._type === 'extension';
+        const isTieEnd = note.tieEnd;
 
-        if (!isRest && !isExtension && pos && !audioLoading && playNote) {
-            const targetMidi = pos.midi || (pos.string !== undefined ? STRING_TUNINGS[pos.string] + pos.fret : (note.midiNote ?? note.midi));
-            playNote(targetMidi, pos.string, { gain: isAccent ? 1.3 : 0.7 });
+        if (!isRest && !isExtension && !isTieEnd && !audioLoading && playNote) {
+            // 使用音符本身的 MIDI 值播放（不受 3NPS 指板定位的八度偏移影響）
+            const targetMidi = note.midiNote ?? note.midi ?? (pos && pos.midi);
+            if (targetMidi) {
+                playNote(targetMidi, pos ? pos.string : 2, { gain: isAccent ? 1.3 : 0.7 });
+            }
         }
 
         // 和弦處理：同一 beat 的後續和弦音同時發聲，不佔額外時間
@@ -294,9 +300,11 @@ export function usePlayback({
             while (ci < notes.length && notes[ci].isChord && notes[ci].chordPosition > 0) {
                 const chordNote = notes[ci];
                 const chordPos = notePositions[ci];
-                if (chordPos && !audioLoading && playNote) {
-                    const chordMidi = chordPos.midi || (chordPos.string !== undefined ? STRING_TUNINGS[chordPos.string] + chordPos.fret : (chordNote.midiNote ?? chordNote.midi));
-                    playNote(chordMidi, chordPos.string, { gain: isAccent ? 1.3 : 0.7 });
+                if (!audioLoading && playNote) {
+                    const chordMidi = chordNote.midiNote ?? chordNote.midi ?? (chordPos && chordPos.midi);
+                    if (chordMidi) {
+                        playNote(chordMidi, chordPos ? chordPos.string : 2, { gain: isAccent ? 1.3 : 0.7 });
+                    }
                 }
                 chordSkip++;
                 ci++;

@@ -344,82 +344,25 @@ export function getBestPosition(midiNote, position = 1) {
 export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', scaleType = 'Major', userOctaveShift = 0) {
     if (!notes || notes.length === 0) return [];
 
-    // Normalize key: strip quality suffix ('Fm' → 'F', 'C#m' → 'C#')
-    const normalizedKey = key.replace(/m$/, '').replace(/\s*(Major|Minor|maj|min)$/i, '') || 'C';
-
-    // Generate Static Map
-    const map = generate3NPSMap(startStringIdx, normalizedKey, scaleType);
-
     const getMidi = (n) => n.midiNote ?? n.midi;
     const isSep = (n) => n.isSeparator || n._type === 'separator';
 
-    // If map is empty, use direct fallback positioning (no octave alignment)
-    if (!map || map.length === 0) {
-        return notes.map((note) => {
-            if (!note || isSep(note)) return null;
-            const noteMidi = getMidi(note);
-            if (!noteMidi) return null;
-            let bestPos = null;
-            let minDist = 999;
-            for (let s = 0; s < 6; s++) {
-                const f = noteMidi - STRING_TUNINGS[s];
-                if (f >= 0 && f <= 24) {
-                    const dist = Math.abs(f - 5);
-                    if (dist < minDist) { minDist = dist; bestPos = { string: s, fret: f, midi: noteMidi }; }
-                }
-            }
-            return bestPos;
-        });
-    }
-
-    // --- Smart Octave Alignment ---
-    const firstNote = notes.find(n => n && !isSep(n) && getMidi(n));
-
-    let octaveShift = 0;
-
-    if (firstNote) {
-        const inputMidi = getMidi(firstNote);
-        const mapStartMidi = map[0].midi;
-
-        // Auto-align input to map
-        const diff = mapStartMidi - inputMidi;
-        octaveShift = Math.round(diff / 12) * 12;
-    }
-
-    // Apply User Manual Shift (in octaves * 12)
-    if (userOctaveShift) {
-        octaveShift += (userOctaveShift * 12);
-    }
-
-    // Find Root Fret to keep "center of gravity" for fallback
-    const rootEntry = map[0];
-    const targetCenterFret = rootEntry ? rootEntry.fret + 2 : 5;
-
+    // 直接根據 MIDI 值找最適合的指板位置（不做 3NPS 八度偏移）
     return notes.map((note) => {
         if (!note || isSep(note)) return null;
         const noteMidi = getMidi(note);
         if (!noteMidi) return null;
 
-        // Apply shift
-        const targetMidi = noteMidi + octaveShift;
-
-        // 1. Try exact match in Map
-        const match = map.find(m => m.midi === targetMidi);
-        if (match) {
-            return { string: match.string, fret: match.fret, midi: targetMidi };
-        }
-
-        // 2. Fallback: Find closest position for shifted midi
         let bestPos = null;
         let minDist = 999;
 
         for (let s = 0; s < 6; s++) {
-            const f = targetMidi - STRING_TUNINGS[s];
+            const f = noteMidi - STRING_TUNINGS[s];
             if (f >= 0 && f <= 24) {
-                const dist = Math.abs(f - targetCenterFret);
+                const dist = Math.abs(f - 5);
                 if (dist < minDist) {
                     minDist = dist;
-                    bestPos = { string: s, fret: f, midi: targetMidi };
+                    bestPos = { string: s, fret: f, midi: noteMidi };
                 }
             }
         }
