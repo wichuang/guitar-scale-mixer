@@ -46,7 +46,7 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
     const currentNameRef = useRef(instrumentName);
     const loadingPromiseRef = useRef(null);
 
-    // Load instrument on demand (called from user gesture context)
+    // Load instrument on demand
     const ensureLoaded = useCallback(async () => {
         const name = currentNameRef.current;
         if (instrumentRef.current && instrumentsCache[name]) {
@@ -72,7 +72,7 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         return loadingPromiseRef.current;
     }, []);
 
-    // When instrument name changes, clear cached ref so next play triggers reload
+    // When instrument name changes, clear cached ref
     useEffect(() => {
         if (instrumentName !== currentNameRef.current) {
             currentNameRef.current = instrumentName;
@@ -81,7 +81,6 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         }
     }, [instrumentName]);
 
-    // Convert MIDI note number to note name
     const midiToNoteName = useCallback((midiNote) => {
         const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         const octave = Math.floor(midiNote / 12) - 1;
@@ -89,21 +88,27 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         return `${noteName}${octave}`;
     }, []);
 
-    // Play a note
-    const playNote = useCallback((midiNote, stringIndex = 2, options = {}) => {
+    // Play a note — 如果音色未載入，等待載入後再播放（不靜默跳過）
+    const playNote = useCallback(async (midiNote, stringIndex = 2, options = {}) => {
         const ac = getAudioContext();
 
-        if (!instrumentRef.current) {
-            // Trigger lazy load on first play (user gesture context)
-            ensureLoaded();
-            return;
+        let instrument = instrumentRef.current;
+        if (!instrument) {
+            // 等待音色載入完成再播放
+            instrument = await ensureLoaded();
+            if (!instrument) return; // 載入失敗才放棄
+        }
+
+        // 確保 AudioContext 是 running（iOS 可能被 suspend）
+        if (ac.state === 'suspended') {
+            try { await ac.resume(); } catch (e) { /* ignore */ }
         }
 
         const noteName = midiToNoteName(midiNote);
         const gain = options.gain || 0.8;
 
         try {
-            instrumentRef.current.play(noteName, ac.currentTime, {
+            instrument.play(noteName, ac.currentTime, {
                 duration: options.duration || 2,
                 gain: gain,
             });
@@ -117,13 +122,11 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         const noteIdx = NOTES.indexOf(noteName);
         if (noteIdx !== -1) {
-            const midiNote = 60 + noteIdx; // Middle C octave
-            playNote(midiNote, 2);
+            playNote(60 + noteIdx, 2);
         }
     }, [playNote]);
 
     const resumeAudio = useCallback(async () => {
-        // Ensure instrument is loaded (called from user gesture context)
         await ensureLoaded();
         const ac = getAudioContext();
         if (ac.state === 'suspended') {
