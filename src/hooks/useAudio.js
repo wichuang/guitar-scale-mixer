@@ -14,16 +14,37 @@ export const GUITAR_INSTRUMENTS = {
 
 // Shared audio context and instruments cache
 let sharedAudioContext = null;
+let audioUnlocked = false;
 const instrumentsCache = {};
 
 function getAudioContext() {
     if (!sharedAudioContext) {
         sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
-    if (sharedAudioContext.state === 'suspended') {
-        sharedAudioContext.resume();
-    }
     return sharedAudioContext;
+}
+
+/**
+ * iOS/iPadOS 音頻解鎖 — 必須在用戶手勢的同步階段呼叫
+ * 建立 AudioContext + resume + 播放靜音 buffer 以解鎖
+ */
+function unlockAudioSync() {
+    const ac = getAudioContext();
+    if (ac.state === 'suspended') {
+        ac.resume();
+    }
+    // 播放靜音 buffer 解鎖 iOS 音頻
+    if (!audioUnlocked) {
+        try {
+            const buf = ac.createBuffer(1, 1, ac.sampleRate);
+            const src = ac.createBufferSource();
+            src.buffer = buf;
+            src.connect(ac.destination);
+            src.start(0);
+            audioUnlocked = true;
+        } catch (e) { /* ignore */ }
+    }
+    return ac;
 }
 
 async function loadInstrumentIfNeeded(name) {
@@ -38,6 +59,17 @@ async function loadInstrumentIfNeeded(name) {
     });
     instrumentsCache[name] = instrument;
     return instrument;
+}
+
+// iOS/iPadOS: 在第一次用戶觸碰時解鎖音頻
+if (typeof window !== 'undefined') {
+    const onFirstTouch = () => {
+        unlockAudioSync();
+        document.removeEventListener('touchstart', onFirstTouch, true);
+        document.removeEventListener('click', onFirstTouch, true);
+    };
+    document.addEventListener('touchstart', onFirstTouch, true);
+    document.addEventListener('click', onFirstTouch, true);
 }
 
 export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
@@ -89,18 +121,19 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         return `${noteName}${octave}`;
     }, []);
 
-    // Play a note
-    const playNote = useCallback(async (midiNote, stringIndex = 2, options = {}) => {
+    // Play a note（同步，不做 await — 從 timer 呼叫時不在用戶手勢中）
+    const playNote = useCallback((midiNote, stringIndex = 2, options = {}) => {
         const ac = getAudioContext();
-        // iOS/iPadOS: 確保 AudioContext 不是 suspended
-        if (ac.state === 'suspended') {
-            try { await ac.resume(); } catch (e) { /* ignore */ }
-        }
 
         if (!instrumentRef.current) {
-            // Trigger lazy load on first play (user gesture context)
-            const inst = await ensureLoaded();
-            if (!inst) return;
+            // 音色尚未載入，觸發載入（下次播放才有聲音）
+            ensureLoaded();
+            return;
+        }
+
+        // iOS: 如果 context 還是 suspended，嘗試 resume（可能無效但不影響）
+        if (ac.state === 'suspended') {
+            ac.resume();
         }
 
         const noteName = midiToNoteName(midiNote);
@@ -127,13 +160,11 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
     }, [playNote]);
 
     const resumeAudio = useCallback(async () => {
-        // Ensure instrument is loaded (called from user gesture context)
+        // 同步解鎖音頻（必須在用戶手勢的同步階段，不能在 await 之後）
+        unlockAudioSync();
+        // 之後才非同步載入音色
         await ensureLoaded();
-        const ac = getAudioContext();
-        if (ac.state === 'suspended') {
-            await ac.resume();
-        }
-        return ac;
+        return getAudioContext();
     }, [ensureLoaded]);
 
     return {
