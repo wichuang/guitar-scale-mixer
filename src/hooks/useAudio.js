@@ -90,13 +90,17 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
     }, []);
 
     // Play a note
-    const playNote = useCallback((midiNote, stringIndex = 2, options = {}) => {
+    const playNote = useCallback(async (midiNote, stringIndex = 2, options = {}) => {
         const ac = getAudioContext();
+        // iOS/iPadOS: 確保 AudioContext 不是 suspended
+        if (ac.state === 'suspended') {
+            try { await ac.resume(); } catch (e) { /* ignore */ }
+        }
 
         if (!instrumentRef.current) {
             // Trigger lazy load on first play (user gesture context)
-            ensureLoaded();
-            return;
+            const inst = await ensureLoaded();
+            if (!inst) return;
         }
 
         const noteName = midiToNoteName(midiNote);

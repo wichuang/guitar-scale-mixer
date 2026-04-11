@@ -479,6 +479,8 @@ function ReadMode({ guitarType, fretCount }) {
                     onTextChange={setEditableText}
                     onSelectedNoteChange={setSelectedNoteIndex}
                     onTogglePlay={() => {
+                        // iOS/iPadOS: 必須在用戶手勢的同步階段 resume AudioContext
+                        if (resumeAudio) resumeAudio();
                         if (isPlaying) {
                             pause();
                             practiceTimer.pauseSession();

@@ -289,7 +289,26 @@ export function usePlayback({
             // 使用音符本身的 MIDI 值播放（不受 3NPS 指板定位的八度偏移影響）
             const targetMidi = note.midiNote ?? note.midi ?? (pos && pos.midi);
             if (targetMidi) {
-                playNote(targetMidi, pos ? pos.string : 2, { gain: isAccent ? 1.3 : 0.7 });
+                // 延音線 (tie)：計算延長的持續時間（自身 + 後續所有 tieEnd 音符的拍數）
+                let tieDurationSec = noteInterval / 1000;
+                if (note.tieStart) {
+                    let ti = currentNoteIndex + 1;
+                    while (ti < notes.length) {
+                        const tn = notes[ti];
+                        if (tn.tieEnd) {
+                            const tBeats = getDurationBeats(tn.duration || 'quarter', tn.dotted || 0, tn.tuplet || null);
+                            const tTempo = tn.beatTempo || effectiveTempo;
+                            tieDurationSec += (60 / tTempo) * tBeats;
+                            ti++;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                playNote(targetMidi, pos ? pos.string : 2, {
+                    gain: isAccent ? 1.3 : 0.7,
+                    duration: tieDurationSec
+                });
             }
         }
 
