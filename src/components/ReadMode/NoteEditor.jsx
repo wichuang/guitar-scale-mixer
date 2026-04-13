@@ -416,19 +416,24 @@ function JianpuScoreView({ notes, currentNoteIndex, selectedNoteIndex, onNoteSel
         const result = [];
         let current = [];
         let measureNum = 1;
+        let pendingSepType = null; // 前一個分隔符號類型
 
         notes.forEach((note, idx) => {
             if (note.isSeparator || note._type === 'separator') {
                 if (current.length > 0) {
-                    result.push({ notes: current, number: measureNum++ });
+                    result.push({ notes: current, number: measureNum++, startSep: pendingSepType, endSep: note.displayStr || '|' });
                     current = [];
+                    pendingSepType = note.displayStr || '|';
+                } else {
+                    // 連續分隔符號（如 :| 後接 |:）
+                    pendingSepType = note.displayStr || '|';
                 }
             } else {
                 current.push({ note, idx });
             }
         });
         if (current.length > 0) {
-            result.push({ notes: current, number: measureNum });
+            result.push({ notes: current, number: measureNum, startSep: pendingSepType, endSep: null });
         }
         return result;
     }, [notes]);
@@ -445,6 +450,58 @@ function JianpuScoreView({ notes, currentNoteIndex, selectedNoteIndex, onNoteSel
     }, [currentNoteIndex]);
 
     const barLineStyle = { width: '2px', background: '#555', flexShrink: 0, alignSelf: 'stretch' };
+
+    // 根據分隔類型渲染小節線
+    const renderBarLine = (sepType) => {
+        if (!sepType || sepType === '|') {
+            return <div style={barLineStyle} />;
+        }
+        if (sepType === '||') {
+            return (
+                <div style={{ display: 'flex', gap: '2px', flexShrink: 0, alignSelf: 'stretch' }}>
+                    <div style={{ width: '2px', background: '#888' }} />
+                    <div style={{ width: '3px', background: '#ccc' }} />
+                </div>
+            );
+        }
+        if (sepType === '|:') {
+            return (
+                <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0, alignSelf: 'stretch', position: 'relative' }}>
+                    <div style={{ width: '3px', background: '#ccc', alignSelf: 'stretch' }} />
+                    <div style={{ width: '2px', background: '#888', alignSelf: 'stretch' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginLeft: '2px' }}>
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#ff9800' }} />
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#ff9800' }} />
+                    </div>
+                </div>
+            );
+        }
+        if (sepType === ':|') {
+            return (
+                <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0, alignSelf: 'stretch', position: 'relative' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginRight: '2px' }}>
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#ff9800' }} />
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#ff9800' }} />
+                    </div>
+                    <div style={{ width: '2px', background: '#888', alignSelf: 'stretch' }} />
+                    <div style={{ width: '3px', background: '#ccc', alignSelf: 'stretch' }} />
+                </div>
+            );
+        }
+        // 方向記號 (D.C., D.S., Coda, Fine, Segno, To Coda)
+        const directionMarkers = ['D.C.', 'D.S.', 'Coda', 'Fine', 'Segno', 'To Coda', 'D.C. al Fine', 'D.S. al Coda'];
+        if (directionMarkers.includes(sepType)) {
+            return (
+                <div style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0, padding: '0 2px' }}>
+                    <div style={barLineStyle} />
+                    <span style={{ fontSize: '9px', color: '#ff9800', fontWeight: 'bold', fontStyle: 'italic', marginLeft: '3px', whiteSpace: 'nowrap' }}>
+                        {sepType === 'Coda' ? '𝄌' : sepType === 'Segno' ? '𝄋' : sepType}
+                    </span>
+                </div>
+            );
+        }
+        return <div style={barLineStyle} />;
+    };
 
     return (
         <div
@@ -485,7 +542,7 @@ function JianpuScoreView({ notes, currentNoteIndex, selectedNoteIndex, onNoteSel
                                 {measure.number}
                             </span>
 
-                            <div style={barLineStyle} />
+                            {renderBarLine(measure.startSep || '|')}
 
                             {/* 小節內音符（按連音分組） */}
                             <div style={{ display: 'flex', alignItems: 'stretch', padding: '0 4px' }}>
@@ -525,7 +582,7 @@ function JianpuScoreView({ notes, currentNoteIndex, selectedNoteIndex, onNoteSel
                                 })}
                             </div>
 
-                            <div style={barLineStyle} />
+                            {renderBarLine(measure.endSep || '|')}
                         </div>
                     );
                 })}
@@ -679,10 +736,19 @@ function NoteEditor({
                 octave: 4,
                 index: 0
             };
-        } else if (symbol === '|') {
+        } else if (symbol === '|' || symbol === '||' || symbol === '|:' || symbol === ':|') {
             newNote = {
-                jianpu: '|',
-                displayStr: '|',
+                jianpu: symbol,
+                displayStr: symbol,
+                isSeparator: true,
+                _type: 'separator',
+                octave: 4,
+                index: 0
+            };
+        } else if (['D.C.', 'D.S.', 'Fine', 'Segno', 'Coda', 'To Coda', 'D.C. al Fine', 'D.S. al Coda'].includes(symbol)) {
+            newNote = {
+                jianpu: symbol,
+                displayStr: symbol,
                 isSeparator: true,
                 _type: 'separator',
                 octave: 4,
@@ -1211,10 +1277,28 @@ function NoteEditor({
                         <button className="editor-btn small" onClick={() => handleInsertSymbol('0')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('休止符 0')} onMouseLeave={() => setHoverInfo('')}>0</button>
                         <button className="editor-btn small" onClick={() => handleInsertSymbol('-')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('延音線 –')} onMouseLeave={() => setHoverInfo('')}>–</button>
                         <button className="editor-btn small" onClick={() => handleInsertSymbol('|')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('小節線 |')} onMouseLeave={() => setHoverInfo('')}>|</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol('(')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('圓滑線開始')} onMouseLeave={() => setHoverInfo('')}>(</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol(')')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('圓滑線結束')} onMouseLeave={() => setHoverInfo('')}>)</button>
-                        <button className="editor-btn small" onClick={() => handleInsertSymbol(':')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('反覆記號')} onMouseLeave={() => setHoverInfo('')}>:</button>
                         <button className="editor-btn small" onClick={() => handleInsertSymbol('>')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('重音')} onMouseLeave={() => setHoverInfo('')}>&gt;</button>
+                    </div>
+
+                    {/* 小節線類型 */}
+                    <span className="editor-label" style={{ marginTop: '6px' }}>小節線</span>
+                    <div className="editor-insert-row">
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('||')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('雙小節線')} onMouseLeave={() => setHoverInfo('')}>&#x2016;</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('|:')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('反覆開始 |:')} onMouseLeave={() => setHoverInfo('')}>|:</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol(':|')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('反覆結束 :|')} onMouseLeave={() => setHoverInfo('')}>:|</button>
+                    </div>
+
+                    {/* 方向記號 */}
+                    <span className="editor-label" style={{ marginTop: '6px' }}>方向</span>
+                    <div className="editor-insert-row">
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('D.C.')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('Da Capo — 從頭反覆')} onMouseLeave={() => setHoverInfo('')}>D.C.</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('D.S.')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('Dal Segno — 從 Segno 記號反覆')} onMouseLeave={() => setHoverInfo('')}>D.S.</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('Fine')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('Fine — 結束')} onMouseLeave={() => setHoverInfo('')}>Fine</button>
+                    </div>
+                    <div className="editor-insert-row" style={{ marginTop: '4px' }}>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('Segno')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('Segno 記號 𝄋')} onMouseLeave={() => setHoverInfo('')}>𝄋</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('Coda')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('Coda 記號 𝄌')} onMouseLeave={() => setHoverInfo('')}>𝄌</button>
+                        <button className="editor-btn small" onClick={() => handleInsertSymbol('To Coda')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('To Coda — 跳到 Coda')} onMouseLeave={() => setHoverInfo('')}>To 𝄌</button>
                     </div>
                 </div>
 
