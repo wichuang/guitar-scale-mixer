@@ -93,6 +93,7 @@ export function usePlayback({
     const lastNoteIndexRef = useRef(-1);
     const loopSectionRef = useRef(loopSection);
     loopSectionRef.current = loopSection;
+    const navigationRef = useRef({ dsExecuted: false, dcExecuted: false, repeatCounts: {} });
 
     /**
      * 開始倒數
@@ -135,6 +136,9 @@ export function usePlayback({
                 console.warn('Audio resume failed', e);
             }
         }
+
+        // 重置方向記號狀態
+        navigationRef.current = { dsExecuted: false, dcExecuted: false, repeatCounts: {} };
 
         setIsPlaying(true);
         const startIndex = startFromIndex >= 0 ? startFromIndex : 0;
@@ -224,12 +228,81 @@ export function usePlayback({
 
         lastNoteIndexRef.current = currentNoteIndex;
 
-        // Skip all consecutive separators and symbols in one setState call
+        // 處理分隔符號、方向記號、反覆符號
         let idx = currentNoteIndex;
         while (idx < notes.length) {
             const n = notes[idx];
             if (n.isSeparator || n._type === 'separator') {
+                const ds = n.displayStr || '|';
                 beatCounterRef.current = 0;
+
+                // D.S. — 跳到 Segno 記號（只執行一次）
+                if (ds === 'D.S.' && !navigationRef.current.dsExecuted) {
+                    navigationRef.current.dsExecuted = true;
+                    const segnoIdx = notes.findIndex(nn => (nn.isSeparator || nn._type === 'separator') && nn.displayStr === 'Segno');
+                    if (segnoIdx >= 0) {
+                        setCurrentNoteIndex(segnoIdx + 1);
+                        return;
+                    }
+                }
+                // D.S. al Coda
+                if (ds === 'D.S. al Coda' && !navigationRef.current.dsExecuted) {
+                    navigationRef.current.dsExecuted = true;
+                    const segnoIdx = notes.findIndex(nn => (nn.isSeparator || nn._type === 'separator') && nn.displayStr === 'Segno');
+                    if (segnoIdx >= 0) {
+                        setCurrentNoteIndex(segnoIdx + 1);
+                        return;
+                    }
+                }
+                // D.C. — 跳到開頭（只執行一次）
+                if (ds === 'D.C.' && !navigationRef.current.dcExecuted) {
+                    navigationRef.current.dcExecuted = true;
+                    setCurrentNoteIndex(0);
+                    return;
+                }
+                // D.C. al Fine
+                if (ds === 'D.C. al Fine' && !navigationRef.current.dcExecuted) {
+                    navigationRef.current.dcExecuted = true;
+                    setCurrentNoteIndex(0);
+                    return;
+                }
+                // To Coda — 跳到 Coda 記號（僅在 D.S./D.C. 已執行後觸發）
+                if (ds === 'To Coda' && (navigationRef.current.dsExecuted || navigationRef.current.dcExecuted)) {
+                    const codaIdx = notes.findIndex(nn => (nn.isSeparator || nn._type === 'separator') && nn.displayStr === 'Coda');
+                    if (codaIdx >= 0) {
+                        setCurrentNoteIndex(codaIdx + 1);
+                        return;
+                    }
+                }
+                // Fine — 停止播放（僅在 D.S./D.C. 已執行後觸發）
+                if (ds === 'Fine' && (navigationRef.current.dsExecuted || navigationRef.current.dcExecuted)) {
+                    setIsPlaying(false);
+                    setCurrentNoteIndex(-1);
+                    setPlayTime(0);
+                    beatCounterRef.current = 0;
+                    return;
+                }
+                // :| 反覆結束 — 跳回對應的 |: 反覆開始（只反覆一次）
+                if (ds === ':|') {
+                    const repeatKey = String(idx);
+                    if (!navigationRef.current.repeatCounts[repeatKey]) {
+                        navigationRef.current.repeatCounts[repeatKey] = true;
+                        // 往回找最近的 |:
+                        let startIdx = -1;
+                        for (let ri = idx - 1; ri >= 0; ri--) {
+                            const rn = notes[ri];
+                            if ((rn.isSeparator || rn._type === 'separator') && rn.displayStr === '|:') {
+                                startIdx = ri + 1;
+                                break;
+                            }
+                        }
+                        if (startIdx >= 0) {
+                            setCurrentNoteIndex(startIdx);
+                            return;
+                        }
+                    }
+                }
+
                 idx++;
             } else if (n.isSymbol || n._type === 'symbol') {
                 idx++;
