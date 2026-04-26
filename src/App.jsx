@@ -327,6 +327,7 @@ function MainContent() {
                       displayMode={displayMode}
                       fretCount={fretCount}
                       cagedPosition={cagedPosition}
+                      colorOffset={idx}
                     />
                   </div>
                 ))}

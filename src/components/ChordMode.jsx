@@ -140,6 +140,7 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
                                 displayMode={displayMode}
                                 fretCount={fretCount}
                                 cagedPosition={cagedPosition}
+                                colorOffset={idx}
                             />
                         </div>
                     ))}

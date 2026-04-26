@@ -29,7 +29,7 @@ const DISABLED_COLORS = [
 ];
 
 // Visible frets (controlled from Settings)
-function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition }) {
+function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, colorOffset = 0 }) {
     const { playNote, isLoading } = useAudio(guitarType);
     const [activeNote, setActiveNote] = useState(null);
     const scrollRef = useRef(null);
@@ -177,14 +177,14 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition }
                                     className="legend-marker"
                                     style={{
                                         backgroundColor: disabledScales.has(idx)
-                                            ? DISABLED_COLORS[idx].bg
-                                            : SCALE_COLORS[idx].bg,
+                                            ? DISABLED_COLORS[(idx + colorOffset) % DISABLED_COLORS.length].bg
+                                            : SCALE_COLORS[(idx + colorOffset) % SCALE_COLORS.length].bg,
                                         border: disabledScales.has(idx)
-                                            ? `1px solid ${DISABLED_COLORS[idx].border}`
+                                            ? `1px solid ${DISABLED_COLORS[(idx + colorOffset) % DISABLED_COLORS.length].border}`
                                             : 'none'
                                     }}
                                 />
-                                <span style={{ textDecoration: disabledScales.has(idx) ? 'line-through' : 'none' }}>Scale {idx + 1}</span>
+                                <span style={{ textDecoration: disabledScales.has(idx) ? 'line-through' : 'none' }}>Scale {idx + colorOffset + 1}</span>
                             </div>
                         ))}
                         {isLoading && (
@@ -343,19 +343,19 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition }
                                         if (isRoot && activeRootIndex === undefined) activeRootIndex = isRootOf[0]; // fallback
 
                                         const colors = visibleScales.map(s => {
-                                            return disabledScales.has(s.idx) ? DISABLED_COLORS[s.idx].bg : SCALE_COLORS[s.idx].bg;
+                                            return disabledScales.has(s.idx) ? DISABLED_COLORS[(s.idx + colorOffset) % DISABLED_COLORS.length].bg : SCALE_COLORS[(s.idx + colorOffset) % SCALE_COLORS.length].bg;
                                         });
                                         backgroundStyle = generateBackground(colors);
 
                                         if (isFullyDisabled) {
-                                            textColor = inMultiple ? '#000000' : DISABLED_COLORS[primaryScaleIdx].text;
+                                            textColor = inMultiple ? '#000000' : DISABLED_COLORS[(primaryScaleIdx + colorOffset) % DISABLED_COLORS.length].text;
                                         } else {
                                             // overlapping notes are black, single scale notes are gray
                                             textColor = inMultiple ? '#000000' : '#424242';
                                         }
 
                                         borderColor = isRoot
-                                            ? (disabledScales.has(activeRootIndex) ? DISABLED_COLORS[activeRootIndex].border : SCALE_COLORS[activeRootIndex].border)
+                                            ? (disabledScales.has(activeRootIndex) ? DISABLED_COLORS[(activeRootIndex + colorOffset) % DISABLED_COLORS.length].border : SCALE_COLORS[(activeRootIndex + colorOffset) % SCALE_COLORS.length].border)
                                             : 'transparent';
 
                                         let displayText;
