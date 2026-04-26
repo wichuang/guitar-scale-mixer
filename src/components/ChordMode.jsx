@@ -8,6 +8,7 @@ import { GUITAR_OPTIONS } from '../App';
 function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fretCount }) {
     const [chordCount, setChordCount] = useState(1);
     const [cagedPosition, setCagedPosition] = useState(null);
+    const [fretboardLayout, setFretboardLayout] = useState('overlay');
 
     // Default chords
     const [chords, setChords] = useState([
@@ -53,6 +54,20 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
                             >{n}</button>
                         ))}
                     </div>
+                    {chordCount > 1 && (
+                        <div className="btn-group" style={{ marginLeft: '8px' }}>
+                            <button
+                                className={`sm-btn ${fretboardLayout === 'overlay' ? 'active' : ''}`}
+                                onClick={() => setFretboardLayout('overlay')}
+                                title="合併顯示在同一指板"
+                            >合併</button>
+                            <button
+                                className={`sm-btn ${fretboardLayout === 'separate' ? 'active' : ''}`}
+                                onClick={() => setFretboardLayout('separate')}
+                                title="各自顯示在獨立指板"
+                            >分開</button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="control-section">
@@ -115,15 +130,31 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
                 ))}
             </div>
 
-            <div className="fretboard-container">
-                <Fretboard
-                    scales={mappedScales}
-                    guitarType={guitarType}
-                    displayMode={displayMode}
-                    fretCount={fretCount}
-                    cagedPosition={cagedPosition}
-                />
-            </div>
+            {fretboardLayout === 'separate' && chordCount > 1 ? (
+                <div className="fretboards-separate">
+                    {mappedScales.map((scale, idx) => (
+                        <div key={idx} className="fretboard-container">
+                            <Fretboard
+                                scales={[scale]}
+                                guitarType={guitarType}
+                                displayMode={displayMode}
+                                fretCount={fretCount}
+                                cagedPosition={cagedPosition}
+                            />
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="fretboard-container">
+                    <Fretboard
+                        scales={mappedScales}
+                        guitarType={guitarType}
+                        displayMode={displayMode}
+                        fretCount={fretCount}
+                        cagedPosition={cagedPosition}
+                    />
+                </div>
+            )}
         </div>
     );
 }

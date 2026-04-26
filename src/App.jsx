@@ -69,6 +69,7 @@ function MainContent() {
   const [showYouTube, setShowYouTube] = useState(false);
   const [blackScreenMode, setBlackScreenMode] = useState(false);
   const [cagedPosition, setCagedPosition] = useState(null);
+  const [fretboardLayout, setFretboardLayout] = useState('overlay'); // 'overlay' | 'separate'
 
   const currentState = useMemo(() => ({
     scaleCount, displayMode, guitarType, scales, fretCount
@@ -235,6 +236,20 @@ function MainContent() {
                       >{n}</button>
                     ))}
                   </div>
+                  {scaleCount > 1 && (
+                    <div className="btn-group" style={{ marginLeft: '8px' }}>
+                      <button
+                        className={`sm-btn ${fretboardLayout === 'overlay' ? 'active' : ''}`}
+                        onClick={() => setFretboardLayout('overlay')}
+                        title="合併顯示在同一指板"
+                      >合併</button>
+                      <button
+                        className={`sm-btn ${fretboardLayout === 'separate' ? 'active' : ''}`}
+                        onClick={() => setFretboardLayout('separate')}
+                        title="各自顯示在獨立指板"
+                      >分開</button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="control-section">
@@ -302,15 +317,31 @@ function MainContent() {
             )}
 
             {/* Fretboard - Always visible */}
-            <div className="fretboard-container">
-              <Fretboard
-                scales={activeScales}
-                guitarType={guitarType}
-                displayMode={displayMode}
-                fretCount={fretCount}
-                cagedPosition={cagedPosition}
-              />
-            </div>
+            {fretboardLayout === 'separate' && scaleCount > 1 ? (
+              <div className="fretboards-separate">
+                {activeScales.map((scale, idx) => (
+                  <div key={idx} className="fretboard-container">
+                    <Fretboard
+                      scales={[scale]}
+                      guitarType={guitarType}
+                      displayMode={displayMode}
+                      fretCount={fretCount}
+                      cagedPosition={cagedPosition}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="fretboard-container">
+                <Fretboard
+                  scales={activeScales}
+                  guitarType={guitarType}
+                  displayMode={displayMode}
+                  fretCount={fretCount}
+                  cagedPosition={cagedPosition}
+                />
+              </div>
+            )}
           </div>
         )}
 

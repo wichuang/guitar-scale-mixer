@@ -3,6 +3,16 @@
   overflow: hidden;
 }
 
+.fretboards-separate {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fretboards-separate .fretboard-container {
+  width: 100%;
+}
+
 .fretboard-wrapper {
   background: var(--bg-card);
   border: 1px solid var(--glass-border);
