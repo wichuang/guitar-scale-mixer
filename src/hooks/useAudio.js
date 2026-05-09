@@ -198,13 +198,10 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
     }, [playNote]);
 
     const resumeAudio = useCallback(async () => {
-        // iOS/iPadOS：resume() 必須在 user gesture 同步 tick 內呼叫，任何 await 都會
-        // 讓 gesture context 失效。這裡先同步取得 AudioContext（內部會 sync resume()）
-        // 再去 await soundfont 載入。
-        const ac = getAudioContext();
         await ensureLoaded();
+        const ac = getAudioContext();
         if (ac.state === 'suspended') {
-            try { await ac.resume(); } catch (e) { /* ignore */ }
+            await ac.resume();
         }
         return ac;
     }, [ensureLoaded]);
