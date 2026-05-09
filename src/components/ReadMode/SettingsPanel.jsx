@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { NOTES } from '../../data/scaleData.js';
+import InstrumentSelector from './InstrumentSelector.jsx';
 
 function SettingsPanel({
     musicKey,
@@ -16,6 +17,7 @@ function SettingsPanel({
     enableCountIn,
     showYoutube,
     viewMode,
+    instrument,
     onKeyChange,
     onScaleTypeChange,
     onTimeSignatureChange,
@@ -24,10 +26,21 @@ function SettingsPanel({
     onShowScaleGuideChange,
     onEnableCountInChange,
     onShowYoutubeChange,
-    onViewModeChange
+    onViewModeChange,
+    onInstrumentChange
 }) {
     return (
         <div className="settings-section">
+            {onInstrumentChange && (
+                <div className="setting-row">
+                    <label>音色</label>
+                    <InstrumentSelector
+                        instrument={instrument}
+                        onInstrumentChange={onInstrumentChange}
+                    />
+                </div>
+            )}
+
             <div className="setting-row">
                 <label>調號</label>
                 <select value={musicKey} onChange={(e) => onKeyChange(e.target.value)}>

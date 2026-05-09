@@ -93,6 +93,12 @@ function ReadMode({ guitarType, fretCount }) {
     const [viewMode, setViewMode] = useState('both');
     const [showScaleGuide, setShowScaleGuide] = useState(true);
 
+    // ===== Read 模式音色（獨立於 Scale/Chord 模式的 guitarType） =====
+    const [instrument, setInstrument] = useState(guitarType);
+
+    // ===== OCR 來源圖片（base64 data URL 陣列，存檔時一併儲存，最多 5 張） =====
+    const [sourceImages, setSourceImages] = useState([]);
+
     // ===== YouTube 狀態 =====
     const [youtubeUrl, setYoutubeUrl] = useState('');
     const [showYoutube, setShowYoutube] = useState(false);
@@ -106,7 +112,7 @@ function ReadMode({ guitarType, fretCount }) {
     const [lastSession, setLastSession] = useState(null);
 
     // ===== Hooks =====
-    const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(guitarType);
+    const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(instrument);
     const { debouncedSave, load } = useAutosave({ key: AUTOSAVE_KEY });
 
     // 計算 3NPS 位置（memoized）
@@ -245,6 +251,7 @@ function ReadMode({ guitarType, fretCount }) {
                 if (saved.showYoutube !== undefined) setShowYoutube(saved.showYoutube);
                 if (saved.youtubeLayout) setYoutubeLayout(saved.youtubeLayout);
                 if (saved.viewMode) setViewMode(saved.viewMode);
+                if (saved.instrument) setInstrument(saved.instrument);
             }
         } catch (e) {
             console.error('Failed to load autosave', e);
@@ -266,10 +273,11 @@ function ReadMode({ guitarType, fretCount }) {
             youtubeUrl,
             showYoutube,
             youtubeLayout,
-            viewMode
+            viewMode,
+            instrument
         };
         debouncedSave(dataToSave);
-    }, [editableText, notes, key, scaleType, tempo, timeSignature, startString, octaveOffset, showScaleGuide, youtubeUrl, showYoutube, youtubeLayout, viewMode, debouncedSave]);
+    }, [editableText, notes, key, scaleType, tempo, timeSignature, startString, octaveOffset, showScaleGuide, youtubeUrl, showYoutube, youtubeLayout, viewMode, instrument, debouncedSave]);
 
     // ===== 調號/音階變更時更新音符 =====
     useEffect(() => {
@@ -355,6 +363,15 @@ function ReadMode({ guitarType, fretCount }) {
             if (actualData.showYoutube !== undefined) setShowYoutube(actualData.showYoutube);
             if (actualData.youtubeLayout) setYoutubeLayout(actualData.youtubeLayout);
             if (actualData.viewMode) setViewMode(actualData.viewMode);
+            if (actualData.instrument) setInstrument(actualData.instrument);
+            // 支援新格式 sourceImages 陣列與舊格式單張 sourceImage
+            if (Array.isArray(actualData.sourceImages)) {
+                setSourceImages(actualData.sourceImages);
+            } else if (actualData.sourceImage) {
+                setSourceImages([actualData.sourceImage]);
+            } else {
+                setSourceImages([]);
+            }
             alert('樂譜載入成功！');
         } else {
             alert('載入失敗：檔案格式不符');
@@ -381,6 +398,7 @@ function ReadMode({ guitarType, fretCount }) {
                     onNotesChange={setNotes}
                     onTextChange={setEditableText}
                     onRawTextChange={setRawText}
+                    onSourceImagesChange={setSourceImages}
                     onImportNotes={(result) => {
                         if (result.notes) {
                             setNotes(normalizeNotes(result.notes));
@@ -404,6 +422,7 @@ function ReadMode({ guitarType, fretCount }) {
                     enableCountIn={enableCountIn}
                     showYoutube={showYoutube}
                     viewMode={viewMode}
+                    instrument={instrument}
                     onKeyChange={setKey}
                     onScaleTypeChange={setScaleType}
                     onTimeSignatureChange={setTimeSignature}
@@ -413,6 +432,7 @@ function ReadMode({ guitarType, fretCount }) {
                     onEnableCountInChange={setEnableCountIn}
                     onShowYoutubeChange={setShowYoutube}
                     onViewModeChange={setViewMode}
+                    onInstrumentChange={setInstrument}
                 />
 
                 {/* 辨識結果顯示 */}
@@ -443,6 +463,8 @@ function ReadMode({ guitarType, fretCount }) {
                     showYoutube={showYoutube}
                     youtubeLayout={youtubeLayout}
                     viewMode={viewMode}
+                    instrument={instrument}
+                    sourceImages={sourceImages}
                     onLoadFile={handleLoadFile}
                     fileName="guitar_score"
                 />

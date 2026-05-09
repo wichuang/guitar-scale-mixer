@@ -3,36 +3,34 @@
  * 整合簡譜 OCR、Tab OCR、五線譜 OMR、Staff+Tab OCR、檔案匯入
  */
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import Tesseract from 'tesseract.js';
 import { parseJianpuText, cleanJianpuText } from '../../parsers/JianpuParser.js';
 import TabImageImporter from '../TabImageImporter.jsx';
 import StaffImageImporter from '../StaffImageImporter.jsx';
 import CombinedImageImporter from '../CombinedImageImporter.jsx';
 import MusicXMLImporter from '../ImportExport/MusicXMLImporter.jsx';
-import ImageCropper from '../ImageCropper.jsx';
+import ImageQueue from '../ImageQueue.jsx';
 import useOpenCV from '../../hooks/useOpenCV.js';
+
+const MAX_IMAGES = 5;
 
 function UploadPanel({
     musicKey,
     scaleType,
     octaveOffset,
-    onImageChange,
     onNotesChange,
     onTextChange,
     onRawTextChange,
-    onImportNotes
+    onImportNotes,
+    onSourceImagesChange
 }) {
     const [importMode, setImportMode] = useState('jianpu');
-    const [image, setImage] = useState(null);
-    const [imagePreview, setImagePreview] = useState(null);
-    const [originalImagePreview, setOriginalImagePreview] = useState(null);
-    const [cropMode, setCropMode] = useState(false);
+    const [images, setImages] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [ocrProgress, setOcrProgress] = useState(0);
+    const [ocrStage, setOcrStage] = useState('');
     const [importError, setImportError] = useState(null);
-    const fileInputRef = useRef(null);
-    const dropZoneRef = useRef(null);
 
     const { loaded: cvLoaded } = useOpenCV();
 
@@ -50,6 +48,11 @@ function UploadPanel({
     const handleImport = (result) => {
         setImportError(null);
         if (result && result.notes) {
+            if (result.sourceImages && Array.isArray(result.sourceImages)) {
+                onSourceImagesChange?.(result.sourceImages);
+            } else if (result.sourceImage) {
+                onSourceImagesChange?.([result.sourceImage]);
+            }
             onImportNotes?.(result);
         }
     };
@@ -60,103 +63,56 @@ function UploadPanel({
 
     // ===== Jianpu-specific handlers =====
 
-    const handleFileSelect = useCallback((file) => {
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            setImportError('請選擇圖片檔案');
-            return;
-        }
-
-        setImage(file);
-        setImportError(null);
-
-        // 建立預覽... 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const dataUrl = e.target.result;
-            setOriginalImagePreview(dataUrl);
-            setCropMode(true);
-            setImagePreview(null);
-        };
-        reader.readAsDataURL(file);
-
-        onNotesChange([]);
-        onRawTextChange('');
-        onTextChange('');
-    }, [onNotesChange, onRawTextChange, onTextChange]);
-
-    const handleCrop = useCallback(async (croppedDataUrl) => {
-        setImagePreview(croppedDataUrl);
-        setCropMode(false);
-
-        try {
-            const res = await fetch(croppedDataUrl);
-            const blob = await res.blob();
-            const croppedFile = new File([blob], image?.name || 'cropped.jpg', { type: blob.type });
-            setImage(croppedFile);
-            onImageChange?.(croppedFile);
-        } catch (e) {
-            console.error("Failed to convert cropped image to file:", e);
-        }
-    }, [image, onImageChange]);
-
-    const handleCancelCrop = useCallback(() => {
-        setCropMode(false);
-        setImage(null);
-        setOriginalImagePreview(null);
-        setImagePreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-    }, []);
-
-    const handleDrop = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZoneRef.current?.classList.remove('drag-over');
-        handleFileSelect(e.dataTransfer.files?.[0]);
-    }, [handleFileSelect]);
-
-    const handleDragOver = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZoneRef.current?.classList.add('drag-over');
-    }, []);
-
-    const handleDragLeave = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZoneRef.current?.classList.remove('drag-over');
-    }, []);
-
     const handleOCR = useCallback(async () => {
-        if (!image) return;
+        if (images.length === 0) return;
 
         setIsProcessing(true);
         setOcrProgress(0);
         setImportError(null);
 
         try {
-            const result = await Tesseract.recognize(image, 'chi_tra+eng', {
-                logger: (m) => {
-                    if (m.status === 'recognizing text') {
-                        setOcrProgress(Math.round(m.progress * 100));
-                    }
-                },
-            });
+            const allTextSegments = [];
+            const allNotes = [];
 
-            const text = result.data.text;
+            for (let i = 0; i < images.length; i++) {
+                setOcrStage(`識別中 ${i + 1}/${images.length}`);
+                setOcrProgress(0);
+                const result = await Tesseract.recognize(images[i].file, 'chi_tra+eng', {
+                    logger: (m) => {
+                        if (m.status === 'recognizing text') {
+                            setOcrProgress(Math.round(m.progress * 100));
+                        }
+                    },
+                });
+                const text = result.data.text;
+                const cleanedText = cleanJianpuText(text);
+                const pageNotes = parseJianpuText(text, musicKey, scaleType, octaveOffset);
 
-            const cleanedText = cleanJianpuText(text);
-            onTextChange(cleanedText);
+                // 圖片之間自動加 | 小節線
+                if (i > 0) {
+                    allNotes.push({
+                        jianpu: '|', displayStr: '|',
+                        isSeparator: true, _type: 'separator',
+                        octave: 4, index: 0
+                    });
+                    allTextSegments.push('|');
+                }
+                allNotes.push(...pageNotes);
+                allTextSegments.push(cleanedText);
+            }
 
-            const parsedNotes = parseJianpuText(text, musicKey, scaleType, octaveOffset);
-            onNotesChange(parsedNotes);
+            const reIndexed = allNotes.map((n, idx) => ({ ...n, index: idx }));
+            onTextChange(allTextSegments.join(' '));
+            onNotesChange(reIndexed);
+            onSourceImagesChange?.(images.map(img => img.dataUrl));
         } catch (error) {
             console.error('OCR 錯誤:', error);
             setImportError('OCR 辨識失敗，請嘗試其他圖片');
         } finally {
             setIsProcessing(false);
+            setOcrStage('');
         }
-    }, [image, musicKey, scaleType, octaveOffset, onRawTextChange, onTextChange, onNotesChange]);
+    }, [images, musicKey, scaleType, octaveOffset, onTextChange, onNotesChange, onSourceImagesChange]);
 
     const handleManualInput = () => {
         onRawTextChange(' ');
@@ -165,13 +121,10 @@ function UploadPanel({
     };
 
     const handleReset = useCallback(() => {
-        setImage(null);
-        setImagePreview(null);
-        setOriginalImagePreview(null);
-        setCropMode(false);
+        setImages([]);
         setImportError(null);
         setOcrProgress(0);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        setOcrStage('');
     }, []);
 
     return (
@@ -215,126 +168,60 @@ function UploadPanel({
                 </div>
             )}
 
-            {/* Jianpu OCR (default) - styled like TabImageImporter */}
+            {/* Jianpu OCR (default) - 多圖佇列版 */}
             {importMode === 'jianpu' && (
-                cropMode && originalImagePreview ? (
-                    <ImageCropper
-                        imageSrc={originalImagePreview}
-                        onCrop={handleCrop}
-                        onCancel={handleCancelCrop}
+                <div style={{
+                    background: '#1a1a1a',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    maxWidth: '600px',
+                    width: '100%',
+                    color: '#fff'
+                }}>
+                    <h3 style={{ margin: '0 0 20px 0' }}>
+                        簡譜圖片識別 (OCR) — 最多 {MAX_IMAGES} 張
+                    </h3>
+
+                    <ImageQueue
+                        images={images}
+                        onChange={setImages}
+                        maxImages={MAX_IMAGES}
+                        accentColor="#ff9800"
+                        disabled={isProcessing}
                     />
-                ) : (
-                    <div style={{
-                        background: '#1a1a1a',
-                        borderRadius: '12px',
-                        padding: '24px',
-                        maxWidth: '600px',
-                        width: '100%',
-                        color: '#fff'
-                    }}>
-                        <h3 style={{ margin: '0 0 20px 0' }}>
-                            簡譜圖片識別 (OCR)
-                        </h3>
 
-                        {/* 上傳區域 */}
-                        {!imagePreview && (
-                            <div
-                                ref={dropZoneRef}
-                                onClick={() => fileInputRef.current?.click()}
-                                onDrop={handleDrop}
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                style={{
-                                    border: '2px dashed #444',
-                                    borderRadius: '8px',
-                                    padding: '40px',
-                                    textAlign: 'center',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease'
-                                }}
-                            >
-                                <div style={{ fontSize: '48px', marginBottom: '12px' }}>📷</div>
-                                <div style={{ fontSize: '16px', marginBottom: '8px' }}>
-                                    點擊或拖放簡譜圖片
-                                </div>
-                                <div style={{ fontSize: '12px', color: '#888' }}>
-                                    支援 JPG, PNG, GIF 格式
-                                </div>
+                    {/* 處理進度 */}
+                    {isProcessing && (
+                        <div style={{ marginTop: '16px', marginBottom: '8px' }}>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                marginBottom: '8px',
+                                fontSize: '14px'
+                            }}>
+                                <span>{ocrStage || '辨識中...'}</span>
+                                <span>{ocrProgress}%</span>
                             </div>
-                        )}
-
-                        {/* 圖片預覽 */}
-                        {imagePreview && (
-                            <div style={{ marginBottom: '20px' }}>
+                            <div style={{
+                                height: '8px',
+                                background: '#333',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
+                            }}>
                                 <div style={{
-                                    position: 'relative',
-                                    background: '#111',
-                                    borderRadius: '8px',
-                                    overflow: 'hidden'
-                                }}>
-                                    <img
-                                        src={imagePreview}
-                                        alt="簡譜預覽"
-                                        style={{
-                                            width: '100%',
-                                            maxHeight: '300px',
-                                            objectFit: 'contain'
-                                        }}
-                                    />
-                                    {!isProcessing && (
-                                        <button
-                                            onClick={handleReset}
-                                            style={{
-                                                position: 'absolute',
-                                                top: '8px',
-                                                right: '8px',
-                                                padding: '4px 8px',
-                                                background: 'rgba(0,0,0,0.7)',
-                                                color: '#fff',
-                                                border: 'none',
-                                                borderRadius: '4px',
-                                                cursor: 'pointer',
-                                                fontSize: '12px'
-                                            }}
-                                        >
-                                            更換圖片
-                                        </button>
-                                    )}
-                                </div>
+                                    width: `${ocrProgress}%`,
+                                    height: '100%',
+                                    background: 'linear-gradient(90deg, #ff9800, #ffb74d)',
+                                    transition: 'width 0.3s ease'
+                                }} />
                             </div>
-                        )}
+                        </div>
+                    )}
 
-                        {/* 處理進度 */}
-                        {isProcessing && (
-                            <div style={{ marginBottom: '20px' }}>
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    marginBottom: '8px',
-                                    fontSize: '14px'
-                                }}>
-                                    <span>辨識中...</span>
-                                    <span>{ocrProgress}%</span>
-                                </div>
-                                <div style={{
-                                    height: '8px',
-                                    background: '#333',
-                                    borderRadius: '4px',
-                                    overflow: 'hidden'
-                                }}>
-                                    <div style={{
-                                        width: `${ocrProgress}%`,
-                                        height: '100%',
-                                        background: 'linear-gradient(90deg, #ff9800, #ffb74d)',
-                                        transition: 'width 0.3s ease'
-                                    }} />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 操作按鈕 */}
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            {imagePreview && !isProcessing && (
+                    {/* 操作按鈕 */}
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                        {images.length > 0 && !isProcessing && (
+                            <>
                                 <button
                                     onClick={handleOCR}
                                     style={{
@@ -349,55 +236,63 @@ function UploadPanel({
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    開始識別
+                                    開始識別 ({images.length})
                                 </button>
-                            )}
-                            <button
-                                onClick={handleManualInput}
-                                style={{
-                                    padding: '14px 24px',
-                                    background: '#333',
-                                    color: '#fff',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    fontSize: '14px'
-                                }}
-                            >
-                                手動輸入
-                            </button>
-                        </div>
-
-                        {/* 隱藏檔案輸入 */}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleFileSelect(e.target.files?.[0])}
-                            style={{ display: 'none' }}
-                        />
-
-                        {/* 使用說明 */}
-                        <div style={{
-                            marginTop: '20px',
-                            padding: '12px',
-                            background: '#222',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            color: '#888'
-                        }}>
-                            <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#aaa' }}>
-                                使用提示
-                            </div>
-                            <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                                <li>圖片應清晰、對比度高</li>
-                                <li>支援數字簡譜 (1234567) 格式</li>
-                                <li>識別結果會自動填入編輯區</li>
-                                <li>可在編輯區手動修正後更新</li>
-                            </ul>
-                        </div>
+                                <button
+                                    onClick={handleReset}
+                                    style={{
+                                        padding: '14px 18px',
+                                        background: '#333',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        fontSize: '14px'
+                                    }}
+                                >
+                                    清空
+                                </button>
+                            </>
+                        )}
+                        <button
+                            onClick={handleManualInput}
+                            disabled={isProcessing}
+                            style={{
+                                padding: '14px 24px',
+                                background: '#333',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: isProcessing ? 'default' : 'pointer',
+                                fontSize: '14px',
+                                opacity: isProcessing ? 0.5 : 1
+                            }}
+                        >
+                            手動輸入
+                        </button>
                     </div>
-                )
+
+                    {/* 使用說明 */}
+                    <div style={{
+                        marginTop: '20px',
+                        padding: '12px',
+                        background: '#222',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        color: '#888'
+                    }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#aaa' }}>
+                            使用提示
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                            <li>支援多張圖片（最多 {MAX_IMAGES} 張），按順序辨識並串接結果</li>
+                            <li>圖片之間自動加入 | 小節線</li>
+                            <li>圖片應清晰、對比度高，白底黑字最佳</li>
+                            <li>需要時點縮圖上的 ✂ 進行裁切</li>
+                            <li>識別後可在編輯區手動修正</li>
+                        </ul>
+                    </div>
+                </div>
             )}
 
             {/* Tab OCR */}

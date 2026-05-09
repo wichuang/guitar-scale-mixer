@@ -12,6 +12,77 @@ export const GUITAR_INSTRUMENTS = {
     'distortion_guitar': 'Distortion',
 };
 
+// Read 模式可用的全部樂器（依類別分組）
+// 鍵為 soundfont-player MusyngKite ID
+export const INSTRUMENT_CATEGORIES = {
+    'Guitar': {
+        'acoustic_guitar_nylon': 'Acoustic Nylon',
+        'acoustic_guitar_steel': 'Acoustic Steel',
+        'electric_guitar_clean': 'Electric Clean',
+        'electric_guitar_muted': 'Electric Muted',
+        'electric_guitar_jazz': 'Electric Jazz',
+        'overdriven_guitar': 'Overdriven',
+        'distortion_guitar': 'Distortion',
+    },
+    'Piano': {
+        'acoustic_grand_piano': 'Grand Piano',
+        'bright_acoustic_piano': 'Bright Piano',
+        'electric_piano_1': 'Electric Piano 1',
+        'electric_piano_2': 'Electric Piano 2',
+        'harpsichord': 'Harpsichord',
+        'music_box': 'Music Box',
+    },
+    'Bass': {
+        'acoustic_bass': 'Acoustic Bass',
+        'electric_bass_finger': 'Electric Bass (finger)',
+        'electric_bass_pick': 'Electric Bass (pick)',
+        'fretless_bass': 'Fretless Bass',
+        'slap_bass_1': 'Slap Bass',
+    },
+    'Strings': {
+        'violin': 'Violin',
+        'viola': 'Viola',
+        'cello': 'Cello',
+        'contrabass': 'Contrabass',
+        'pizzicato_strings': 'Pizzicato Strings',
+        'string_ensemble_1': 'String Ensemble',
+    },
+    'Brass': {
+        'trumpet': 'Trumpet',
+        'trombone': 'Trombone',
+        'french_horn': 'French Horn',
+        'tuba': 'Tuba',
+        'brass_section': 'Brass Section',
+    },
+    'Woodwind': {
+        'flute': 'Flute',
+        'clarinet': 'Clarinet',
+        'oboe': 'Oboe',
+        'soprano_sax': 'Soprano Sax',
+        'alto_sax': 'Alto Sax',
+        'tenor_sax': 'Tenor Sax',
+    },
+    'Synth': {
+        'lead_1_square': 'Synth Lead (square)',
+        'lead_2_sawtooth': 'Synth Lead (sawtooth)',
+        'pad_1_new_age': 'Synth Pad (new age)',
+        'pad_2_warm': 'Synth Pad (warm)',
+    },
+    'Other': {
+        'banjo': 'Banjo',
+        'sitar': 'Sitar',
+        'koto': 'Koto',
+        'kalimba': 'Kalimba',
+        'marimba': 'Marimba',
+        'vibraphone': 'Vibraphone',
+        'xylophone': 'Xylophone',
+        'ocarina': 'Ocarina',
+        'harmonica': 'Harmonica',
+        'accordion': 'Accordion',
+        'choir_aahs': 'Choir Aahs',
+    },
+};
+
 // Shared audio context and instruments cache
 let sharedAudioContext = null;
 const instrumentsCache = {};

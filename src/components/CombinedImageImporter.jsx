@@ -4,94 +4,64 @@
  * chord symbols, and technique mark detection.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { recognizeCombinedImage } from '../ocr/CombinedSheetOCR.js';
 import NotePreview from './NotePreview.jsx';
-import ImageCropper from './ImageCropper.jsx';
+import ImageQueue from './ImageQueue.jsx';
+
+const MAX_IMAGES = 5;
 
 function CombinedImageImporter({ onImport, onClose }) {
-    const [imageFile, setImageFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState(null);
+    const [images, setImages] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState({ status: '', percent: 0 });
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
-    const [cropMode, setCropMode] = useState(false);
-    const [originalImagePreview, setOriginalImagePreview] = useState(null);
-
-    const fileInputRef = useRef(null);
-    const dropZoneRef = useRef(null);
-
-    const handleFileSelect = useCallback((file) => {
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            setError('Please select an image file');
-            return;
-        }
-
-        setImageFile(file);
-        setError(null);
-        setResult(null);
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            setOriginalImagePreview(e.target.result);
-            setCropMode(true);
-        };
-        reader.readAsDataURL(file);
-    }, []);
-
-    const handleCrop = async (croppedImageUrl) => {
-        setCropMode(false);
-        setImagePreview(croppedImageUrl);
-
-        const response = await fetch(croppedImageUrl);
-        const blob = await response.blob();
-        const newFile = new File([blob], "cropped_combined.jpg", { type: "image/jpeg" });
-        setImageFile(newFile);
-    };
-
-    const handleCancelCrop = () => {
-        setCropMode(false);
-        setOriginalImagePreview(null);
-        setImageFile(null);
-    };
-
-    const handleDrop = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZoneRef.current?.classList.remove('drag-over');
-        handleFileSelect(e.dataTransfer.files[0]);
-    }, [handleFileSelect]);
-
-    const handleDragOver = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZoneRef.current?.classList.add('drag-over');
-    }, []);
-
-    const handleDragLeave = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZoneRef.current?.classList.remove('drag-over');
-    }, []);
 
     const handleRecognize = useCallback(async () => {
-        if (!imageFile) return;
+        if (images.length === 0) return;
 
         setIsProcessing(true);
         setError(null);
         setResult(null);
 
         try {
-            const ocrResult = await recognizeCombinedImage(
-                imageFile,
-                (status, percent) => setProgress({ status, percent })
-            );
+            const aggregatedNotes = [];
+            let totalConfidence = 0;
+            let totalSystemCount = 0;
+            let mergedMetadata = {};
 
-            setResult(ocrResult);
+            for (let i = 0; i < images.length; i++) {
+                const ocrResult = await recognizeCombinedImage(
+                    images[i].file,
+                    (status, percent) => setProgress({ status: `${status} (${i + 1}/${images.length})`, percent })
+                );
+                if (i > 0) {
+                    aggregatedNotes.push({
+                        jianpu: '|', displayStr: '|',
+                        isSeparator: true, _type: 'separator',
+                        octave: 4, index: 0
+                    });
+                }
+                aggregatedNotes.push(...(ocrResult.notes || []));
+                totalConfidence += (ocrResult.confidence || 0);
+                totalSystemCount += (ocrResult.systemCount || 0);
+                // 第一張的 metadata（標題、調號等）優先
+                if (i === 0 && ocrResult.metadata) {
+                    mergedMetadata = { ...ocrResult.metadata };
+                }
+            }
 
-            if (ocrResult.notes.length === 0) {
+            const reIndexed = aggregatedNotes.map((n, idx) => ({ ...n, index: idx }));
+            const merged = {
+                notes: reIndexed,
+                confidence: totalConfidence / images.length,
+                systemCount: totalSystemCount,
+                metadata: mergedMetadata
+            };
+            setResult(merged);
+
+            if (merged.notes.filter(n => n.isNote).length === 0) {
                 setError('No notes detected. Try a different image or check image quality.');
             }
         } catch (err) {
@@ -100,13 +70,14 @@ function CombinedImageImporter({ onImport, onClose }) {
         } finally {
             setIsProcessing(false);
         }
-    }, [imageFile]);
+    }, [images]);
 
     const handleConfirmImport = useCallback(() => {
         if (result && result.notes.length > 0) {
             onImport?.({
                 notes: result.notes,
                 format: 'combined-ocr',
+                sourceImages: images.map(img => img.dataUrl),
                 metadata: {
                     confidence: result.confidence,
                     source: 'image',
@@ -121,27 +92,14 @@ function CombinedImageImporter({ onImport, onClose }) {
                 }
             });
         }
-    }, [result, onImport]);
+    }, [result, images, onImport]);
 
     const handleReset = useCallback(() => {
-        setImageFile(null);
-        setImagePreview(null);
-        setOriginalImagePreview(null);
-        setCropMode(false);
+        setImages([]);
         setResult(null);
         setError(null);
         setProgress({ status: '', percent: 0 });
     }, []);
-
-    if (cropMode && originalImagePreview) {
-        return (
-            <ImageCropper
-                imageSrc={originalImagePreview}
-                onCrop={handleCrop}
-                onCancel={handleCancelCrop}
-            />
-        );
-    }
 
     return (
         <div style={{
@@ -178,84 +136,16 @@ function CombinedImageImporter({ onImport, onClose }) {
                 )}
             </div>
 
-            {/* Hidden file input */}
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFileSelect(e.target.files?.[0])}
-                style={{ display: 'none' }}
-            />
-
-            {/* Upload zone */}
-            {!imagePreview && (
-                <div
-                    ref={dropZoneRef}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    style={{
-                        border: '2px dashed #444',
-                        borderRadius: '8px',
-                        padding: '40px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>
-                        <span role="img" aria-label="guitar">&#127928;</span>
-                    </div>
-                    <div style={{ fontSize: '16px', marginBottom: '8px' }}>
-                        Drop or click to upload guitar score image
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#888' }}>
-                        Supports JPG, PNG, GIF - Staff+Tab paired scores
-                    </div>
-                </div>
-            )}
-
-            {/* Image preview */}
-            {imagePreview && (
-                <div style={{ marginBottom: '20px' }}>
-                    <div style={{
-                        position: 'relative',
-                        background: '#111',
-                        borderRadius: '8px',
-                        overflow: 'hidden'
-                    }}>
-                        <img
-                            src={imagePreview}
-                            alt="Score preview"
-                            style={{
-                                width: '100%',
-                                maxHeight: '300px',
-                                objectFit: 'contain'
-                            }}
-                        />
-                        {!isProcessing && !result && (
-                            <button
-                                onClick={handleReset}
-                                style={{
-                                    position: 'absolute',
-                                    top: '8px',
-                                    right: '8px',
-                                    padding: '4px 8px',
-                                    background: 'rgba(0,0,0,0.7)',
-                                    color: '#fff',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px'
-                                }}
-                            >
-                                Change image
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
+            {/* 多圖佇列 */}
+            <div style={{ marginBottom: '16px' }}>
+                <ImageQueue
+                    images={images}
+                    onChange={setImages}
+                    maxImages={MAX_IMAGES}
+                    accentColor="#9c27b0"
+                    disabled={isProcessing || !!result}
+                />
+            </div>
 
             {/* Progress */}
             {isProcessing && (
@@ -422,7 +312,7 @@ function CombinedImageImporter({ onImport, onClose }) {
 
             {/* Action buttons */}
             <div style={{ display: 'flex', gap: '12px' }}>
-                {imagePreview && !isProcessing && !result && (
+                {images.length > 0 && !isProcessing && !result && (
                     <button
                         onClick={handleRecognize}
                         style={{
@@ -437,7 +327,7 @@ function CombinedImageImporter({ onImport, onClose }) {
                             cursor: 'pointer'
                         }}
                     >
-                        Start Recognition
+                        Start Recognition ({images.length})
                     </button>
                 )}
 

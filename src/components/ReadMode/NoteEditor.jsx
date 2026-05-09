@@ -82,6 +82,80 @@ const COMMON_VOICINGS = {
 };
 
 /**
+ * 把位指法庫：和弦 → 把位 → [string0fret ... string5fret]
+ * string0 = 高 E（第 1 弦），string5 = 低 E（第 6 弦），fret = -1 表示不彈/悶音
+ * 「第 N 把位」採使用者習慣（開放和弦稱第 1 把位，barre 以食指所在格命名）
+ */
+const CHORD_POSITIONS = {
+    // Major
+    'C':   { 1: [-1, 0, 1, 0, 2, 3],   3: [3, 5, 5, 5, 3, -1],   8: [8, 8, 9, 10, 10, 8] },
+    'C#':  { 4: [4, 6, 6, 6, 4, -1],   9: [9, 9, 10, 11, 11, 9] },
+    'D':   { 1: [2, 3, 2, 0, -1, -1],  5: [5, 7, 7, 7, 5, -1],   10: [10, 10, 11, 12, 12, 10] },
+    'D#':  { 6: [6, 8, 8, 8, 6, -1],   11: [11, 11, 12, 13, 13, 11] },
+    'E':   { 1: [0, 0, 1, 2, 2, 0],    7: [7, 9, 9, 9, 7, -1],   12: [12, 12, 13, 14, 14, 12] },
+    'F':   { 1: [1, 1, 2, 3, 3, 1],    8: [8, 10, 10, 10, 8, -1] },
+    'F#':  { 2: [2, 2, 3, 4, 4, 2],    9: [9, 11, 11, 11, 9, -1] },
+    'G':   { 1: [3, 0, 0, 0, 2, 3],    3: [3, 3, 4, 5, 5, 3],    10: [10, 12, 12, 12, 10, -1] },
+    'G#':  { 4: [4, 4, 5, 6, 6, 4],    11: [11, 13, 13, 13, 11, -1] },
+    'A':   { 1: [0, 2, 2, 2, 0, -1],   5: [5, 5, 6, 7, 7, 5],    12: [12, 14, 14, 14, 12, -1] },
+    'A#':  { 6: [6, 6, 7, 8, 8, 6] },
+    'B':   { 2: [2, 4, 4, 4, 2, -1],   7: [7, 7, 8, 9, 9, 7] },
+    // Minor
+    'Cm':  { 3: [3, 4, 5, 5, 3, -1],   8: [8, 8, 8, 10, 10, 8] },
+    'C#m': { 4: [4, 5, 6, 6, 4, -1],   9: [9, 9, 9, 11, 11, 9] },
+    'Dm':  { 1: [1, 3, 2, 0, -1, -1],  5: [5, 6, 7, 7, 5, -1],   10: [10, 10, 10, 12, 12, 10] },
+    'D#m': { 6: [6, 7, 8, 8, 6, -1],   11: [11, 11, 11, 13, 13, 11] },
+    'Em':  { 1: [0, 0, 0, 2, 2, 0],    7: [7, 8, 9, 9, 7, -1],   12: [12, 12, 12, 14, 14, 12] },
+    'Fm':  { 1: [1, 1, 1, 3, 3, 1],    8: [8, 9, 10, 10, 8, -1] },
+    'F#m': { 2: [2, 2, 2, 4, 4, 2],    9: [9, 10, 11, 11, 9, -1] },
+    'Gm':  { 3: [3, 3, 3, 5, 5, 3],    10: [10, 11, 12, 12, 10, -1] },
+    'G#m': { 4: [4, 4, 4, 6, 6, 4],    11: [11, 12, 13, 13, 11, -1] },
+    'Am':  { 1: [0, 1, 2, 2, 0, -1],   5: [5, 5, 5, 7, 7, 5],    12: [12, 13, 14, 14, 12, -1] },
+    'A#m': { 6: [6, 6, 6, 8, 8, 6] },
+    'Bm':  { 2: [2, 3, 4, 4, 2, -1],   7: [7, 7, 7, 9, 9, 7] },
+    // Dominant 7
+    'C7':  { 1: [-1, 1, 3, 2, 3, -1],  3: [3, 5, 3, 5, 3, -1] },
+    'D7':  { 1: [2, 1, 2, 0, -1, -1],  5: [5, 7, 5, 7, 5, -1] },
+    'E7':  { 1: [0, 0, 1, 0, 2, 0],    7: [7, 9, 7, 9, 7, -1] },
+    'F7':  { 1: [1, 1, 2, 1, 3, 1],    8: [8, 10, 8, 10, 8, -1] },
+    'G7':  { 1: [1, 0, 0, 0, 2, 3],    3: [3, 3, 4, 3, 5, 3],    10: [10, 12, 10, 12, 10, -1] },
+    'A7':  { 1: [0, 2, 0, 2, 0, -1],   5: [5, 5, 6, 5, 7, 5],    12: [12, 14, 12, 14, 12, -1] },
+    'B7':  { 2: [2, 0, 2, 1, 2, -1],   7: [7, 7, 8, 7, 9, 7] },
+    // Minor 7
+    'Cm7':  { 3: [3, 4, 3, 5, 3, -1],   8: [8, 8, 8, 8, 10, 8] },
+    'Dm7':  { 1: [1, 1, 2, 0, -1, -1],  5: [5, 6, 5, 7, 5, -1] },
+    'Em7':  { 1: [0, 0, 0, 0, 2, 0],    7: [7, 8, 7, 9, 7, -1] },
+    'Fm7':  { 1: [1, 1, 1, 1, 3, 1],    8: [8, 9, 8, 10, 8, -1] },
+    'Gm7':  { 3: [3, 3, 3, 3, 5, 3],    10: [10, 11, 10, 12, 10, -1] },
+    'Am7':  { 1: [0, 1, 0, 2, 0, -1],   5: [5, 5, 5, 5, 7, 5] },
+    'Bm7':  { 2: [2, 3, 2, 4, 2, -1],   7: [7, 7, 7, 7, 9, 7] },
+    // Major 7
+    'Cmaj7':  { 1: [0, 0, 0, 2, 3, -1], 3: [3, 5, 4, 5, 3, -1] },
+    'Dmaj7':  { 1: [2, 2, 2, 0, -1, -1], 5: [5, 7, 6, 7, 5, -1] },
+    'Emaj7':  { 1: [0, 0, 1, 1, 2, 0],   7: [7, 9, 8, 9, 7, -1] },
+    'Fmaj7':  { 1: [0, 1, 2, 3, 3, -1],  8: [8, 10, 9, 10, 8, -1] },
+    'Gmaj7':  { 3: [2, 0, 0, 0, 2, 3],   10: [10, 12, 11, 12, 10, -1] },
+    'Amaj7':  { 1: [0, 2, 1, 2, 0, -1],  5: [5, 5, 6, 6, 7, 5] },
+    'Bmaj7':  { 2: [2, 4, 3, 4, 2, -1],  7: [7, 7, 8, 8, 9, 7] },
+};
+
+function getAvailablePositions(chordSymbol) {
+    const positions = CHORD_POSITIONS[chordSymbol];
+    if (!positions) return [];
+    return Object.keys(positions).map(Number).sort((a, b) => a - b);
+}
+
+function chordPositionToFrets(chordSymbol, position) {
+    const voicing = CHORD_POSITIONS[chordSymbol]?.[position];
+    if (voicing) {
+        const frets = [];
+        voicing.forEach((f, s) => { if (f >= 0) frets.push({ string: s, fret: f }); });
+        return frets;
+    }
+    return chordToFrets(chordSymbol);
+}
+
+/**
  * 從和弦名稱產生 chordFrets
  */
 function chordToFrets(chordSymbol) {
@@ -615,6 +689,24 @@ function NoteEditor({
     const [showChords, setShowChords] = useState(true);
     const [showTab, setShowTab] = useState(true);
     const [fullscreen, setFullscreen] = useState(false);
+    const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
+    // Edit Panel 鍵盤快捷鍵列表
+    const EDIT_SHORTCUTS = [
+        { keys: '1 ~ 7', desc: '改成此簡譜音' },
+        { keys: '0', desc: '改成休止符' },
+        { keys: '+', desc: '升八度' },
+        { keys: '-', desc: '降八度' },
+        { keys: '#', desc: '加 / 移除升記號' },
+        { keys: 'b', desc: '加 / 移除降記號' },
+        { keys: '_ (Shift+-)', desc: '時值改 8 分音符' },
+        { keys: '=', desc: '時值改 16 分音符' },
+        { keys: '~', desc: '切換延音 (tie)' },
+        { keys: '^', desc: '向後插入休止符' },
+        { keys: '|', desc: '向後插入小節線' },
+        { keys: 'Del / Backspace', desc: '刪除選中音符' },
+    ];
+    const shortcutsTitle = EDIT_SHORTCUTS.map(s => `${s.keys}\t${s.desc}`).join('\n');
 
     /**
      * 同步更新 editableText
@@ -899,10 +991,204 @@ function NoteEditor({
                     syncEditableText(newNotes);
                 }
             }
+
+            if (selectedNoteIndex < 0 || selectedNoteIndex >= notes.length) return;
+
+            // 用 e.code 比對實體鍵，避開中文輸入法干擾（layout 無關）
+            const isTilde = e.key === '~' || (e.shiftKey && e.code === 'Backquote');
+            const isPipe = e.key === '|' || (e.shiftKey && e.code === 'Backslash');
+            const isCaret = e.key === '^' || (e.shiftKey && e.code === 'Digit6');
+            // Mac 的「delete」鍵送出 Backspace；同時接受 Delete（Fn+Backspace 或 PC 鍵盤）
+            const isDelete = e.key === 'Delete' || e.key === 'Backspace';
+
+            // Delete / Backspace: 刪除選中音符
+            if (isDelete) {
+                e.preventDefault();
+                e.stopPropagation();
+                const deletedIndex = selectedNoteIndex;
+                const newNotes = notes.filter((_, idx) => idx !== deletedIndex);
+                onNotesChange(newNotes);
+                syncEditableText(newNotes);
+                if (newNotes.length === 0 || deletedIndex >= newNotes.length) {
+                    onSelectedNoteChange(-1);
+                } else {
+                    onSelectedNoteChange(-1);
+                    setTimeout(() => onSelectedNoteChange(deletedIndex), 0);
+                }
+                return;
+            }
+
+            // 共用：在選中音符之後插入一個 token，並把選取移到新插入的位置
+            const insertAfter = (token) => {
+                const insertIndex = selectedNoteIndex + 1;
+                const newNotes = [...notes];
+                newNotes.splice(insertIndex, 0, token);
+                onNotesChange(newNotes);
+                syncEditableText(newNotes);
+                onSelectedNoteChange(insertIndex);
+            };
+
+            // ^: 向後插入休止符 (0)
+            if (isCaret) {
+                e.preventDefault();
+                insertAfter({
+                    jianpu: '0', displayStr: '0',
+                    _type: 'rest', isRest: true,
+                    octave: 4, index: 0
+                });
+                return;
+            }
+
+            // |: 向後插入小節符號
+            if (isPipe) {
+                e.preventDefault();
+                insertAfter({
+                    jianpu: '|', displayStr: '|',
+                    _type: 'separator', isSeparator: true,
+                    octave: 4, index: 0
+                });
+                return;
+            }
+
+            // ~: 切換選中音符的延音 (tieStart) — 與下個非分隔音符配對 tieEnd
+            if (isTilde) {
+                e.preventDefault();
+                const note = notes[selectedNoteIndex];
+                if (note.isSeparator || note.isRest || note.isExtension || note.isSymbol) return;
+                const newNotes = [...notes];
+                const currentTie = note.tieStart || false;
+                newNotes[selectedNoteIndex] = { ...note, tieStart: !currentTie };
+                for (let i = selectedNoteIndex + 1; i < newNotes.length; i++) {
+                    const n = newNotes[i];
+                    if (n.isSeparator || n.isSymbol) continue;
+                    newNotes[i] = { ...n, tieEnd: !currentTie };
+                    break;
+                }
+                onNotesChange(newNotes);
+                syncEditableText(newNotes);
+                return;
+            }
+
+            // =: 設定選中音符時值為 16 分音符
+            if (e.key === '=' && !e.shiftKey) {
+                const note = notes[selectedNoteIndex];
+                if (note.isSeparator || note.isSymbol) return;
+                e.preventDefault();
+                const newNotes = [...notes];
+                newNotes[selectedNoteIndex] = { ...note, duration: '16th' };
+                onNotesChange(newNotes);
+                syncEditableText(newNotes);
+                return;
+            }
+
+            // _ (Shift+-) 或 IME 打出的 em-dash / en-dash: 設定為 8 分音符
+            const isLongDash = e.key === '_' || e.key === '—' || e.key === '–'
+                || (e.shiftKey && e.code === 'Minus');
+            if (isLongDash) {
+                const note = notes[selectedNoteIndex];
+                if (note.isSeparator || note.isSymbol) return;
+                e.preventDefault();
+                const newNotes = [...notes];
+                newNotes[selectedNoteIndex] = { ...note, duration: 'eighth' };
+                onNotesChange(newNotes);
+                syncEditableText(newNotes);
+                return;
+            }
+
+            // + / -: 升/降八度
+            if (e.key === '+' || e.key === '-') {
+                const note = notes[selectedNoteIndex];
+                if (note.isSeparator || note.isRest || note.isExtension || note.isSymbol) return;
+                e.preventDefault();
+                const direction = e.key === '+' ? 1 : -1;
+                const oldOctave = note.octave || 4;
+                const newOctave = Math.max(2, Math.min(6, oldOctave + direction));
+                if (newOctave === oldOctave) return;
+
+                let newDisplay = String(note.jianpu);
+                if (newOctave >= 5) newDisplay += '.'.repeat(newOctave - 4);
+                if (newOctave === 3) newDisplay = '_' + newDisplay;
+                if (newOctave === 2) newDisplay = '__' + newDisplay;
+                const oldDisplay = note.displayStr || String(note.jianpu);
+                if (oldDisplay.includes('#')) newDisplay += '#';
+                else if (oldDisplay.includes('b')) newDisplay += 'b';
+
+                const newNotes = [...notes];
+                const midiOld = note.midiNote ?? note.midi;
+                newNotes[selectedNoteIndex] = {
+                    ...note,
+                    octave: newOctave,
+                    midiNote: midiOld != null ? midiOld + (newOctave - oldOctave) * 12 : midiOld,
+                    displayStr: newDisplay,
+                    accidentalStr: oldDisplay.includes('#') ? '#' : (oldDisplay.includes('b') ? 'b' : '')
+                };
+                onNotesChange(newNotes);
+                syncEditableText(newNotes);
+                return;
+            }
+
+            // # / b: 切換升記號 / 降記號
+            const isSharp = e.key === '#' || (e.shiftKey && e.code === 'Digit3');
+            const isFlat = e.key === 'b' || e.key === 'B';
+            if (isSharp || isFlat) {
+                const note = notes[selectedNoteIndex];
+                if (note.isSeparator || note.isRest || note.isExtension || note.isSymbol) return;
+                if (note.midiNote == null && note.midi == null) return;
+                e.preventDefault();
+                const type = isSharp ? 'sharp' : 'flat';
+                const newNotes = [...notes];
+                const cur = newNotes[selectedNoteIndex];
+                const hasSharp = cur.noteName?.includes('#');
+                const hasFlat = cur.noteName?.includes('b');
+                const curMidi = cur.midiNote ?? cur.midi;
+
+                if (type === 'sharp') {
+                    if (hasSharp) {
+                        newNotes[selectedNoteIndex] = {
+                            ...cur,
+                            midiNote: curMidi - 1,
+                            noteName: (cur.noteName || '').replace('#', ''),
+                            displayStr: (cur.displayStr || String(cur.jianpu)).replace('#', ''),
+                            accidentalStr: ''
+                        };
+                    } else {
+                        newNotes[selectedNoteIndex] = {
+                            ...cur,
+                            midiNote: curMidi + (hasFlat ? 2 : 1),
+                            noteName: (cur.noteName || '').replace('b', '') + '#',
+                            displayStr: (cur.displayStr || String(cur.jianpu)).replace('b', '') + '#',
+                            accidentalStr: '#'
+                        };
+                    }
+                } else {
+                    if (hasFlat) {
+                        newNotes[selectedNoteIndex] = {
+                            ...cur,
+                            midiNote: curMidi + 1,
+                            noteName: (cur.noteName || '').replace('b', ''),
+                            displayStr: (cur.displayStr || String(cur.jianpu)).replace('b', ''),
+                            accidentalStr: ''
+                        };
+                    } else {
+                        newNotes[selectedNoteIndex] = {
+                            ...cur,
+                            midiNote: curMidi - (hasSharp ? 2 : 1),
+                            noteName: (cur.noteName || '').replace('#', '') + 'b',
+                            displayStr: (cur.displayStr || String(cur.jianpu)).replace('#', '') + 'b',
+                            accidentalStr: 'b'
+                        };
+                    }
+                }
+                onNotesChange(newNotes);
+                syncEditableText(newNotes);
+                return;
+            }
         };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedNoteIndex, notes, musicKey, scaleType, onNotesChange, syncEditableText]);
+        // 用 capture 階段，確保在全域 useKeyboardShortcuts (document, bubble) 之前先處理
+        // 例如 Backspace 在編輯模式下要當「刪除音符」用，而不是 clearLoop
+        window.addEventListener('keydown', handleKeyDown, true);
+        return () => window.removeEventListener('keydown', handleKeyDown, true);
+    }, [selectedNoteIndex, notes, musicKey, scaleType, onNotesChange, onSelectedNoteChange, syncEditableText]);
 
     /**
      * 選擇音符進行編輯
@@ -1042,19 +1328,59 @@ function NoteEditor({
     return (
         <div className="note-editor-area">
             {/* 左側：編輯面板（可收合） */}
-            <div className="editor-panel" style={editPanelOpen ? {} : { width: 'auto', minWidth: '40px', padding: '8px', gap: '8px' }}>
-                <h4
-                    onClick={() => setEditPanelOpen(prev => !prev)}
-                    style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                    <span style={{
-                        display: 'inline-block',
-                        transition: 'transform 0.2s',
-                        transform: editPanelOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                        fontSize: '12px'
-                    }}>&#9654;</span>
-                    {editPanelOpen ? 'Edit Panel' : 'Edit'}
-                </h4>
+            <div className="editor-panel" title={`Edit Panel 鍵盤快捷鍵\n\n${shortcutsTitle}`} style={editPanelOpen ? {} : { width: 'auto', minWidth: '40px', padding: '8px', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
+                    <h4
+                        onClick={() => setEditPanelOpen(prev => !prev)}
+                        style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}
+                    >
+                        <span style={{
+                            display: 'inline-block',
+                            transition: 'transform 0.2s',
+                            transform: editPanelOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                            fontSize: '12px'
+                        }}>&#9654;</span>
+                        {editPanelOpen ? 'Edit Panel' : 'Edit'}
+                    </h4>
+                    {editPanelOpen && (
+                        <button
+                            onClick={() => setShowShortcutsHelp(p => !p)}
+                            title="顯示 / 隱藏 Edit Panel 鍵盤快捷鍵"
+                            style={{
+                                background: showShortcutsHelp ? '#4caf50' : '#333',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                width: '24px',
+                                height: '24px',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                lineHeight: 1
+                            }}
+                        >❓</button>
+                    )}
+                </div>
+
+                {editPanelOpen && showShortcutsHelp && (
+                    <div style={{
+                        background: '#222',
+                        border: '1px solid #444',
+                        borderRadius: '6px',
+                        padding: '8px 10px',
+                        fontSize: '12px',
+                        color: '#ccc'
+                    }}>
+                        <div style={{ color: '#4caf50', fontWeight: 'bold', marginBottom: '6px' }}>鍵盤快捷鍵</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 10px' }}>
+                            {EDIT_SHORTCUTS.map(s => (
+                                <React.Fragment key={s.keys}>
+                                    <span style={{ color: '#ff9800', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{s.keys}</span>
+                                    <span>{s.desc}</span>
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {!editPanelOpen && selectedNote && !selectedNote.isSeparator && (
                     <div style={{ writingMode: 'vertical-rl', fontSize: '13px', color: '#4caf50', whiteSpace: 'nowrap' }}>
@@ -1151,16 +1477,21 @@ function NoteEditor({
                                 if (!chord) {
                                     // 清除和弦 + TAB
                                     const newNotes = [...notes];
-                                    newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordSymbol: null, chordFrets: [], stringIndex: undefined, fret: undefined };
+                                    newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordSymbol: null, chordPosition: null, chordFrets: [], stringIndex: undefined, fret: undefined };
                                     onNotesChange(newNotes);
                                     syncEditableText(newNotes);
                                 } else {
-                                    // 設定和弦 + 自動產生 TAB
-                                    const frets = chordToFrets(chord);
+                                    // 設定和弦 + 自動選最低把位 + 產生 TAB
+                                    const positions = getAvailablePositions(chord);
+                                    const defaultPos = positions.length > 0 ? positions[0] : null;
+                                    const frets = defaultPos != null
+                                        ? chordPositionToFrets(chord, defaultPos)
+                                        : chordToFrets(chord);
                                     const newNotes = [...notes];
                                     newNotes[selectedNoteIndex] = {
                                         ...newNotes[selectedNoteIndex],
                                         chordSymbol: chord,
+                                        chordPosition: defaultPos,
                                         chordFrets: frets,
                                         stringIndex: frets.length > 0 ? frets[0].string : undefined,
                                         fret: frets.length > 0 ? frets[0].fret : undefined
@@ -1190,12 +1521,48 @@ function NoteEditor({
                         {selectedNote?.chordSymbol && (
                             <button className="editor-btn small" onClick={() => {
                                 const newNotes = [...notes];
-                                newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordSymbol: null, chordFrets: [], stringIndex: undefined, fret: undefined };
+                                newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordSymbol: null, chordPosition: null, chordFrets: [], stringIndex: undefined, fret: undefined };
                                 onNotesChange(newNotes);
                                 syncEditableText(newNotes);
                             }} title="清除">✕</button>
                         )}
                     </div>
+
+                    {/* 把位選擇 */}
+                    {selectedNote?.chordSymbol && getAvailablePositions(selectedNote.chordSymbol).length > 0 && (
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
+                            <span style={{ fontSize: '11px', color: '#888', minWidth: '36px' }}>把位</span>
+                            <select
+                                value={selectedNote?.chordPosition ?? ''}
+                                onChange={(e) => {
+                                    const pos = e.target.value === '' ? null : parseInt(e.target.value);
+                                    const chord = selectedNote.chordSymbol;
+                                    const frets = pos != null
+                                        ? chordPositionToFrets(chord, pos)
+                                        : chordToFrets(chord);
+                                    const newNotes = [...notes];
+                                    newNotes[selectedNoteIndex] = {
+                                        ...newNotes[selectedNoteIndex],
+                                        chordPosition: pos,
+                                        chordFrets: frets,
+                                        stringIndex: frets.length > 0 ? frets[0].string : undefined,
+                                        fret: frets.length > 0 ? frets[0].fret : undefined
+                                    };
+                                    onNotesChange(newNotes);
+                                    syncEditableText(newNotes);
+                                }}
+                                onMouseEnter={() => setHoverInfo('選擇此和弦的把位（fret 位置）')}
+                                onMouseLeave={() => setHoverInfo('')}
+                                disabled={!isNoteEditable}
+                                style={{ flex: 1, padding: '4px 6px', background: '#333', color: '#fff', border: '1px solid #555', borderRadius: '4px', fontSize: '13px' }}
+                            >
+                                <option value="">自動推算</option>
+                                {getAvailablePositions(selectedNote.chordSymbol).map(p => (
+                                    <option key={p} value={p}>第 {p} 把位</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
 
                 {/* ── TAB 指法 ── */}
@@ -1304,7 +1671,7 @@ function NoteEditor({
 
                 {/* 說明 + 刪除 */}
                 <div className="editor-info-bar" style={{ minHeight: '22px', padding: '4px 8px', background: '#333', borderRadius: '4px', color: '#4caf50', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
-                    {hoverInfo || '滑鼠移至按鈕可查看說明'}
+                    {hoverInfo || '滑鼠移至按鈕可查看說明　·　點 ❓ 看鍵盤快捷鍵'}
                 </div>
                 <button className="delete-note-btn" onClick={handleDeleteNote} disabled={selectedNoteIndex < 0}>
                     刪除此{selectedNote?.isSeparator ? '區隔線' : '音符'}

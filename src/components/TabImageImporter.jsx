@@ -3,108 +3,57 @@
  * 支援上傳/拍攝 Tab 圖片並 OCR 識別
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { recognizeTabImage } from '../ocr/TabOCR.js';
 import NotePreview from './NotePreview.jsx';
-import ImageCropper from './ImageCropper.jsx';
+import ImageQueue from './ImageQueue.jsx';
+
+const MAX_IMAGES = 5;
 
 function TabImageImporter({ onImport, onClose }) {
-    const [imageFile, setImageFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState(null);
+    const [images, setImages] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState({ status: '', percent: 0 });
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
-    const [cropMode, setCropMode] = useState(false);
-    const [originalImagePreview, setOriginalImagePreview] = useState(null);
 
-    const fileInputRef = useRef(null);
-    const dropZoneRef = useRef(null);
-
-    /**
-     * 處理檔案選擇
-     */
-    const handleFileSelect = useCallback((file) => {
-        if (!file) return;
-
-        // 驗證檔案類型
-        if (!file.type.startsWith('image/')) {
-            setError('請選擇圖片檔案');
-            return;
-        }
-
-        setImageFile(file);
-        setError(null);
-        setResult(null);
-
-        // 建立預覽
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            setOriginalImagePreview(e.target.result);
-            setCropMode(true); // 開啟裁切模式
-        };
-        reader.readAsDataURL(file);
-    }, []);
-
-    const handleCrop = async (croppedImageUrl) => {
-        setCropMode(false);
-        setImagePreview(croppedImageUrl);
-
-        // 為了讓 OCR 可以讀取，將 data URL 轉換回 File 物件
-        const response = await fetch(croppedImageUrl);
-        const blob = await response.blob();
-        const newFile = new File([blob], "cropped_image.jpg", { type: "image/jpeg" });
-        setImageFile(newFile);
-    };
-
-    const handleCancelCrop = () => {
-        setCropMode(false);
-        setOriginalImagePreview(null);
-        setImageFile(null);
-    };
-
-    /**
-     * 處理拖放
-     */
-    const handleDrop = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZoneRef.current?.classList.remove('drag-over');
-
-        const file = e.dataTransfer.files[0];
-        handleFileSelect(file);
-    }, [handleFileSelect]);
-
-    const handleDragOver = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZoneRef.current?.classList.add('drag-over');
-    }, []);
-
-    const handleDragLeave = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZoneRef.current?.classList.remove('drag-over');
-    }, []);
-
-    /**
-     * 執行 OCR 識別
-     */
     const handleRecognize = useCallback(async () => {
-        if (!imageFile) return;
+        if (images.length === 0) return;
 
         setIsProcessing(true);
         setError(null);
         setResult(null);
 
         try {
-            const ocrResult = await recognizeTabImage(imageFile, (status, percent) => {
-                setProgress({ status, percent });
-            });
+            const aggregatedNotes = [];
+            const rawTexts = [];
+            let totalConfidence = 0;
 
-            setResult(ocrResult);
+            for (let i = 0; i < images.length; i++) {
+                const ocrResult = await recognizeTabImage(images[i].file, (status, percent) => {
+                    setProgress({ status: `${status} (${i + 1}/${images.length})`, percent });
+                });
+                if (i > 0) {
+                    aggregatedNotes.push({
+                        jianpu: '|', displayStr: '|',
+                        isSeparator: true, _type: 'separator',
+                        octave: 4, index: 0
+                    });
+                }
+                aggregatedNotes.push(...(ocrResult.notes || []));
+                if (ocrResult.rawText) rawTexts.push(`--- Page ${i + 1} ---\n${ocrResult.rawText}`);
+                totalConfidence += (ocrResult.confidence || 0);
+            }
 
-            if (ocrResult.notes.length === 0) {
+            const reIndexed = aggregatedNotes.map((n, idx) => ({ ...n, index: idx }));
+            const merged = {
+                notes: reIndexed,
+                confidence: totalConfidence / images.length,
+                rawText: rawTexts.join('\n\n')
+            };
+            setResult(merged);
+
+            if (merged.notes.filter(n => n.isNote).length === 0) {
                 setError('無法識別任何音符，請嘗試其他圖片或調整圖片品質');
             }
         } catch (err) {
@@ -113,46 +62,28 @@ function TabImageImporter({ onImport, onClose }) {
         } finally {
             setIsProcessing(false);
         }
-    }, [imageFile]);
+    }, [images]);
 
-    /**
-     * 確認匯入
-     */
     const handleConfirmImport = useCallback(() => {
         if (result && result.notes.length > 0) {
             onImport?.({
                 notes: result.notes,
                 format: 'tab-ocr',
+                sourceImages: images.map(img => img.dataUrl),
                 metadata: {
                     confidence: result.confidence,
                     source: 'image'
                 }
             });
         }
-    }, [result, onImport]);
+    }, [result, images, onImport]);
 
-    /**
-     * 重新選擇圖片
-     */
     const handleReset = useCallback(() => {
-        setImageFile(null);
-        setImagePreview(null);
-        setOriginalImagePreview(null);
-        setCropMode(false);
+        setImages([]);
         setResult(null);
         setError(null);
         setProgress({ status: '', percent: 0 });
     }, []);
-
-    if (cropMode && originalImagePreview) {
-        return (
-            <ImageCropper
-                imageSrc={originalImagePreview}
-                onCrop={handleCrop}
-                onCancel={handleCancelCrop}
-            />
-        );
-    }
 
     return (
         <div style={{
@@ -189,73 +120,16 @@ function TabImageImporter({ onImport, onClose }) {
                 )}
             </div>
 
-            {/* 上傳區域 */}
-            {!imagePreview && (
-                <div
-                    ref={dropZoneRef}
-                    onClick={() => fileInputRef.current?.click()}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    style={{
-                        border: '2px dashed #444',
-                        borderRadius: '8px',
-                        padding: '40px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>📷</div>
-                    <div style={{ fontSize: '16px', marginBottom: '8px' }}>
-                        點擊或拖放 Tab 圖片
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#888' }}>
-                        支援 JPG, PNG, GIF 格式
-                    </div>
-                </div>
-            )}
-
-            {/* 圖片預覽 */}
-            {imagePreview && (
-                <div style={{ marginBottom: '20px' }}>
-                    <div style={{
-                        position: 'relative',
-                        background: '#111',
-                        borderRadius: '8px',
-                        overflow: 'hidden'
-                    }}>
-                        <img
-                            src={imagePreview}
-                            alt="Tab preview"
-                            style={{
-                                width: '100%',
-                                maxHeight: '300px',
-                                objectFit: 'contain'
-                            }}
-                        />
-                        {!isProcessing && !result && (
-                            <button
-                                onClick={handleReset}
-                                style={{
-                                    position: 'absolute',
-                                    top: '8px',
-                                    right: '8px',
-                                    padding: '4px 8px',
-                                    background: 'rgba(0,0,0,0.7)',
-                                    color: '#fff',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px'
-                                }}
-                            >
-                                更換圖片
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
+            {/* 多圖佇列 */}
+            <div style={{ marginBottom: '16px' }}>
+                <ImageQueue
+                    images={images}
+                    onChange={setImages}
+                    maxImages={MAX_IMAGES}
+                    accentColor="#4caf50"
+                    disabled={isProcessing || !!result}
+                />
+            </div>
 
             {/* 處理進度 */}
             {isProcessing && (
@@ -385,7 +259,7 @@ function TabImageImporter({ onImport, onClose }) {
 
             {/* 操作按鈕 */}
             <div style={{ display: 'flex', gap: '12px' }}>
-                {imagePreview && !isProcessing && !result && (
+                {images.length > 0 && !isProcessing && !result && (
                     <button
                         onClick={handleRecognize}
                         style={{
@@ -400,7 +274,7 @@ function TabImageImporter({ onImport, onClose }) {
                             cursor: 'pointer'
                         }}
                     >
-                        開始識別
+                        開始識別 ({images.length})
                     </button>
                 )}
 
@@ -438,15 +312,6 @@ function TabImageImporter({ onImport, onClose }) {
                     </>
                 )}
             </div>
-
-            {/* 隱藏的檔案輸入 */}
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFileSelect(e.target.files?.[0])}
-                style={{ display: 'none' }}
-            />
 
             {/* 使用說明 */}
             <div style={{

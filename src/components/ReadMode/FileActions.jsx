@@ -20,10 +20,52 @@ function FileActions({
     youtubeLayout,
     viewMode,
     timeSignature,
+    instrument,
+    sourceImages,
     onLoadFile,
     fileName = 'guitar_score'
 }) {
     const loadInputRef = useRef(null);
+    const imgs = Array.isArray(sourceImages) ? sourceImages : [];
+
+    /**
+     * 在新視窗開啟原圖（所有頁堆疊顯示）
+     */
+    const openSourceImagesInNewWindow = () => {
+        if (imgs.length === 0) return;
+        const win = window.open('', '_blank', 'width=900,height=900,scrollbars=yes');
+        if (!win) {
+            alert('彈出視窗被阻擋，請允許此網站開啟新視窗');
+            return;
+        }
+        const pages = imgs.map((src, i) => `
+            <figure>
+                <figcaption>第 ${i + 1} 張 / ${imgs.length}</figcaption>
+                <img src="${src}" alt="Page ${i + 1}">
+            </figure>
+        `).join('');
+        const html = `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>OCR 來源圖片 (${imgs.length})</title>
+<style>
+  body { background:#1a1a1a; color:#fff; font-family:-apple-system,BlinkMacSystemFont,sans-serif; padding:20px; margin:0; }
+  h1 { font-size:16px; color:#aaa; margin:0 0 16px; }
+  figure { margin:0 0 24px; }
+  figcaption { font-size:12px; color:#888; margin-bottom:6px; }
+  img { max-width:100%; height:auto; background:#fff; border-radius:6px; display:block; }
+</style>
+</head>
+<body>
+  <h1>OCR 來源圖片 — 共 ${imgs.length} 張</h1>
+  ${pages}
+</body>
+</html>`;
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+    };
 
     /**
      * 儲存檔案
@@ -47,7 +89,9 @@ function FileActions({
                 youtubeUrl: youtubeUrl,
                 showYoutube: showYoutube,
                 youtubeLayout: youtubeLayout,
-                viewMode: viewMode
+                viewMode: viewMode,
+                instrument: instrument,
+                sourceImages: imgs
             }
         };
 
@@ -306,6 +350,16 @@ function FileActions({
                     <span style={{ fontSize: '20px' }}>📋</span>
                     <span>Copy</span>
                 </button>
+                {imgs.length > 0 && (
+                    <button
+                        onClick={openSourceImagesInNewWindow}
+                        title="於新視窗開啟辨識來源圖片"
+                        style={actionBtnStyle}
+                    >
+                        <span style={{ fontSize: '20px' }}>🖼️</span>
+                        <span>原圖 ({imgs.length})</span>
+                    </button>
+                )}
             </div>
 
             {/* Divider */}
@@ -351,6 +405,7 @@ function FileActions({
                 onChange={handleLoadFileChange}
                 hidden
             />
+
         </div>
     );
 }
