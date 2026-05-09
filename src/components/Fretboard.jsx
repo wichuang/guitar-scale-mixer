@@ -33,7 +33,7 @@ const DISABLED_COLORS = [
 const STRING_NAMES = ['E', 'B', 'G', 'D', 'A', 'E'];
 
 // Visible frets (controlled from Settings)
-function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, colorOffset = 0 }) {
+function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, colorOffset = 0, disabledFrets: extDisabledFrets, onToggleFret: extOnToggleFret }) {
     const { playNote, isLoading } = useAudio(guitarType);
     const [activeNote, setActiveNote] = useState(null);
     const scrollRef = useRef(null);
@@ -42,11 +42,17 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
     const fretboardRef = useRef(null);
     const [fretWidth, setFretWidth] = useState(60);
     const [disabledScales, setDisabledScales] = useState(new Set());
-    const [disabledFrets, setDisabledFrets] = useState(new Set());
+    const [localDisabledFrets, setLocalDisabledFrets] = useState(new Set());
 
+    // 受控（從上層傳入）優先；無 prop 時 fallback 用本地 state
+    const disabledFrets = extDisabledFrets !== undefined ? extDisabledFrets : localDisabledFrets;
     const toggleFret = (fret) => {
         if (fret <= 0) return; // open string 不可 toggle
-        setDisabledFrets(prev => {
+        if (extOnToggleFret) {
+            extOnToggleFret(fret);
+            return;
+        }
+        setLocalDisabledFrets(prev => {
             const next = new Set(prev);
             if (next.has(fret)) next.delete(fret);
             else next.add(fret);

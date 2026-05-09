@@ -9,6 +9,23 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
     const [chordCount, setChordCount] = useState(1);
     const [cagedPosition, setCagedPosition] = useState(null);
     const [fretboardLayout, setFretboardLayout] = useState('overlay');
+    const [disabledFrets, setDisabledFrets] = useState(new Set());
+
+    // 切換 CAGED position（含「All」）時重設 fret toggle 狀態
+    const handleSetCagedPosition = (pos) => {
+        setCagedPosition(pos);
+        setDisabledFrets(new Set());
+    };
+
+    const toggleFret = (fret) => {
+        if (fret <= 0) return;
+        setDisabledFrets(prev => {
+            const next = new Set(prev);
+            if (next.has(fret)) next.delete(fret);
+            else next.add(fret);
+            return next;
+        });
+    };
 
     // Default chords — enabledNotes 預設 = chord 內的音；其他音 picker 為 OFF
     const [chords, setChords] = useState(() => {
@@ -120,13 +137,13 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
                     <div className="btn-group">
                         <button
                             className={`sm-btn ${cagedPosition === null ? 'active' : ''}`}
-                            onClick={() => setCagedPosition(null)}
+                            onClick={() => handleSetCagedPosition(null)}
                         >All</button>
                         {CAGED_SHAPES.map(shape => (
                             <button
                                 key={shape}
                                 className={`sm-btn ${cagedPosition === shape ? 'active' : ''}`}
-                                onClick={() => setCagedPosition(shape)}
+                                onClick={() => handleSetCagedPosition(shape)}
                             >{shape}</button>
                         ))}
                     </div>
@@ -175,6 +192,8 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
                                 fretCount={fretCount}
                                 cagedPosition={cagedPosition}
                                 colorOffset={idx}
+                                disabledFrets={disabledFrets}
+                                onToggleFret={toggleFret}
                             />
                         </div>
                     ))}
@@ -187,6 +206,8 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
                         displayMode={displayMode}
                         fretCount={fretCount}
                         cagedPosition={cagedPosition}
+                        disabledFrets={disabledFrets}
+                        onToggleFret={toggleFret}
                     />
                 </div>
             )}

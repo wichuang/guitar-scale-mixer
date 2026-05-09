@@ -69,6 +69,23 @@ function MainContent() {
   const [showYouTube, setShowYouTube] = useState(false);
   const [blackScreenMode, setBlackScreenMode] = useState(false);
   const [cagedPosition, setCagedPosition] = useState(null);
+  const [disabledFrets, setDisabledFrets] = useState(new Set());
+
+  // 切換 CAGED position（含「All」）時重設 fret toggle 狀態
+  const handleSetCagedPosition = (pos) => {
+    setCagedPosition(pos);
+    setDisabledFrets(new Set());
+  };
+
+  const toggleFret = (fret) => {
+    if (fret <= 0) return;
+    setDisabledFrets(prev => {
+      const next = new Set(prev);
+      if (next.has(fret)) next.delete(fret);
+      else next.add(fret);
+      return next;
+    });
+  };
   const [fretboardLayout, setFretboardLayout] = useState('overlay'); // 'overlay' | 'separate'
 
   const currentState = useMemo(() => ({
@@ -271,13 +288,13 @@ function MainContent() {
                   <div className="btn-group">
                     <button
                       className={`sm-btn ${cagedPosition === null ? 'active' : ''}`}
-                      onClick={() => setCagedPosition(null)}
+                      onClick={() => handleSetCagedPosition(null)}
                     >All</button>
                     {CAGED_SHAPES.map(shape => (
                       <button
                         key={shape}
                         className={`sm-btn ${cagedPosition === shape ? 'active' : ''}`}
-                        onClick={() => setCagedPosition(shape)}
+                        onClick={() => handleSetCagedPosition(shape)}
                       >{shape}</button>
                     ))}
                   </div>
@@ -328,6 +345,8 @@ function MainContent() {
                       fretCount={fretCount}
                       cagedPosition={cagedPosition}
                       colorOffset={idx}
+                      disabledFrets={disabledFrets}
+                      onToggleFret={toggleFret}
                     />
                   </div>
                 ))}
@@ -340,6 +359,8 @@ function MainContent() {
                   displayMode={displayMode}
                   fretCount={fretCount}
                   cagedPosition={cagedPosition}
+                  disabledFrets={disabledFrets}
+                  onToggleFret={toggleFret}
                 />
               </div>
             )}
