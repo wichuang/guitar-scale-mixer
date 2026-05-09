@@ -97,6 +97,38 @@ function getAudioContext() {
     return sharedAudioContext;
 }
 
+// === iOS/iPadOS 音頻解鎖 ===
+// iOS 必須在 user gesture 內「真正播一段音訊」才會解鎖 AudioContext，
+// 光呼叫 resume() 在某些情境下不夠。在第一個觸控事件就解鎖，避免後續 playNote 沒聲音。
+let audioUnlocked = false;
+function unlockAudioOnGesture() {
+    if (audioUnlocked) return;
+    try {
+        const ac = getAudioContext();
+        if (ac.state === 'suspended') ac.resume();
+        // 播放一段無聲 buffer — 經典 iOS 解鎖手法
+        const buf = ac.createBuffer(1, 1, 22050);
+        const src = ac.createBufferSource();
+        src.buffer = buf;
+        src.connect(ac.destination);
+        src.start(0);
+        if (ac.state === 'running') audioUnlocked = true;
+    } catch (e) {
+        console.warn('Audio unlock attempt failed', e);
+    }
+}
+
+if (typeof window !== 'undefined') {
+    const events = ['touchstart', 'touchend', 'mousedown', 'pointerdown', 'click'];
+    const onFirstGesture = () => {
+        unlockAudioOnGesture();
+        if (audioUnlocked) {
+            events.forEach(e => document.removeEventListener(e, onFirstGesture, true));
+        }
+    };
+    events.forEach(e => document.addEventListener(e, onFirstGesture, true));
+}
+
 async function loadInstrumentIfNeeded(name) {
     if (instrumentsCache[name]) {
         return instrumentsCache[name];
@@ -161,6 +193,8 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
 
     // Play a note — 如果音色未載入，等待載入後再播放（不靜默跳過）
     const playNote = useCallback(async (midiNote, stringIndex = 2, options = {}) => {
+        // 若全域 first-gesture listener 沒抓到，這裡同步嘗試解鎖（必須在 await 之前）
+        unlockAudioOnGesture();
         const ac = getAudioContext();
 
         let instrument = instrumentRef.current;
@@ -200,9 +234,9 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
     const resumeAudio = useCallback(async () => {
         // iOS/iPadOS：resume() 必須在 user gesture 同步 tick 內呼叫，
         // 任何 await 都會讓 gesture context 失效，導致 AudioContext 無法解鎖。
-        // 這裡先同步取得 AudioContext（內部會同步呼叫 resume()），再去 await soundfont 載入。
+        // 這裡先同步嘗試解鎖（建 context + sync resume + 無聲 buffer）
+        unlockAudioOnGesture();
         const ac = getAudioContext();
-        // 顯式再呼叫一次 resume，明確標示「這是 unlock」並捕獲可能的錯誤
         if (ac.state === 'suspended') {
             try { ac.resume(); } catch (e) { /* ignore */ }
         }
