@@ -198,10 +198,18 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
     }, [playNote]);
 
     const resumeAudio = useCallback(async () => {
-        await ensureLoaded();
+        // iOS/iPadOS：resume() 必須在 user gesture 同步 tick 內呼叫，
+        // 任何 await 都會讓 gesture context 失效，導致 AudioContext 無法解鎖。
+        // 這裡先同步取得 AudioContext（內部會同步呼叫 resume()），再去 await soundfont 載入。
         const ac = getAudioContext();
+        // 顯式再呼叫一次 resume，明確標示「這是 unlock」並捕獲可能的錯誤
         if (ac.state === 'suspended') {
-            await ac.resume();
+            try { ac.resume(); } catch (e) { /* ignore */ }
+        }
+        await ensureLoaded();
+        // ensureLoaded 之後若仍然 suspended（例如 gesture 失效時），補一次 await resume
+        if (ac.state === 'suspended') {
+            try { await ac.resume(); } catch (e) { /* ignore */ }
         }
         return ac;
     }, [ensureLoaded]);

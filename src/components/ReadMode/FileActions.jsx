@@ -95,7 +95,12 @@ function FileActions({
             }
         };
 
-        const strData = JSON.stringify(scoreData, null, 2);
+        // 存檔時不 pretty-print，可顯著縮小有 base64 圖片時的檔案大小
+        const strData = JSON.stringify(scoreData);
+        const sizeMB = (strData.length / 1024 / 1024).toFixed(2);
+        const imageMsg = imgs.length > 0
+            ? `（含 ${imgs.length} 張原圖，約 ${sizeMB} MB）`
+            : '（無原圖）';
 
         // Try File System Access API
         if (window.showSaveFilePicker) {
@@ -110,7 +115,7 @@ function FileActions({
                 const writable = await handle.createWritable();
                 await writable.write(strData);
                 await writable.close();
-                alert('檔案儲存成功！');
+                alert(`檔案儲存成功！${imageMsg}`);
                 return;
             } catch (err) {
                 if (err.name === 'AbortError') return;
@@ -137,6 +142,8 @@ function FileActions({
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }, 100);
+
+        alert(`檔案下載成功！${imageMsg}`);
     };
 
     /**

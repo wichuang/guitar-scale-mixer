@@ -365,14 +365,20 @@ function ReadMode({ guitarType, fretCount }) {
             if (actualData.viewMode) setViewMode(actualData.viewMode);
             if (actualData.instrument) setInstrument(actualData.instrument);
             // 支援新格式 sourceImages 陣列與舊格式單張 sourceImage
+            let loadedImageCount = 0;
             if (Array.isArray(actualData.sourceImages)) {
                 setSourceImages(actualData.sourceImages);
+                loadedImageCount = actualData.sourceImages.length;
             } else if (actualData.sourceImage) {
                 setSourceImages([actualData.sourceImage]);
+                loadedImageCount = 1;
             } else {
                 setSourceImages([]);
             }
-            alert('樂譜載入成功！');
+            const imageMsg = loadedImageCount > 0
+                ? `（含 ${loadedImageCount} 張原圖）`
+                : '（無原圖 — 此檔可能是舊版本存的）';
+            alert(`樂譜載入成功！${imageMsg}`);
         } else {
             alert('載入失敗：檔案格式不符');
         }
