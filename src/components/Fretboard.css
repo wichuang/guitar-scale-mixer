@@ -87,10 +87,28 @@
   position: relative;
   width: max-content;
   min-width: 100%;
-  background: var(--bg-elevated);
+  background: #0a0a0a;
   border-radius: 6px;
-  padding: 32px 0 8px;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 28px 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Left-edge string-label gutter（E B G D A E） */
+.fretboard .string-gutter {
+  width: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #aaa;
+  background: transparent;
+  z-index: 3;
+}
+
+.fretboard .string-gutter.spacer {
+  visibility: hidden;
 }
 
 /* Fret numbers row */
@@ -114,43 +132,56 @@
 }
 
 .fretboard .fret-number {
-  color: var(--text-muted);
-  font-size: 8px;
-  font-weight: 500;
-  opacity: 0.4;
+  color: #666;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
 }
 
 .fretboard .fret-number.marked {
   opacity: 1;
-  color: var(--text-secondary);
+  color: #ccc;
 }
 
-/* Fret dot markers */
-.fretboard .fret-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.fretboard .fret-dots-double {
+/* Fret dots row at bottom */
+.fretboard .fret-dots-bottom {
   display: flex;
-  gap: 3px;
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+}
+
+.fretboard .fret-dot-cell {
+  width: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+}
+
+.fretboard .fret-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
 }
 
 /* String rows */
 .fretboard .string-row {
   display: flex;
   position: relative;
-  height: 24px;
+  height: 32px;
   align-items: center;
 }
 
 .fretboard .string-line {
   position: absolute;
-  left: 0;
+  left: 28px;
   right: 0;
-  background: rgba(180, 160, 130, 0.35);
+  background: rgba(180, 160, 130, 0.55);
   z-index: 1;
 }
 
@@ -166,12 +197,13 @@
   min-width: 0;
 }
 
+/* 圓角矩形 marker — 模仿吉他指板嵌貼風格 */
 .fretboard .note-marker {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+  width: 32px;
+  height: 22px;
+  border-radius: 6px;
   border: 1.5px solid transparent;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -181,26 +213,37 @@
   font-family: inherit;
   box-sizing: border-box;
   padding: 0;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .fretboard .note-marker:hover {
-  transform: scale(1.12);
+  transform: scale(1.1);
+  z-index: 4;
 }
 
 .fretboard .note-marker.active {
-  transform: scale(1.2);
+  transform: scale(1.18);
+  z-index: 4;
 }
 
-.fretboard .note-marker.root {
-  font-size: 10px;
+/* Root 指示：marker 上方一顆白色小圓點 */
+.fretboard .note-marker.root::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
 }
 
 .fretboard .note-marker.multi-scale {
-  box-shadow: 0 0 4px rgba(255, 255, 255, 0.25);
-}
-
-.fretboard .note-marker.multi-scale.bw-root {
-  text-shadow: none;
+  outline: 2px solid rgba(255, 255, 255, 0.35);
+  outline-offset: -3px;
 }
 
 /* Detected note from live input */
@@ -236,9 +279,9 @@
 /* Fret lines */
 .fretboard .fret-lines {
   position: absolute;
-  top: 32px;
-  bottom: 0;
-  left: 0;
+  top: 28px;
+  bottom: 18px;
+  left: 28px;
   display: flex;
   pointer-events: none;
   z-index: 0;
@@ -247,13 +290,13 @@
 .fretboard .fret-line {
   width: 48px;
   flex-shrink: 0;
-  border-right: 1px solid rgba(120, 100, 80, 0.25);
+  border-right: 1px solid rgba(160, 140, 110, 0.4);
   box-sizing: border-box;
   min-width: 0;
 }
 
 .fretboard .fret-line.nut {
-  border-right: 3px solid rgba(200, 180, 150, 0.5);
+  border-right: 3px solid rgba(220, 200, 170, 0.7);
 }
 
 

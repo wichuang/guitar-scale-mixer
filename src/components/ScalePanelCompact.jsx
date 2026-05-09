@@ -1,4 +1,5 @@
 import { NOTES, SCALES, getScaleNotes, getIntervalForNote } from '../data/scaleData';
+import { getPitchColor } from '../data/pitchColors';
 import './ScalePanelCompact.css';
 
 const SCALE_COLORS = ['#2196f3', '#ff9800', '#e91e63']; // 藍色、橘色、桃紅色，與指板一致
@@ -42,12 +43,18 @@ function ScalePanelCompact({ index, root, scale, enabledNotes, onRootChange, onS
                     const isRoot = interval === '1';
                     if (isRoot) interval = 'R';
 
+                    const pc = getPitchColor(note);
+                    const pillStyle = isEnabled
+                        ? { background: pc.bg, color: pc.fg, borderColor: 'transparent' }
+                        : { background: `${pc.bg}33`, color: pc.fg, borderColor: `${pc.bg}66` };
+
                     return (
                         <button
                             key={note}
                             className={`note-toggle-btn ${isEnabled ? 'enabled' : 'disabled'} ${isRoot ? 'is-root' : ''}`}
                             onClick={() => onToggleNote(note)}
                             title={`${note} (${interval})`}
+                            style={pillStyle}
                         >
                             <span className="note-name">{note}</span>
                             <span className="note-interval">{interval}</span>

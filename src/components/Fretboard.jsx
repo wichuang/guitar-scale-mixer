@@ -11,6 +11,7 @@ import {
 } from '../data/scaleData';
 import { useAudio } from '../hooks/useAudio';
 import { useDrawingCanvas, HIGHLIGHTER_COLORS, BRUSH_SIZES } from '../hooks/useDrawingCanvas';
+import { getPitchColor } from '../data/pitchColors';
 import './Fretboard.css';
 import './DrawingOverlay.css';
 
@@ -27,6 +28,9 @@ const DISABLED_COLORS = [
     { bg: '#888888', text: '#ffffff', border: '#555555' },   // Scale 2 - mid gray
     { bg: '#444444', text: '#ffffff', border: '#111111' },   // Scale 3 - dark gray
 ];
+
+// 6 弦音名（高 E 到低 E，配合 STRING_TUNINGS 順序）
+const STRING_NAMES = ['E', 'B', 'G', 'D', 'A', 'E'];
 
 // Visible frets (controlled from Settings)
 function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, colorOffset = 0 }) {
@@ -65,9 +69,10 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
     useEffect(() => {
         const updateFretWidth = () => {
             if (containerRef.current) {
-                const containerWidth = containerRef.current.offsetWidth - 32;
+                // 扣除外層 padding 32 + 左側 string-gutter 28
+                const containerWidth = containerRef.current.offsetWidth - 32 - 28;
                 const count = fretCount || 15;
-                const width = Math.max(24, Math.floor(containerWidth / (count + 0.5)));
+                const width = Math.max(28, Math.floor(containerWidth / (count + 0.5)));
                 setFretWidth(width);
             }
         };
@@ -257,6 +262,7 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                     <div className="fretboard" ref={fretboardRef}>
                         {/* Fret numbers */}
                         <div className="fret-numbers">
+                            <div className="string-gutter spacer">·</div>
                             {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
                                 <div
                                     key={fret}
@@ -266,15 +272,6 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                                     <span className={`fret-number ${fretMarkers.includes(fret) ? 'marked' : ''}`}>
                                         {fret}
                                     </span>
-                                    {fretMarkers.includes(fret) && !doubleDotFrets.includes(fret) && (
-                                        <div className="fret-dot" />
-                                    )}
-                                    {doubleDotFrets.includes(fret) && (
-                                        <div className="fret-dots-double">
-                                            <div className="fret-dot" />
-                                            <div className="fret-dot" />
-                                        </div>
-                                    )}
                                 </div>
                             ))}
                         </div>
@@ -285,6 +282,7 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
 
                             return (
                                 <div key={stringIdx} className="string-row">
+                                    <div className="string-gutter">{STRING_NAMES[stringIdx]}</div>
                                     <div
                                         className="string-line"
                                         style={{ height: `${stringThickness}px` }}
@@ -331,32 +329,28 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
 
                                         const isFullyDisabled = enabledInScales.every(s => disabledScales.has(s.idx));
 
-                                        // Find visibly active scales for text/root priority
                                         const visibleScales = isFullyDisabled
                                             ? enabledInScales
                                             : enabledInScales.filter(s => !disabledScales.has(s.idx));
 
                                         const primaryScaleIdx = visibleScales[0].idx;
 
-                                        // Find an active root if any
-                                        let activeRootIndex = isRoot ? isRootOf.find(idx => !disabledScales.has(idx)) : undefined;
-                                        if (isRoot && activeRootIndex === undefined) activeRootIndex = isRootOf[0]; // fallback
-
-                                        const colors = visibleScales.map(s => {
-                                            return disabledScales.has(s.idx) ? DISABLED_COLORS[(s.idx + colorOffset) % DISABLED_COLORS.length].bg : SCALE_COLORS[(s.idx + colorOffset) % SCALE_COLORS.length].bg;
+                                        // 判斷是否為 chord tone：任一 active scale 把這音列為 chord tone 即算（沒 chordNotes 欄位的就一律當 chord tone）
+                                        const isChordToneAny = visibleScales.some(s => {
+                                            const sc = scales[s.idx];
+                                            return !sc.chordNotes || sc.chordNotes.includes(noteName);
                                         });
-                                        backgroundStyle = generateBackground(colors);
+                                        // chord tone：滿色實心；passing tone：淡心 + 同色邊框
+                                        const isPassing = !isChordToneAny;
+                                        const pitchColor = getPitchColor(noteName, { passing: isPassing });
+                                        backgroundStyle = pitchColor.bg;
+                                        textColor = pitchColor.fg;
+                                        borderColor = pitchColor.border || 'transparent';
 
+                                        // disabled scale 的音符變淡
                                         if (isFullyDisabled) {
-                                            textColor = inMultiple ? '#000000' : DISABLED_COLORS[(primaryScaleIdx + colorOffset) % DISABLED_COLORS.length].text;
-                                        } else {
-                                            // overlapping notes are black, single scale notes are gray
-                                            textColor = inMultiple ? '#000000' : '#424242';
+                                            backgroundStyle = `${pitchColor.bg}55`;
                                         }
-
-                                        borderColor = isRoot
-                                            ? (disabledScales.has(activeRootIndex) ? DISABLED_COLORS[(activeRootIndex + colorOffset) % DISABLED_COLORS.length].border : SCALE_COLORS[(activeRootIndex + colorOffset) % SCALE_COLORS.length].border)
-                                            : 'transparent';
 
                                         let displayText;
                                         if (visibleScales.length > 1) {
@@ -401,6 +395,28 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                                 </div>
                             );
                         })}
+
+                        {/* Bottom 把位點 (3, 5, 7, 9 單點；12 雙點；15 單點 ...) */}
+                        <div className="fret-dots-bottom">
+                            <div className="string-gutter spacer">·</div>
+                            {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
+                                <div
+                                    key={fret}
+                                    className="fret-dot-cell"
+                                    style={{ width: fretWidth }}
+                                >
+                                    {fretMarkers.includes(fret) && !doubleDotFrets.includes(fret) && (
+                                        <div className="fret-dot" />
+                                    )}
+                                    {doubleDotFrets.includes(fret) && (
+                                        <>
+                                            <div className="fret-dot" />
+                                            <div className="fret-dot" />
+                                        </>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
 
                         {/* Fret lines */}
                         <div className="fret-lines">

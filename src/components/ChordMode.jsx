@@ -10,32 +10,63 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
     const [cagedPosition, setCagedPosition] = useState(null);
     const [fretboardLayout, setFretboardLayout] = useState('overlay');
 
-    // Default chords
-    const [chords, setChords] = useState([
-        { root: 'C', quality: 'Major', extension: '3' },
-        { root: 'G', quality: 'Dominant', extension: '7' },
-        { root: 'A', quality: 'Minor', extension: '7' }
-    ]);
+    // Default chords — enabledNotes 預設 = chord 內的音；其他音 picker 為 OFF
+    const [chords, setChords] = useState(() => {
+        const defaults = [
+            { root: 'C', quality: 'Major', extension: '3' },
+            { root: 'G', quality: 'Dominant', extension: '7' },
+            { root: 'A', quality: 'Minor', extension: '7' }
+        ];
+        return defaults.map(c => ({
+            ...c,
+            enabledNotes: getChordNotes(c.root, c.quality, c.extension)
+        }));
+    });
 
     const activeChords = chords.slice(0, chordCount);
 
+    // Update root / quality / extension：重設 enabledNotes 為新 chord 的音
     const updateChord = (index, field, value) => {
         setChords(prev => {
             const newChords = [...prev];
-            newChords[index] = { ...newChords[index], [field]: value };
+            const merged = { ...newChords[index], [field]: value };
+            if (field === 'root' || field === 'quality' || field === 'extension') {
+                merged.enabledNotes = getChordNotes(merged.root, merged.quality, merged.extension);
+            }
+            newChords[index] = merged;
+            return newChords;
+        });
+    };
+
+    // 切換 picker 的單個音 on/off。所有 chord tone（含 root）都鎖定，不可 toggle off。
+    const toggleChordNote = (index, note) => {
+        setChords(prev => {
+            const cur = prev[index];
+            const chordTones = getChordNotes(cur.root, cur.quality, cur.extension);
+            if (chordTones.includes(note)) return prev; // chord tones 鎖定
+            const newChords = [...prev];
+            const enabled = cur.enabledNotes || [];
+            newChords[index] = {
+                ...cur,
+                enabledNotes: enabled.includes(note)
+                    ? enabled.filter(n => n !== note)
+                    : [...enabled, note]
+            };
             return newChords;
         });
     };
 
     // Convert chords to "scales" for the Fretboard
+    // chordNotes：實際的 chord tones（如 C major = C/E/G）；
+    // enabledNotes：實際顯示的音（含 user 額外 toggle on 的 passing tones）
     const mappedScales = useMemo(() => {
         return activeChords.map(chord => {
-            const notes = getChordNotes(chord.root, chord.quality, chord.extension);
             return {
                 root: chord.root,
-                scale: 'chromatic', // Use chromatic formula so we can freely enable just our chord notes
-                enabledNotes: notes,
-                isChord: true // Custom flag in case Fretboard/interval formatting needs it
+                scale: 'chromatic',
+                enabledNotes: chord.enabledNotes,
+                chordNotes: getChordNotes(chord.root, chord.quality, chord.extension),
+                isChord: true
             };
         });
     }, [activeChords]);
@@ -123,9 +154,12 @@ function ChordMode({ guitarType, setGuitarType, displayMode, setDisplayMode, fre
                         root={chord.root}
                         quality={chord.quality}
                         extension={chord.extension}
+                        enabledNotes={chord.enabledNotes}
+                        chordNotes={getChordNotes(chord.root, chord.quality, chord.extension)}
                         onRootChange={(v) => updateChord(i, 'root', v)}
                         onQualityChange={(v) => updateChord(i, 'quality', v)}
                         onExtensionChange={(v) => updateChord(i, 'extension', v)}
+                        onToggleNote={(note) => toggleChordNote(i, note)}
                     />
                 ))}
             </div>
