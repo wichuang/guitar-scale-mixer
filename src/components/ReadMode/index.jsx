@@ -73,7 +73,7 @@ function normalizeNotes(notes) {
     });
 }
 
-function ReadMode({ guitarType, fretCount }) {
+function ReadMode({ guitarType, setGuitarType, fretCount }) {
     // ===== 基本狀態 =====
     const [rawText, setRawText] = useState('');
     const [notes, setNotes] = useState([]);
@@ -93,9 +93,6 @@ function ReadMode({ guitarType, fretCount }) {
     const [viewMode, setViewMode] = useState('both');
     const [showScaleGuide, setShowScaleGuide] = useState(true);
 
-    // ===== Read 模式音色（獨立於 Scale/Chord 模式的 guitarType） =====
-    const [instrument, setInstrument] = useState(guitarType);
-
     // ===== OCR 來源圖片（base64 data URL 陣列，存檔時一併儲存，最多 5 張） =====
     const [sourceImages, setSourceImages] = useState([]);
 
@@ -112,7 +109,7 @@ function ReadMode({ guitarType, fretCount }) {
     const [lastSession, setLastSession] = useState(null);
 
     // ===== Hooks =====
-    const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(instrument);
+    const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(guitarType);
     const { debouncedSave, load } = useAutosave({ key: AUTOSAVE_KEY });
 
     // 計算 3NPS 位置（memoized）
@@ -251,7 +248,7 @@ function ReadMode({ guitarType, fretCount }) {
                 if (saved.showYoutube !== undefined) setShowYoutube(saved.showYoutube);
                 if (saved.youtubeLayout) setYoutubeLayout(saved.youtubeLayout);
                 if (saved.viewMode) setViewMode(saved.viewMode);
-                if (saved.instrument) setInstrument(saved.instrument);
+                if (saved.instrument && setGuitarType) setGuitarType(saved.instrument);
             }
         } catch (e) {
             console.error('Failed to load autosave', e);
@@ -274,10 +271,10 @@ function ReadMode({ guitarType, fretCount }) {
             showYoutube,
             youtubeLayout,
             viewMode,
-            instrument
+            instrument: guitarType
         };
         debouncedSave(dataToSave);
-    }, [editableText, notes, key, scaleType, tempo, timeSignature, startString, octaveOffset, showScaleGuide, youtubeUrl, showYoutube, youtubeLayout, viewMode, instrument, debouncedSave]);
+    }, [editableText, notes, key, scaleType, tempo, timeSignature, startString, octaveOffset, showScaleGuide, youtubeUrl, showYoutube, youtubeLayout, viewMode, guitarType, debouncedSave]);
 
     // ===== 調號/音階變更時更新音符 =====
     useEffect(() => {
@@ -363,7 +360,7 @@ function ReadMode({ guitarType, fretCount }) {
             if (actualData.showYoutube !== undefined) setShowYoutube(actualData.showYoutube);
             if (actualData.youtubeLayout) setYoutubeLayout(actualData.youtubeLayout);
             if (actualData.viewMode) setViewMode(actualData.viewMode);
-            if (actualData.instrument) setInstrument(actualData.instrument);
+            if (actualData.instrument && setGuitarType) setGuitarType(actualData.instrument);
             // 支援新格式 sourceImages 陣列與舊格式單張 sourceImage
             let loadedImageCount = 0;
             if (Array.isArray(actualData.sourceImages)) {
@@ -428,7 +425,7 @@ function ReadMode({ guitarType, fretCount }) {
                     enableCountIn={enableCountIn}
                     showYoutube={showYoutube}
                     viewMode={viewMode}
-                    instrument={instrument}
+                    instrument={guitarType}
                     onKeyChange={setKey}
                     onScaleTypeChange={setScaleType}
                     onTimeSignatureChange={setTimeSignature}
@@ -438,7 +435,7 @@ function ReadMode({ guitarType, fretCount }) {
                     onEnableCountInChange={setEnableCountIn}
                     onShowYoutubeChange={setShowYoutube}
                     onViewModeChange={setViewMode}
-                    onInstrumentChange={setInstrument}
+                    onInstrumentChange={setGuitarType}
                 />
 
                 {/* 辨識結果顯示 */}
@@ -469,7 +466,7 @@ function ReadMode({ guitarType, fretCount }) {
                     showYoutube={showYoutube}
                     youtubeLayout={youtubeLayout}
                     viewMode={viewMode}
-                    instrument={instrument}
+                    instrument={guitarType}
                     sourceImages={sourceImages}
                     onLoadFile={handleLoadFile}
                     fileName="guitar_score"

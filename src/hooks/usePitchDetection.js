@@ -52,10 +52,14 @@ export function usePitchDetection() {
     const noteBufferRef = useRef([]);
 
     // Get available audio input devices
-    const refreshDevices = useCallback(async () => {
+    // requestPermission=true 才會跳出麥克風權限對話框並取得 device labels；
+    // 預設 false（app 啟動時不打擾使用者，等真的開始聆聽時才 request）
+    const refreshDevices = useCallback(async (requestPermission = false) => {
         try {
-            // We need to request permission to get labels, but we should close it immediately
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            let tempStream = null;
+            if (requestPermission) {
+                tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
 
             const allDevices = await navigator.mediaDevices.enumerateDevices();
             const audioInputs = allDevices.filter(d => d.kind === 'audioinput');
@@ -65,17 +69,18 @@ export function usePitchDetection() {
                 setSelectedDevice(audioInputs[0].deviceId);
             }
 
-            // Stop the temporary stream to release the microphone!
-            stream.getTracks().forEach(track => track.stop());
-            // Stop the temporary stream to release the microphone!
-            stream.getTracks().forEach(track => track.stop());
+            if (tempStream) {
+                tempStream.getTracks().forEach(track => track.stop());
+            }
         } catch (err) {
             console.error('Failed to get devices:', err);
         }
     }, [selectedDevice]);
 
+    // 啟動時只 enumerate（不 request 麥克風權限）；labels 會是空的，這 OK，
+    // 真正開始聆聽 (startListening) 取得權限後才會看到名稱。
     useEffect(() => {
-        refreshDevices();
+        refreshDevices(false);
     }, [refreshDevices]);
 
     // Pitch detection loop using YIN algorithm
@@ -195,6 +200,13 @@ export function usePitchDetection() {
             };
 
             streamRef.current = await navigator.mediaDevices.getUserMedia(constraints);
+
+            // 取得權限後重新 enumerate 一次，讓裝置清單帶上 labels
+            try {
+                const allDevices = await navigator.mediaDevices.enumerateDevices();
+                const audioInputs = allDevices.filter(d => d.kind === 'audioinput');
+                setDevices(audioInputs);
+            } catch { /* ignore */ }
 
             // Use larger FFT for better frequency resolution
             analyserRef.current = audioContextRef.current.createAnalyser();

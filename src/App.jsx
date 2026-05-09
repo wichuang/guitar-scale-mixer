@@ -373,6 +373,7 @@ function MainContent() {
         {mode === 'read' && (
           <ReadMode
             guitarType={guitarType}
+            setGuitarType={setGuitarType}
             fretCount={fretCount}
             pitchDetection={pitchDetection}
           />
