@@ -1,24 +1,23 @@
-// 12 音名的顏色（自然音與半音）— 模仿傳統教學配色
-// E=紅 / F=青綠 / G=橙 / A=紫 / B=灰 / C=白 / D=藍；半音用較淺/變體色
-// 共用於 Fretboard、ScalePanelCompact 等元件
+// 12 音名的顏色 — 配對「flat 暗 / natural 亮」的 interval 配色
+// 假設 root = C 時對應到：I(白) bII/II(藍) bIII/III(紅) IV/bV(青) V(橙) bVI/VI(紫) bVII/VII(灰)
 export const PITCH_COLORS = {
-    'C':  { bg: '#F5F5F5', fg: '#1a1a1a' },
-    'C#': { bg: '#D6D6D6', fg: '#1a1a1a' },
-    'Db': { bg: '#D6D6D6', fg: '#1a1a1a' },
-    'D':  { bg: '#3B82F6', fg: '#FFFFFF' },
-    'D#': { bg: '#60A5FA', fg: '#FFFFFF' },
-    'Eb': { bg: '#60A5FA', fg: '#FFFFFF' },
-    'E':  { bg: '#DC2626', fg: '#FFFFFF' },
-    'F':  { bg: '#0D9488', fg: '#FFFFFF' },
-    'F#': { bg: '#14B8A6', fg: '#FFFFFF' },
+    'C':  { bg: '#FFFFFF', fg: '#1a1a1a' },  // I
+    'C#': { bg: '#1E40AF', fg: '#FFFFFF' },  // bII 深藍
+    'Db': { bg: '#1E40AF', fg: '#FFFFFF' },
+    'D':  { bg: '#3B82F6', fg: '#FFFFFF' },  // II  亮藍
+    'D#': { bg: '#991B1B', fg: '#FFFFFF' },  // bIII 深紅
+    'Eb': { bg: '#991B1B', fg: '#FFFFFF' },
+    'E':  { bg: '#EF4444', fg: '#FFFFFF' },  // III  亮紅
+    'F':  { bg: '#0F766E', fg: '#FFFFFF' },  // IV   深青綠
+    'F#': { bg: '#14B8A6', fg: '#FFFFFF' },  // bV   亮青綠
     'Gb': { bg: '#14B8A6', fg: '#FFFFFF' },
-    'G':  { bg: '#F97316', fg: '#1a1a1a' },
-    'G#': { bg: '#FB923C', fg: '#1a1a1a' },
-    'Ab': { bg: '#FB923C', fg: '#1a1a1a' },
-    'A':  { bg: '#9333EA', fg: '#FFFFFF' },
-    'A#': { bg: '#A78BFA', fg: '#1a1a1a' },
-    'Bb': { bg: '#A78BFA', fg: '#1a1a1a' },
-    'B':  { bg: '#6B7280', fg: '#FFFFFF' },
+    'G':  { bg: '#F59E0B', fg: '#1a1a1a' },  // V    橙
+    'G#': { bg: '#6D28D9', fg: '#FFFFFF' },  // bVI  深紫
+    'Ab': { bg: '#6D28D9', fg: '#FFFFFF' },
+    'A':  { bg: '#A855F7', fg: '#FFFFFF' },  // VI   亮紫
+    'A#': { bg: '#4B5563', fg: '#FFFFFF' },  // bVII 深灰
+    'Bb': { bg: '#4B5563', fg: '#FFFFFF' },
+    'B':  { bg: '#6B7280', fg: '#FFFFFF' },  // VII  亮灰
 };
 
 // 將 hex 顏色與白色混合，amount 0=原色 1=純白
@@ -39,15 +38,16 @@ function lighten(hex, amount = 0.55) {
  * @param {object} options
  * @param {boolean} options.passing - 是否為 passing tone（非 chord tone 但被 user toggle on）
  *
- * 回傳 { bg, fg, border }；passing 為 true 時回傳「非常淡的填色 + 原音名色邊框」，
- * 與 chord tone 的滿色實心形成清楚視覺層級。
+ * 回傳 { bg, fg, border }；passing 為 true 時為「空心」樣式（透明中心 + 飽和色邊框），
+ * 與 chord tone 的滿色實心強烈區隔。
  */
 export function getPitchColor(noteName, { passing = false } = {}) {
     const base = PITCH_COLORS[noteName] || { bg: '#888888', fg: '#FFFFFF' };
     if (passing) {
+        // 空心：完全透明中心 + 飽和色邊框 + 白字（深色 bg 上易讀）
         return {
-            bg: lighten(base.bg, 0.82),
-            fg: '#1a1a1a',
+            bg: 'transparent',
+            fg: '#FFFFFF',
             border: base.bg,
         };
     }

@@ -42,6 +42,17 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
     const fretboardRef = useRef(null);
     const [fretWidth, setFretWidth] = useState(60);
     const [disabledScales, setDisabledScales] = useState(new Set());
+    const [disabledFrets, setDisabledFrets] = useState(new Set());
+
+    const toggleFret = (fret) => {
+        if (fret <= 0) return; // open string 不可 toggle
+        setDisabledFrets(prev => {
+            const next = new Set(prev);
+            if (next.has(fret)) next.delete(fret);
+            else next.add(fret);
+            return next;
+        });
+    };
 
     const {
         drawingEnabled,
@@ -260,20 +271,28 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                 {/* Fretboard content */}
                 <div className="fretboard-main">
                     <div className="fretboard" ref={fretboardRef}>
-                        {/* Fret numbers */}
+                        {/* Fret numbers — 可點擊 toggle on/off 整個 fret */}
                         <div className="fret-numbers">
                             <div className="string-gutter spacer">·</div>
-                            {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
-                                <div
-                                    key={fret}
-                                    className="fret-number-cell"
-                                    style={{ width: fretWidth }}
-                                >
-                                    <span className={`fret-number ${fretMarkers.includes(fret) ? 'marked' : ''}`}>
-                                        {fret}
-                                    </span>
-                                </div>
-                            ))}
+                            {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => {
+                                const isFretDisabled = disabledFrets.has(fret);
+                                return (
+                                    <div
+                                        key={fret}
+                                        className="fret-number-cell"
+                                        style={{ width: fretWidth }}
+                                    >
+                                        <button
+                                            className={`fret-number-btn ${fretMarkers.includes(fret) ? 'marked' : ''} ${isFretDisabled ? 'fret-off' : ''}`}
+                                            onClick={() => toggleFret(fret)}
+                                            disabled={fret === 0}
+                                            title={fret === 0 ? '開放弦' : `Fret ${fret}（點擊 toggle on/off）`}
+                                        >
+                                            {fret}
+                                        </button>
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         {/* Strings */}
@@ -320,12 +339,13 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                                         let backgroundStyle, textColor, borderColor;
 
                                         const isCagedDim = cagedRange && !isInCAGEDPosition(fret, cagedRange.startFret, cagedRange.endFret);
+                                        const isUserFretDimmed = disabledFrets.has(fret);
 
                                         let markerClass = 'note-marker';
                                         if (isActive) markerClass += ' active';
                                         if (isRoot) markerClass += ' root';
                                         if (inMultiple) markerClass += ' multi-scale';
-                                        if (isCagedDim) markerClass += ' caged-dim';
+                                        if (isCagedDim || isUserFretDimmed) markerClass += ' caged-dim';
 
                                         const isFullyDisabled = enabledInScales.every(s => disabledScales.has(s.idx));
 
@@ -380,6 +400,8 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                                                     style={{
                                                         background: backgroundStyle,
                                                         borderColor: borderColor,
+                                                        borderStyle: 'solid',
+                                                        borderWidth: isPassing ? '2.5px' : '1.5px',
                                                         color: textColor,
                                                         fontSize: isLongText ? '8px' : undefined,
                                                         lineHeight: isLongText ? '1' : undefined

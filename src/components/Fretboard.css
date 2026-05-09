@@ -143,6 +143,50 @@
   color: #ccc;
 }
 
+/* 可點擊 toggle 的 fret 號碼按鈕（取代純文字 .fret-number） */
+.fretboard .fret-number-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #666;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 24px;
+  line-height: 1.2;
+}
+
+.fretboard .fret-number-btn.marked {
+  color: #ddd;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.fretboard .fret-number-btn:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.fretboard .fret-number-btn.fret-off {
+  color: #444;
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.fretboard .fret-number-btn.fret-off:hover {
+  color: #888;
+  opacity: 0.8;
+}
+
+.fretboard .fret-number-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 /* Fret dots row at bottom */
 .fretboard .fret-dots-bottom {
   display: flex;
