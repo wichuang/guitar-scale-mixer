@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import Fretboard from './components/Fretboard';
 import LiveMode from './components/LiveMode';
 import ReadMode from './components/ReadMode/index.jsx';
+import ReadPopup from './components/ReadMode/ReadPopup.jsx';
 import ScalePanelCompact from './components/ScalePanelCompact';
 import ChordMode from './components/ChordMode';
 import SettingsPage from './components/SettingsPage';
@@ -420,6 +421,11 @@ function MainContent() {
 }
 
 function App() {
+  // Popup 視窗檢視（Guitar / Score）— 繞過 auth，純檢視 + BroadcastChannel 同步
+  const view = new URLSearchParams(window.location.search).get('view');
+  if (view === 'read-fretboard') return <ReadPopup view="fretboard" />;
+  if (view === 'read-score') return <ReadPopup view="score" />;
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

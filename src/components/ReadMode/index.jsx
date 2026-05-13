@@ -3,7 +3,7 @@
  * 整合所有子元件，管理狀態
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
     parseJianpuText,
     jianpuToNote,
@@ -26,6 +26,7 @@ import SettingsPanel from './SettingsPanel.jsx';
 import NoteEditor from './NoteEditor.jsx';
 import FileActions from './FileActions.jsx';
 import YouTubePlayer from './YouTubePlayer.jsx';
+import { READ_SYNC_CHANNEL } from './ReadPopup.jsx';
 import './ReadMode.css';
 
 const AUTOSAVE_KEY = 'guitar-mixer-readmode-autosave';
@@ -87,6 +88,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     const [timeSignature, setTimeSignature] = useState('4/4');
     const [startString, setStartString] = useState(5);
     const [rangeOctave, setRangeOctave] = useState(0);
+    const [cagedPosition, setCagedPosition] = useState(null);
     const [octaveOffset, setOctaveOffset] = useState(-1);
 
     // ===== 顯示設定 =====
@@ -100,6 +102,12 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     const [youtubeUrl, setYoutubeUrl] = useState('');
     const [showYoutube, setShowYoutube] = useState(false);
     const [youtubeLayout, setYoutubeLayout] = useState({ x: 50, y: 50, width: 320, height: 180 });
+
+    // ===== 顯示 / Popup 控制 =====
+    const [showInlineFretboard, setShowInlineFretboard] = useState(false); // 預設關閉指板（圖2）
+    const [showInlineScore, setShowInlineScore] = useState(false); // 預設關閉 Score Preview（圖3）
+    const fretboardWindowRef = useRef(null);
+    const scoreWindowRef = useRef(null);
 
     // ===== Practice Tools 狀態 =====
     const [showPracticeTools, setShowPracticeTools] = useState(false);
@@ -161,6 +169,46 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     useEffect(() => {
         metronomSetBpm(tempo);
     }, [tempo, metronomSetBpm]);
+
+    // ===== BroadcastChannel — 同步狀態給 Guitar / Score popup 視窗 =====
+    const bcRef = useRef(null);
+    useEffect(() => {
+        const bc = new BroadcastChannel(READ_SYNC_CHANNEL);
+        bcRef.current = bc;
+        bc.onmessage = (e) => {
+            const msg = e.data;
+            if (!msg) return;
+            if (msg.type === 'request-state') {
+                publishStateRef.current?.();
+            } else if (msg.type === 'set-caged') {
+                setCagedPosition(msg.value ?? null);
+            }
+        };
+        return () => { bc.close(); bcRef.current = null; };
+    }, []);
+
+    // ref to latest publish — 避免在 effect deps 中列入所有狀態
+    const publishStateRef = useRef(null);
+
+    const openFretboardPopup = useCallback(() => {
+        const url = `${window.location.origin}${window.location.pathname}?view=read-fretboard`;
+        if (fretboardWindowRef.current && !fretboardWindowRef.current.closed) {
+            fretboardWindowRef.current.focus();
+            return;
+        }
+        fretboardWindowRef.current = window.open(url, 'guitar-mixer-fretboard',
+            'width=1200,height=400,scrollbars=yes');
+    }, []);
+
+    const openScorePopup = useCallback(() => {
+        const url = `${window.location.origin}${window.location.pathname}?view=read-score`;
+        if (scoreWindowRef.current && !scoreWindowRef.current.closed) {
+            scoreWindowRef.current.focus();
+            return;
+        }
+        scoreWindowRef.current = window.open(url, 'guitar-mixer-score',
+            'width=1400,height=500,scrollbars=yes');
+    }, []);
 
     // Practice Timer Hook
     const practiceTimer = usePracticeTimer({
@@ -226,6 +274,32 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     }), [isPlaying, pause, practiceTimer, handlePlayWithTracking, selectedNoteIndex, handleStopWithTracking, notes.length, loopSection, metronome, currentNoteIndex]);
 
     useKeyboardShortcuts(shortcutHandlers, { enabled: true });
+
+    // ===== Popup 同步 — 將相關狀態 publish 到 BroadcastChannel =====
+    const publishState = useCallback(() => {
+        if (!bcRef.current) return;
+        bcRef.current.postMessage({
+            type: 'state',
+            payload: {
+                notes,
+                notePositions,
+                currentNoteIndex,
+                isPlaying,
+                playTime,
+                musicKey: key,
+                scaleType,
+                tempo,
+                timeSignature,
+                startString,
+                rangeOctave,
+                cagedPosition,
+                showScaleGuide,
+                fretCount,
+            }
+        });
+    }, [notes, notePositions, currentNoteIndex, isPlaying, playTime, key, scaleType, tempo, timeSignature, startString, rangeOctave, cagedPosition, showScaleGuide, fretCount]);
+    publishStateRef.current = publishState;
+    useEffect(() => { publishState(); }, [publishState]);
 
     // ===== 載入自動儲存 =====
     useEffect(() => {
@@ -421,6 +495,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     timeSignature={timeSignature}
                     tempo={tempo}
                     startString={startString}
+                    cagedPosition={cagedPosition}
                     showScaleGuide={showScaleGuide}
                     enableCountIn={enableCountIn}
                     showYoutube={showYoutube}
@@ -431,6 +506,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     onTimeSignatureChange={setTimeSignature}
                     onTempoChange={setTempo}
                     onStartStringChange={setStartString}
+                    onCagedPositionChange={setCagedPosition}
                     onShowScaleGuideChange={setShowScaleGuide}
                     onEnableCountInChange={setEnableCountIn}
                     onShowYoutubeChange={setShowYoutube}
@@ -438,19 +514,6 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     onInstrumentChange={setGuitarType}
                 />
 
-                {/* 辨識結果顯示 */}
-                {rawText && (viewMode === 'both' || viewMode === 'text') && (
-                    <div className="result-section expanded">
-                        <label>簡譜內容</label>
-                        <textarea
-                            value={editableText}
-                            onChange={(e) => setEditableText(e.target.value)}
-                            onBlur={handleManualParse}
-                            placeholder="辨識後的簡譜內容 (可直接編輯，點擊外處更新)"
-                            rows={10}
-                        />
-                    </div>
-                )}
 
                 {/* 檔案操作 (Save/Open/Copy/Export) */}
                 <FileActions
@@ -514,46 +577,77 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                         }
                     }}
                     playNote={playNote}
+                    onOpenFretboardPopup={openFretboardPopup}
+                    onOpenScorePopup={openScorePopup}
+                    showInlineFretboard={showInlineFretboard}
+                    onToggleInlineFretboard={() => setShowInlineFretboard(p => !p)}
+                    showInlineScore={showInlineScore}
+                    onToggleInlineScore={() => setShowInlineScore(p => !p)}
                 />
             )}
 
-            {/* 指板顯示 */}
-            <ReadFretboard
-                notes={notes}
-                currentNoteIndex={currentNoteIndex}
-                fretCount={fretCount}
-                onNoteClick={handleNoteClick}
-                startString={startString}
-                onStartStringChange={setStartString}
-                rangeOctave={rangeOctave}
-                onRangeOctaveChange={setRangeOctave}
-                musicKey={key}
-                scaleType={scaleType}
-                showScaleGuide={showScaleGuide}
-                toolbarExtra={
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <PracticeTools
-                            tempo={tempo}
-                            timeSignature={timeSignature}
-                            totalNotes={notes.length}
-                            onTempoChange={setTempo}
-                            onTimeSignatureChange={setTimeSignature}
-                            isExpanded={showPracticeTools}
-                            onToggleExpand={() => setShowPracticeTools(prev => !prev)}
-                        />
-                        <PracticeStats
-                            showSessionSummary={showSessionSummary}
-                            lastSession={lastSession}
-                            onSessionSummaryClose={() => setShowSessionSummary(false)}
-                            isExpanded={showPracticeStats}
-                            onToggleExpand={() => setShowPracticeStats(prev => !prev)}
-                        />
-                    </div>
-                }
-            />
+            {/* 指板顯示 — 預設關閉，可由 NoteEditor 的 Guitar 鈕開新視窗或開 inline */}
+            {showInlineFretboard && (
+                <ReadFretboard
+                    notes={notes}
+                    currentNoteIndex={currentNoteIndex}
+                    fretCount={fretCount}
+                    onNoteClick={handleNoteClick}
+                    startString={startString}
+                    onStartStringChange={setStartString}
+                    rangeOctave={rangeOctave}
+                    onRangeOctaveChange={setRangeOctave}
+                    cagedPosition={cagedPosition}
+                    musicKey={key}
+                    scaleType={scaleType}
+                    showScaleGuide={showScaleGuide}
+                    toolbarExtra={
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <PracticeTools
+                                tempo={tempo}
+                                timeSignature={timeSignature}
+                                totalNotes={notes.length}
+                                onTempoChange={setTempo}
+                                onTimeSignatureChange={setTimeSignature}
+                                isExpanded={showPracticeTools}
+                                onToggleExpand={() => setShowPracticeTools(prev => !prev)}
+                            />
+                            <PracticeStats
+                                showSessionSummary={showSessionSummary}
+                                lastSession={lastSession}
+                                onSessionSummaryClose={() => setShowSessionSummary(false)}
+                                isExpanded={showPracticeStats}
+                                onToggleExpand={() => setShowPracticeStats(prev => !prev)}
+                            />
+                        </div>
+                    }
+                />
+            )}
 
-            {/* Score Display */}
-            {notes.length > 0 && (
+            {/* Practice Tools / Stats — 即使指板關閉時也要可用 */}
+            {!showInlineFretboard && (
+                <div style={{ padding: '8px 20px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <PracticeTools
+                        tempo={tempo}
+                        timeSignature={timeSignature}
+                        totalNotes={notes.length}
+                        onTempoChange={setTempo}
+                        onTimeSignatureChange={setTimeSignature}
+                        isExpanded={showPracticeTools}
+                        onToggleExpand={() => setShowPracticeTools(prev => !prev)}
+                    />
+                    <PracticeStats
+                        showSessionSummary={showSessionSummary}
+                        lastSession={lastSession}
+                        onSessionSummaryClose={() => setShowSessionSummary(false)}
+                        isExpanded={showPracticeStats}
+                        onToggleExpand={() => setShowPracticeStats(prev => !prev)}
+                    />
+                </div>
+            )}
+
+            {/* Score Display — 預設關閉，可由 NoteEditor 的 Score 鈕開新視窗或開 inline */}
+            {showInlineScore && notes.length > 0 && (
                 <div style={{ padding: '0 20px 20px 20px' }}>
                     <h3 style={{ color: '#aaa', marginBottom: '10px' }}>Score Preview</h3>
                     <ScoreDisplay

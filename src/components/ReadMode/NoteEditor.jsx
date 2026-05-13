@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { jianpuToNote, notesToJianpuString } from '../../parsers/JianpuParser.js';
+import TypewriterDialog from './TypewriterDialog.jsx';
 import { CHORD_ROOTS, CHORD_QUALITIES, getChordNotes } from '../../data/chordData.js';
 import { STRING_TUNINGS, NOTES } from '../../data/scaleData.js';
 const formatPlayTime = (seconds) => {
@@ -682,14 +683,63 @@ function NoteEditor({
     onSelectedNoteChange,
     onNoteSelect,
     onTogglePlay,
-    playNote
+    playNote,
+    onOpenFretboardPopup,
+    onOpenScorePopup,
+    showInlineFretboard,
+    onToggleInlineFretboard,
+    showInlineScore,
+    onToggleInlineScore
 }) {
     const [hoverInfo, setHoverInfo] = useState('');
     const [editPanelOpen, setEditPanelOpen] = useState(false);
     const [showChords, setShowChords] = useState(true);
     const [showTab, setShowTab] = useState(true);
     const [fullscreen, setFullscreen] = useState(false);
+    const [fullscreenEdit, setFullscreenEdit] = useState(false);
     const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+    const [typewriterOpen, setTypewriterOpen] = useState(false);
+
+    /**
+     * 打字機輸入：解析 0-7 與 ; 字串為一串音符，插入到選中音符之後
+     */
+    const handleTypewriterConfirm = useCallback((text) => {
+        setTypewriterOpen(false);
+        if (!text) return;
+        const newNotes = [...notes];
+        const insertIndex = selectedNoteIndex >= 0 ? selectedNoteIndex + 1 : newNotes.length;
+        const toInsert = [];
+        for (const ch of text) {
+            if (ch === '0') {
+                toInsert.push({
+                    jianpu: '0', displayStr: '0',
+                    _type: 'rest', isRest: true,
+                    octave: 4, index: 0
+                });
+            } else if (ch >= '1' && ch <= '7') {
+                const noteData = jianpuToNote(ch, 0, musicKey, scaleType);
+                if (noteData) {
+                    toInsert.push({
+                        ...noteData,
+                        jianpu: ch, displayStr: ch,
+                        _type: 'note', isNote: true,
+                    });
+                }
+            } else if (ch === '|') {
+                toInsert.push({
+                    jianpu: '|', displayStr: '|',
+                    _type: 'separator', isSeparator: true,
+                    octave: 4, index: 0
+                });
+            }
+        }
+        if (toInsert.length === 0) return;
+        newNotes.splice(insertIndex, 0, ...toInsert);
+        const reindexed = newNotes.map((n, i) => ({ ...n, index: i }));
+        onNotesChange(reindexed);
+        onTextChange(notesToJianpuString(reindexed));
+        onSelectedNoteChange(insertIndex + toInsert.length - 1);
+    }, [notes, selectedNoteIndex, musicKey, scaleType, onNotesChange, onSelectedNoteChange, onTextChange]);
 
     // Edit Panel 鍵盤快捷鍵列表
     const EDIT_SHORTCUTS = [
@@ -701,6 +751,7 @@ function NoteEditor({
         { keys: 'b', desc: '加 / 移除降記號' },
         { keys: '_ (Shift+-)', desc: '時值改 8 分音符' },
         { keys: '=', desc: '時值改 16 分音符' },
+        { keys: '.', desc: '附點 toggle（無→單→複→無）' },
         { keys: '~', desc: '切換延音 (tie)' },
         { keys: '^', desc: '向後插入休止符' },
         { keys: '|', desc: '向後插入小節線' },
@@ -1095,6 +1146,20 @@ function NoteEditor({
                 return;
             }
 
+            // . : 附點 toggle（無 → 單附點 → 複附點 → 無）
+            if (e.key === '.' || e.key === '。') {
+                const note = notes[selectedNoteIndex];
+                if (note.isSeparator || note.isSymbol) return;
+                e.preventDefault();
+                const current = note.dotted || 0;
+                const next = current >= 2 ? 0 : current + 1;
+                const newNotes = [...notes];
+                newNotes[selectedNoteIndex] = { ...note, dotted: next };
+                onNotesChange(newNotes);
+                syncEditableText(newNotes);
+                return;
+            }
+
             // + / -: 升/降八度
             if (e.key === '+' || e.key === '-') {
                 const note = notes[selectedNoteIndex];
@@ -1326,7 +1391,24 @@ function NoteEditor({
     ];
 
     return (
-        <div className="note-editor-area">
+        <div
+            className={`note-editor-area ${fullscreenEdit ? 'fullscreen-edit-mode' : ''}`}
+            style={fullscreenEdit ? {
+                position: 'fixed', inset: 0, zIndex: 9998,
+                background: '#000', padding: '12px', overflow: 'auto'
+            } : undefined}
+        >
+            {fullscreenEdit && (
+                <button
+                    onClick={() => setFullscreenEdit(false)}
+                    style={{
+                        position: 'absolute', top: 14, right: 14, zIndex: 10001,
+                        padding: '6px 14px', fontSize: '14px',
+                        background: '#333', color: '#ccc',
+                        border: '1px solid #555', borderRadius: '6px', cursor: 'pointer'
+                    }}
+                >✕ 退出全螢幕</button>
+            )}
             {/* 左側：編輯面板（可收合） */}
             <div className="editor-panel" title={`Edit Panel 鍵盤快捷鍵\n\n${shortcutsTitle}`} style={editPanelOpen ? {} : { width: 'auto', minWidth: '40px', padding: '8px', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
@@ -1639,6 +1721,13 @@ function NoteEditor({
                     <div className="editor-buttons">
                         <button className="editor-btn" onClick={() => handleInsertSymbol('0', 'before')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('前方插入休止符')} onMouseLeave={() => setHoverInfo('')}>前</button>
                         <button className="editor-btn" onClick={() => handleInsertSymbol('0', 'after')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('後方插入休止符')} onMouseLeave={() => setHoverInfo('')}>後</button>
+                        <button
+                            className="editor-btn"
+                            onClick={() => setTypewriterOpen(true)}
+                            onMouseEnter={() => setHoverInfo('打字機：批次輸入 0-7 與 | 串入音符與小節線')}
+                            onMouseLeave={() => setHoverInfo('')}
+                            title="打字機 — 批次輸入文字音符"
+                        >🖨️</button>
                     </div>
                     <div className="editor-insert-row" style={{ marginTop: '6px' }}>
                         <button className="editor-btn small" onClick={() => handleInsertSymbol('0')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('休止符 0')} onMouseLeave={() => setHoverInfo('')}>0</button>
@@ -1722,6 +1811,24 @@ function NoteEditor({
                     }}>
                         {formatPlayTime(playTime)}
                     </div>
+                    {/* Guitar — 開新視窗顯示指板（同步播放） */}
+                    {onOpenFretboardPopup && (
+                        <button
+                            onClick={onOpenFretboardPopup}
+                            onContextMenu={(e) => { e.preventDefault(); onToggleInlineFretboard?.(); }}
+                            style={{ padding: '6px 10px', fontSize: '13px', background: showInlineFretboard ? '#2196F3' : '#333', color: '#fff', border: '1px solid #555', borderRadius: '6px', cursor: 'pointer' }}
+                            title="開新視窗顯示指板（右鍵切換 inline 顯示）"
+                        >🎸 Guitar</button>
+                    )}
+                    {/* Score — 開新視窗顯示五線譜（同步播放） */}
+                    {onOpenScorePopup && (
+                        <button
+                            onClick={onOpenScorePopup}
+                            onContextMenu={(e) => { e.preventDefault(); onToggleInlineScore?.(); }}
+                            style={{ padding: '6px 10px', fontSize: '13px', background: showInlineScore ? '#2196F3' : '#333', color: '#fff', border: '1px solid #555', borderRadius: '6px', cursor: 'pointer' }}
+                            title="開新視窗顯示樂譜（右鍵切換 inline 顯示）"
+                        >🎼 Score</button>
+                    )}
                     <button
                         onClick={onTogglePlay} disabled={audioLoading}
                         style={{ padding: '6px 18px', fontSize: '14px', background: isPlaying ? '#f44336' : '#4caf50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
@@ -1729,10 +1836,22 @@ function NoteEditor({
                     <button
                         onClick={() => setFullscreen(true)}
                         style={{ padding: '6px 10px', fontSize: '14px', background: '#333', color: '#ccc', border: '1px solid #555', borderRadius: '6px', cursor: 'pointer' }}
-                        title="全螢幕播放"
+                        title="全螢幕播放（僅顯示樂譜）"
                     >⛶</button>
+                    <button
+                        onClick={() => setFullscreenEdit(true)}
+                        style={{ padding: '6px 10px', fontSize: '14px', background: '#333', color: '#ccc', border: '1px solid #555', borderRadius: '6px', cursor: 'pointer' }}
+                        title="全螢幕播放（含 Edit Panel）"
+                    >⛶📋</button>
                 </div>
             </div>
+
+            {/* 打字機輸入對話框 */}
+            <TypewriterDialog
+                open={typewriterOpen}
+                onConfirm={handleTypewriterConfirm}
+                onCancel={() => setTypewriterOpen(false)}
+            />
 
             {/* 全螢幕播放模式 */}
             {fullscreen && (

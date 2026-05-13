@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { NOTES } from '../../data/scaleData.js';
+import { NOTES, CAGED_SHAPES } from '../../data/scaleData.js';
 import InstrumentSelector from './InstrumentSelector.jsx';
 
 function SettingsPanel({
@@ -13,6 +13,7 @@ function SettingsPanel({
     timeSignature,
     tempo,
     startString,
+    cagedPosition,
     showScaleGuide,
     enableCountIn,
     showYoutube,
@@ -23,6 +24,7 @@ function SettingsPanel({
     onTimeSignatureChange,
     onTempoChange,
     onStartStringChange,
+    onCagedPositionChange,
     onShowScaleGuideChange,
     onEnableCountInChange,
     onShowYoutubeChange,
@@ -80,25 +82,38 @@ function SettingsPanel({
             </div>
 
             <div className="setting-row mode-info">
-                <label>指法模式</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <span className="mode-badge">3NPS</span>
-                    <select
-                        value={startString}
-                        onChange={(e) => onStartStringChange(Number(e.target.value))}
+                <label>Position</label>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => onCagedPositionChange && onCagedPositionChange(null)}
                         style={{
-                            padding: '4px',
+                            padding: '3px 8px',
                             borderRadius: '4px',
                             border: '1px solid #444',
-                            background: '#222',
-                            color: 'white',
-                            fontSize: '12px'
+                            background: cagedPosition === null ? '#2196F3' : '#222',
+                            color: '#fff',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            minWidth: '32px'
                         }}
-                    >
-                        <option value={5}>根音在第 6 弦 (E)</option>
-                        <option value={4}>根音在第 5 弦 (A)</option>
-                        <option value={3}>根音在第 4 弦 (D)</option>
-                    </select>
+                    >All</button>
+                    {CAGED_SHAPES.map(shape => (
+                        <button
+                            key={shape}
+                            onClick={() => onCagedPositionChange && onCagedPositionChange(shape)}
+                            style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                border: '1px solid #444',
+                                background: cagedPosition === shape ? '#2196F3' : '#222',
+                                color: '#fff',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                minWidth: '28px',
+                                fontWeight: 600
+                            }}
+                        >{shape}</button>
+                    ))}
                 </div>
             </div>
 

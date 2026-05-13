@@ -1,11 +1,19 @@
 // Update ReadFretboard.jsx
 
 import { useMemo } from 'react';
-import { STRING_TUNINGS, getNoteName, getNoteIndex, getIntervalForNote } from '../data/scaleData';
+import { STRING_TUNINGS, getNoteName, getNoteIndex, getIntervalForNote, getCAGEDFretRange, isInCAGEDPosition } from '../data/scaleData';
 import { calculate3NPSPositions, get3NPSInfo, generate3NPSMap } from '../parsers/JianpuParser';
+import { getPitchColor } from '../data/pitchColors';
 import './ReadFretboard.css';
 
-function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startString = 5, onStartStringChange, rangeOctave = 0, onRangeOctaveChange, musicKey = 'C', scaleType = 'Major', showScaleGuide = false, toolbarExtra }) {
+const STRING_NAMES = ['E', 'B', 'G', 'D', 'A', 'E'];
+
+function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startString = 5, onStartStringChange, rangeOctave = 0, onRangeOctaveChange, cagedPosition = null, musicKey = 'C', scaleType = 'Major', showScaleGuide = false, toolbarExtra }) {
+    // CAGED 範圍 — 用於把範圍外的音符變暗
+    const cagedRange = useMemo(() => (
+        cagedPosition ? getCAGEDFretRange(musicKey, cagedPosition) : null
+    ), [musicKey, cagedPosition]);
+    const isFretInCAGED = (fret) => !cagedRange || isInCAGEDPosition(fret, cagedRange.startFret, cagedRange.endFret);
     // 1. Calculate Score Note Positions
     const notePositions = useMemo(() => {
         const positions = calculate3NPSPositions(notes, startString, musicKey, scaleType, rangeOctave);
@@ -43,60 +51,18 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
 
     return (
         <div className="read-fretboard-container">
-            {/* 3NPS 模式指示 */}
-            <div className="position-indicator mode-3nps">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>🎸 {modeInfo.description}</span>
-
-                    {/* Start String Selector */}
-                    <select
-                        value={startString}
-                        onChange={(e) => onStartStringChange && onStartStringChange(Number(e.target.value))}
-                        title="起始弦"
-                        style={{
-                            padding: '2px 4px',
-                            borderRadius: '4px',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            background: 'rgba(0,0,0,0.5)',
-                            color: 'white',
-                            fontSize: '12px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        <option value={5}>Start: 6th (E)</option>
-                        <option value={4}>Start: 5th (A)</option>
-                        <option value={3}>Start: 4th (D)</option>
-                    </select>
-
-                    {/* Range/Octave Selector */}
-                    <select
-                        value={rangeOctave}
-                        onChange={(e) => onRangeOctaveChange && onRangeOctaveChange(Number(e.target.value))}
-                        title="高低八度偏移"
-                        style={{
-                            padding: '2px 4px',
-                            borderRadius: '4px',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            background: 'rgba(0,0,0,0.5)',
-                            color: 'white',
-                            fontSize: '12px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        <option value={0}>Range: Normal</option>
-                        <option value={1}>Range: High (+8ve)</option>
-                        <option value={-1}>Range: Low (-8ve)</option>
-                    </select>
+            {toolbarExtra && (
+                <div className="position-indicator" style={{ justifyContent: 'flex-end' }}>
+                    {toolbarExtra}
                 </div>
-                {toolbarExtra}
-            </div>
+            )}
 
             {/* 指板主體 */}
             <div className="read-fretboard">
                 {/* 格數標記 */}
                 <div className="fret-numbers">
+                    <div className="string-gutter spacer">·</div>
                     {Array.from({ length: visibleFrets + 1 }, (_, fret) => {
-                        // Check if score note exists
                         const hasScoreNote = notePositions.some(np => np.position?.fret === fret);
                         return (
                             <div
@@ -107,15 +73,6 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                 <span className={`fret-number ${fretMarkers.includes(fret) ? 'marked' : ''}`}>
                                     {fret}
                                 </span>
-                                {fretMarkers.includes(fret) && !doubleDotFrets.includes(fret) && (
-                                    <div className="fret-dot" />
-                                )}
-                                {doubleDotFrets.includes(fret) && (
-                                    <div className="fret-dots-double">
-                                        <div className="fret-dot" />
-                                        <div className="fret-dot" />
-                                    </div>
-                                )}
                             </div>
                         );
                     })}
@@ -132,6 +89,7 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
 
                     return (
                         <div key={stringIdx} className="string-row">
+                            <div className="string-gutter">{STRING_NAMES[stringIdx]}</div>
                             <div
                                 className="string-line"
                                 style={{ height: `${stringThickness}px` }}
@@ -165,33 +123,34 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                     );
                                 }
 
-                                // Determine Label
-                                // If Score Note, use its label (Jianpu + Octave/Accidental)
-                                // If Scale Note only, use Degree/NoteName
+                                // Determine label + role
                                 let label = '';
                                 let classNames = 'note-marker';
+                                const isRoot = scoreNote && (scoreNote.jianpu == '1' || scoreNote.jianpu === 1);
 
                                 if (scoreNote) {
-                                    label = scoreNote.displayStr || scoreNote.jianpu || noteName;
+                                    label = noteName; // 用音名顯示（與 Scale/Chord 模式一致）
                                     classNames += ' has-note';
-                                    if (scoreNote.jianpu == '1') classNames += ' root-note';
-                                    // Handle accidentals in class?
-                                    if (scoreNote.noteName?.includes('#')) classNames += ' sharp';
-                                    if (scoreNote.noteName?.includes('b')) classNames += ' flat';
+                                    if (isRoot) classNames += ' root-note';
                                 } else if (scaleNote) {
-                                    // Ghost Note - Use Degree Label (1, 2, b3, etc.)
                                     classNames += ' scale-ghost';
-                                    // Use getIntervalForNote logic mapping midiNote to relative interval
-                                    // We need NoteName for getIntervalForNote
-                                    const intervalLabel = getIntervalForNote(noteName, musicKey, scaleType);
-                                    label = intervalLabel || noteName; // Fallback to note name if parsing fails
+                                    label = noteName;
                                 }
 
                                 if (isCurrent) classNames += ' current';
+                                if (!isFretInCAGED(fret)) classNames += ' caged-dim';
 
                                 if (fret === 0 && stringIdx === 0 && label === 'E') {
                                     label = 'e';
                                 }
+
+                                // 套用 12 音名色（scale ghost 用較淡）
+                                const pc = getPitchColor(noteName);
+                                const markerStyle = scoreNote
+                                    ? { background: pc.bg, color: pc.fg, borderColor: 'transparent' }
+                                    : scaleNote
+                                        ? { background: `${pc.bg}66`, color: pc.fg, borderColor: `${pc.bg}aa` }
+                                        : {};
 
                                 return (
                                     <div
@@ -201,6 +160,7 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                     >
                                         <button
                                             className={classNames}
+                                            style={markerStyle}
                                             onClick={() => {
                                                 if (scoreNote) {
                                                     onNoteClick(scoreNote.index);
@@ -216,6 +176,28 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                         </div>
                     );
                 })}
+
+                {/* 底部把位點 — 3/5/7/9 單點、12 雙點、15+ 單點 */}
+                <div className="fret-dots-bottom">
+                    <div className="string-gutter spacer">·</div>
+                    {Array.from({ length: visibleFrets + 1 }, (_, fret) => (
+                        <div
+                            key={fret}
+                            className="fret-dot-cell"
+                            style={{ width: fretWidth }}
+                        >
+                            {fretMarkers.includes(fret) && !doubleDotFrets.includes(fret) && (
+                                <div className="fret-dot" />
+                            )}
+                            {doubleDotFrets.includes(fret) && (
+                                <>
+                                    <div className="fret-dot" />
+                                    <div className="fret-dot" />
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
 
                 {/* 格線 */}
                 <div className="fret-lines">
