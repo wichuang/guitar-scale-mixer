@@ -3,7 +3,7 @@
  * 包含編輯面板和音符列表
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { jianpuToNote, notesToJianpuString } from '../../parsers/JianpuParser.js';
 import TypewriterDialog from './TypewriterDialog.jsx';
 import { CHORD_ROOTS, CHORD_QUALITIES, getChordNotes } from '../../data/chordData.js';
@@ -689,16 +689,31 @@ function NoteEditor({
     showInlineFretboard,
     onToggleInlineFretboard,
     showInlineScore,
-    onToggleInlineScore
+    onToggleInlineScore,
+    onClose,
+    initialPlayMode
 }) {
     const [hoverInfo, setHoverInfo] = useState('');
-    const [editPanelOpen, setEditPanelOpen] = useState(false);
     const [showChords, setShowChords] = useState(true);
     const [showTab, setShowTab] = useState(true);
-    const [fullscreen, setFullscreen] = useState(false);
-    const [fullscreenEdit, setFullscreenEdit] = useState(false);
     const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
     const [typewriterOpen, setTypewriterOpen] = useState(false);
+    // 新版 Edit/Play 模式：playMode 取代舊的 fullscreen / fullscreenEdit；
+    // drawerSection 控制右側 Edit Panel 抽屜（null = 收合）
+    const [playMode, setPlayMode] = useState(initialPlayMode === 'play' ? 'play' : 'edit');
+    const [drawerSection, setDrawerSection] = useState(null);
+    const drawerOpen = drawerSection !== null;
+    const editPanelOpen = drawerOpen; // 沿用舊變數名稱讓既有 JSX 條件繼續可讀
+    const drawerRef = useRef(null);
+
+    // 切換到不同 section 時，把抽屜捲到對應區塊
+    useEffect(() => {
+        if (!drawerSection || !drawerRef.current) return;
+        const target = drawerRef.current.querySelector(`[data-section="${drawerSection}"]`);
+        if (target && typeof target.scrollIntoView === 'function') {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [drawerSection]);
 
     /**
      * 打字機輸入：解析 0-7 與 ; 字串為一串音符，插入到選中音符之後
@@ -1391,86 +1406,73 @@ function NoteEditor({
     ];
 
     return (
-        <div
-            className={`note-editor-area ${fullscreenEdit ? 'fullscreen-edit-mode' : ''}`}
-            style={fullscreenEdit ? {
-                position: 'fixed', inset: 0, zIndex: 9998,
-                background: '#000', padding: '12px', overflow: 'auto'
-            } : undefined}
-        >
-            {fullscreenEdit && (
+        <div className={`note-editor-area edit-play-mode mode-${playMode}`}>
+            {/* 頂部控制列：關閉、Edit/Play 子模式切換、help */}
+            <div className="ep-top-bar">
                 <button
-                    onClick={() => setFullscreenEdit(false)}
-                    style={{
-                        position: 'absolute', top: 14, right: 14, zIndex: 10001,
-                        padding: '6px 14px', fontSize: '14px',
-                        background: '#333', color: '#ccc',
-                        border: '1px solid #555', borderRadius: '6px', cursor: 'pointer'
-                    }}
-                >✕ 退出全螢幕</button>
+                    className="ep-top-btn ep-close-btn"
+                    onClick={() => onClose && onClose()}
+                    title="關閉 Edit / Play 模式"
+                >✕</button>
+                <div className="ep-mode-switch" role="tablist" aria-label="Edit / Play 切換">
+                    <button
+                        className={`ep-mode-btn ${playMode === 'edit' ? 'active' : ''}`}
+                        onClick={() => { setPlayMode('edit'); }}
+                        role="tab" aria-selected={playMode === 'edit'}
+                        title="Edit 模式：左側工具列可開啟編輯抽屜"
+                    >✏️ Edit</button>
+                    <button
+                        className={`ep-mode-btn ${playMode === 'play' ? 'active' : ''}`}
+                        onClick={() => { setPlayMode('play'); setDrawerSection(null); }}
+                        role="tab" aria-selected={playMode === 'play'}
+                        title="Play 模式：純譜面+播放，隱藏編輯工具"
+                    >▶ Play</button>
+                </div>
+                <button
+                    className={`ep-top-btn ep-help-btn ${showShortcutsHelp ? 'active' : ''}`}
+                    onClick={() => setShowShortcutsHelp(p => !p)}
+                    title="鍵盤快捷鍵與圖示說明"
+                >?</button>
+            </div>
+
+            {/* 主區域：左側 icon 工具列 + 中央 Notes + 右側 overlay drawer */}
+            <div className="ep-main">
+
+            {/* 左側 icon 工具列（僅 Edit 子模式） */}
+            {playMode === 'edit' && (
+                <div className="ep-left-toolbar" role="toolbar" aria-label="編輯工具">
+                    <button className={`ep-tool-btn ${drawerSection === 'pitch' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'pitch' ? null : 'pitch')} title="音高 — 升記號 ♯ / 降記號 ♭ / 八度">♯♭</button>
+                    <button className={`ep-tool-btn ${drawerSection === 'duration' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'duration' ? null : 'duration')} title="時值 / 附點 / 連音 / 延音線">♩</button>
+                    <button className={`ep-tool-btn ${drawerSection === 'chord' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'chord' ? null : 'chord')} title="和弦標記">𝄞</button>
+                    <button className={`ep-tool-btn ${drawerSection === 'tab' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'tab' ? null : 'tab')} title="TAB 指法">𝄢</button>
+                    <button className={`ep-tool-btn ${drawerSection === 'insert' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'insert' ? null : 'insert')} title="插入符號 / 小節線 / 反覆 / 方向記號">＋</button>
+                    <button className="ep-tool-btn" onClick={() => setTypewriterOpen(true)} title="打字機：批次輸入 0-7 與 | 串入音符">⌨</button>
+                    <button className="ep-tool-btn danger" onClick={handleDeleteNote} disabled={selectedNoteIndex < 0} title="刪除選中音符">🗑</button>
+                </div>
             )}
-            {/* 左側：編輯面板（可收合） */}
-            <div className="editor-panel" title={`Edit Panel 鍵盤快捷鍵\n\n${shortcutsTitle}`} style={editPanelOpen ? {} : { width: 'auto', minWidth: '40px', padding: '8px', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
-                    <h4
-                        onClick={() => setEditPanelOpen(prev => !prev)}
-                        style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}
-                    >
-                        <span style={{
-                            display: 'inline-block',
-                            transition: 'transform 0.2s',
-                            transform: editPanelOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                            fontSize: '12px'
-                        }}>&#9654;</span>
-                        {editPanelOpen ? 'Edit Panel' : 'Edit'}
-                    </h4>
-                    {editPanelOpen && (
-                        <button
-                            onClick={() => setShowShortcutsHelp(p => !p)}
-                            title="顯示 / 隱藏 Edit Panel 鍵盤快捷鍵"
-                            style={{
-                                background: showShortcutsHelp ? '#4caf50' : '#333',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '4px',
-                                width: '24px',
-                                height: '24px',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                lineHeight: 1
-                            }}
-                        >❓</button>
-                    )}
+
+            {/* Drawer backdrop — 點外圍關閉 */}
+            {drawerOpen && (
+                <div className="ep-drawer-backdrop" onClick={() => setDrawerSection(null)} />
+            )}
+
+            {/* 右側 overlay drawer：Edit Panel（class 仍含 editor-panel 沿用既有樣式） */}
+            <div
+                ref={drawerRef}
+                className={`editor-panel ep-drawer ${drawerOpen ? 'open' : 'closed'}`}
+                data-active-section={drawerSection || ''}
+                title={`Edit Panel 鍵盤快捷鍵\n\n${shortcutsTitle}`}
+            >
+                <div className="ep-drawer-header">
+                    <h4 style={{ margin: 0 }}>Edit Panel</h4>
+                    <button
+                        className="ep-drawer-close"
+                        onClick={() => setDrawerSection(null)}
+                        title="收合 Edit Panel"
+                    >✕</button>
                 </div>
 
-                {editPanelOpen && showShortcutsHelp && (
-                    <div style={{
-                        background: '#222',
-                        border: '1px solid #444',
-                        borderRadius: '6px',
-                        padding: '8px 10px',
-                        fontSize: '12px',
-                        color: '#ccc'
-                    }}>
-                        <div style={{ color: '#4caf50', fontWeight: 'bold', marginBottom: '6px' }}>鍵盤快捷鍵</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 10px' }}>
-                            {EDIT_SHORTCUTS.map(s => (
-                                <React.Fragment key={s.keys}>
-                                    <span style={{ color: '#ff9800', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{s.keys}</span>
-                                    <span>{s.desc}</span>
-                                </React.Fragment>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {!editPanelOpen && selectedNote && !selectedNote.isSeparator && (
-                    <div style={{ writingMode: 'vertical-rl', fontSize: '13px', color: '#4caf50', whiteSpace: 'nowrap' }}>
-                        {selectedNote.displayStr || selectedNote.jianpu}({selectedNote.noteName}{selectedNote.octave})
-                    </div>
-                )}
-
-                {editPanelOpen && <>
+                <>
                 {/* ── 選中音符 ── */}
                 <div className="selected-note-info">
                     <span className="selected-label">選中：</span>
@@ -1484,7 +1486,7 @@ function NoteEditor({
                 </div>
 
                 {/* ── 音高 ── */}
-                <div className="editor-group">
+                <div className="editor-group" data-section="pitch">
                     <span className="editor-label">音高</span>
                     <div className="editor-buttons">
                         <button className={`editor-btn ${selectedNote?.accidentalStr === '#' ? 'active' : ''}`} onClick={() => handleToggleAccidental('sharp')} disabled={!isNoteEditable} onMouseEnter={() => setHoverInfo('升記號 #')} onMouseLeave={() => setHoverInfo('')}>#</button>
@@ -1499,7 +1501,7 @@ function NoteEditor({
                 </div>
 
                 {/* ── 時值 ── */}
-                <div className="editor-group">
+                <div className="editor-group" data-section="duration">
                     <span className="editor-label">時值</span>
                     <div className="editor-buttons" style={{ flexWrap: 'wrap', gap: '4px' }}>
                         {DURATION_OPTIONS.map(opt => (
@@ -1549,7 +1551,7 @@ function NoteEditor({
                 </div>
 
                 {/* ── 和弦 ── */}
-                <div className="editor-group">
+                <div className="editor-group" data-section="chord">
                     <span className="editor-label">和弦</span>
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                         <select
@@ -1648,7 +1650,7 @@ function NoteEditor({
                 </div>
 
                 {/* ── TAB 指法 ── */}
-                <div className="editor-group">
+                <div className="editor-group" data-section="tab">
                     <span className="editor-label">TAB</span>
                     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 6px', alignItems: 'center', fontSize: '12px' }}>
                         {['e', 'B', 'G', 'D', 'A', 'E'].map((name, s) => {
@@ -1716,7 +1718,7 @@ function NoteEditor({
                 </div>
 
                 {/* ── 符號/插入 ── */}
-                <div className="editor-group">
+                <div className="editor-group" data-section="insert">
                     <span className="editor-label">插入</span>
                     <div className="editor-buttons">
                         <button className="editor-btn" onClick={() => handleInsertSymbol('0', 'before')} disabled={selectedNoteIndex < 0} onMouseEnter={() => setHoverInfo('前方插入休止符')} onMouseLeave={() => setHoverInfo('')}>前</button>
@@ -1760,12 +1762,12 @@ function NoteEditor({
 
                 {/* 說明 + 刪除 */}
                 <div className="editor-info-bar" style={{ minHeight: '22px', padding: '4px 8px', background: '#333', borderRadius: '4px', color: '#4caf50', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
-                    {hoverInfo || '滑鼠移至按鈕可查看說明　·　點 ❓ 看鍵盤快捷鍵'}
+                    {hoverInfo || '滑鼠移至按鈕可查看說明　·　點頂部「?」看鍵盤快捷鍵'}
                 </div>
                 <button className="delete-note-btn" onClick={handleDeleteNote} disabled={selectedNoteIndex < 0}>
                     刪除此{selectedNote?.isSeparator ? '區隔線' : '音符'}
                 </button>
-                </>}
+                </>
             </div>
 
             {/* 右側：簡譜樂譜顯示 */}
@@ -1830,21 +1832,14 @@ function NoteEditor({
                         >🎼 Score</button>
                     )}
                     <button
+                        className="ep-play-btn"
                         onClick={onTogglePlay} disabled={audioLoading}
-                        style={{ padding: '6px 18px', fontSize: '14px', background: isPlaying ? '#f44336' : '#4caf50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        style={{ padding: '8px 22px', fontSize: '15px', background: isPlaying ? '#f44336' : '#4caf50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', minHeight: '44px' }}
                     >{audioLoading ? '...' : (isPlaying ? 'Stop' : 'Play')}</button>
-                    <button
-                        onClick={() => setFullscreen(true)}
-                        style={{ padding: '6px 10px', fontSize: '14px', background: '#333', color: '#ccc', border: '1px solid #555', borderRadius: '6px', cursor: 'pointer' }}
-                        title="全螢幕播放（僅顯示樂譜）"
-                    >⛶</button>
-                    <button
-                        onClick={() => setFullscreenEdit(true)}
-                        style={{ padding: '6px 10px', fontSize: '14px', background: '#333', color: '#ccc', border: '1px solid #555', borderRadius: '6px', cursor: 'pointer' }}
-                        title="全螢幕播放（含 Edit Panel）"
-                    >⛶📋</button>
                 </div>
             </div>
+
+            </div>{/* /.ep-main */}
 
             {/* 打字機輸入對話框 */}
             <TypewriterDialog
@@ -1853,49 +1848,46 @@ function NoteEditor({
                 onCancel={() => setTypewriterOpen(false)}
             />
 
-            {/* 全螢幕播放模式 */}
-            {fullscreen && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: '#000', zIndex: 9999,
-                    display: 'flex', flexDirection: 'column'
-                }}>
-                    {/* 頂部控制列 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', background: '#111', borderBottom: '1px solid #333' }}>
-                        <button onClick={() => setFullscreen(false)} style={{ padding: '6px 14px', fontSize: '14px', background: '#333', color: '#ccc', border: '1px solid #555', borderRadius: '6px', cursor: 'pointer' }}>✕ 關閉</button>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <input type="range" min="40" max="240" value={tempo || 120} onChange={(e) => onTempoChange && onTempoChange(Number(e.target.value))} style={{ width: '120px' }} />
-                            <span style={{ fontSize: '14px', color: '#aaa', minWidth: '60px' }}>{tempo || 120} BPM</span>
+            {/* 鍵盤快捷鍵 / icon 圖示說明 overlay */}
+            {showShortcutsHelp && (
+                <div className="ep-help-overlay" onClick={() => setShowShortcutsHelp(false)}>
+                    <div className="ep-help-card" onClick={(e) => e.stopPropagation()}>
+                        <div className="ep-help-header">
+                            <h3 style={{ margin: 0 }}>Edit / Play 模式說明</h3>
+                            <button className="ep-help-close" onClick={() => setShowShortcutsHelp(false)}>✕</button>
                         </div>
-                        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                                <button className={`editor-btn small ${showChords ? 'active' : ''}`} onClick={() => setShowChords(v => !v)} style={{ fontSize: '11px', padding: '4px 8px' }}>Chord</button>
-                                <button className={`editor-btn small ${showTab ? 'active' : ''}`} onClick={() => setShowTab(v => !v)} style={{ fontSize: '11px', padding: '4px 8px' }}>TAB</button>
+                        <div className="ep-help-section">
+                            <div className="ep-help-title">頂部</div>
+                            <div className="ep-help-grid">
+                                <span>✕</span><span>關閉 Edit / Play 模式（回到上傳/設定）</span>
+                                <span>✏️ Edit</span><span>顯示左側工具列，可點 icon 開啟編輯抽屜</span>
+                                <span>▶ Play</span><span>純譜面 + 播放，隱藏編輯工具</span>
+                                <span>?</span><span>顯示 / 關閉此說明</span>
                             </div>
-                            <div style={{
-                                background: '#111', padding: '8px 16px', borderRadius: '6px',
-                                fontFamily: 'monospace', fontSize: '20px', fontWeight: 'bold',
-                                color: isPlaying ? '#4caf50' : '#666', border: '1px solid #333',
-                                minWidth: '110px', textAlign: 'center'
-                            }}>
-                                {formatPlayTime(playTime)}
-                            </div>
-                            <button
-                                onClick={onTogglePlay} disabled={audioLoading}
-                                style={{ padding: '8px 28px', fontSize: '18px', background: isPlaying ? '#f44336' : '#4caf50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
-                            >{audioLoading ? '...' : (isPlaying ? 'Stop' : 'Play')}</button>
                         </div>
-                    </div>
-                    {/* 樂譜區域 */}
-                    <div style={{ flex: 1, overflow: 'auto' }}>
-                        <JianpuScoreView
-                            notes={notes}
-                            currentNoteIndex={currentNoteIndex}
-                            selectedNoteIndex={selectedNoteIndex}
-                            onNoteSelect={handleNoteItemSelect}
-                            showChords={showChords}
-                            showTab={showTab}
-                        />
+                        <div className="ep-help-section">
+                            <div className="ep-help-title">左側工具列（Edit 子模式）</div>
+                            <div className="ep-help-grid">
+                                <span>♯♭</span><span>音高 — 升記號 / 降記號 / 上下八度（含全曲移調）</span>
+                                <span>♩</span><span>時值 — 二分 / 四分 / 八分… / 附點 / 三連音 / 延音線</span>
+                                <span>𝄞</span><span>和弦標記與把位</span>
+                                <span>𝄢</span><span>TAB 指法（六弦 fret）</span>
+                                <span>＋</span><span>插入符號 / 小節線 / 反覆記號 / 方向記號</span>
+                                <span>⌨</span><span>打字機：批次輸入 0-7 與 | 串入音符</span>
+                                <span>🗑</span><span>刪除選中音符</span>
+                            </div>
+                        </div>
+                        <div className="ep-help-section">
+                            <div className="ep-help-title">鍵盤快捷鍵</div>
+                            <div className="ep-help-grid">
+                                {EDIT_SHORTCUTS.map(s => (
+                                    <React.Fragment key={s.keys}>
+                                        <span style={{ color: '#ff9800', fontFamily: 'monospace' }}>{s.keys}</span>
+                                        <span>{s.desc}</span>
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

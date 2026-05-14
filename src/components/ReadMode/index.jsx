@@ -109,6 +109,10 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     const fretboardWindowRef = useRef(null);
     const scoreWindowRef = useRef(null);
 
+    // ===== Edit/Play 入口：預設不展開 NoteEditor，由使用者主動進入 =====
+    const [editPlayOpen, setEditPlayOpen] = useState(false);
+    const [editPlayInitialMode, setEditPlayInitialMode] = useState('edit'); // 'edit' | 'play'
+
     // ===== Practice Tools 狀態 =====
     const [showPracticeTools, setShowPracticeTools] = useState(false);
     const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
@@ -549,8 +553,25 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                 onCountInPlay={startCountIn}
             />
 
-            {/* 音符編輯區 */}
-            {notes.length > 0 && (viewMode === 'both' || viewMode === 'score') && (
+            {/* Edit/Play 入口卡（notes 已載入時顯示；預設不直接展開 NoteEditor） */}
+            {notes.length > 0 && !editPlayOpen && (
+                <div className="edit-play-entry">
+                    <div className="edit-play-entry-info">
+                        <span className="edit-play-entry-title">已載入 {notes.filter(n => !n.isSeparator && !n.isSymbol).length} 個音符</span>
+                        <span className="edit-play-entry-hint">點右側按鈕進入 Edit / Play 模式（可全螢幕編輯與播放）</span>
+                    </div>
+                    <div className="edit-play-entry-actions">
+                        <button
+                            className="edit-play-entry-btn primary"
+                            onClick={() => { setEditPlayInitialMode('edit'); setEditPlayOpen(true); }}
+                            title="進入全螢幕 Edit / Play 模式"
+                        >✏️ Edit / ▶ Play</button>
+                    </div>
+                </div>
+            )}
+
+            {/* 音符編輯區 — 改為僅在 editPlayOpen=true 時以全螢幕渲染 */}
+            {editPlayOpen && notes.length > 0 && (
                 <NoteEditor
                     notes={notes}
                     notePositions={notePositions}
@@ -583,6 +604,8 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     onToggleInlineFretboard={() => setShowInlineFretboard(p => !p)}
                     showInlineScore={showInlineScore}
                     onToggleInlineScore={() => setShowInlineScore(p => !p)}
+                    onClose={() => setEditPlayOpen(false)}
+                    initialPlayMode={editPlayInitialMode}
                 />
             )}
 
