@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { jianpuToNote, notesToJianpuString } from '../../parsers/JianpuParser.js';
 import TypewriterDialog from './TypewriterDialog.jsx';
+import InstrumentSelector from './InstrumentSelector.jsx';
 import { CHORD_ROOTS, CHORD_QUALITIES, getChordNotes } from '../../data/chordData.js';
 import { STRING_TUNINGS, NOTES } from '../../data/scaleData.js';
 const formatPlayTime = (seconds) => {
@@ -691,29 +692,19 @@ function NoteEditor({
     showInlineScore,
     onToggleInlineScore,
     onClose,
-    initialPlayMode
+    initialPlayMode,
+    instrument,
+    onInstrumentChange
 }) {
     const [hoverInfo, setHoverInfo] = useState('');
     const [showChords, setShowChords] = useState(true);
     const [showTab, setShowTab] = useState(true);
     const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
     const [typewriterOpen, setTypewriterOpen] = useState(false);
-    // 新版 Edit/Play 模式：playMode 取代舊的 fullscreen / fullscreenEdit；
-    // drawerSection 控制右側 Edit Panel 抽屜（null = 收合）
+    // Edit/Play 子模式
     const [playMode, setPlayMode] = useState(initialPlayMode === 'play' ? 'play' : 'edit');
-    const [drawerSection, setDrawerSection] = useState(null);
-    const drawerOpen = drawerSection !== null;
-    const editPanelOpen = drawerOpen; // 沿用舊變數名稱讓既有 JSX 條件繼續可讀
-    const drawerRef = useRef(null);
-
-    // 切換到不同 section 時，把抽屜捲到對應區塊
-    useEffect(() => {
-        if (!drawerSection || !drawerRef.current) return;
-        const target = drawerRef.current.querySelector(`[data-section="${drawerSection}"]`);
-        if (target && typeof target.scrollIntoView === 'function') {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }, [drawerSection]);
+    // Edit Panel 固定 sidebar，可選擇出現在 Notes 左側或右側
+    const [editPanelSide, setEditPanelSide] = useState('left');
 
     /**
      * 打字機輸入：解析 0-7 與 ; 字串為一串音符，插入到選中音符之後
@@ -1406,8 +1397,8 @@ function NoteEditor({
     ];
 
     return (
-        <div className={`note-editor-area edit-play-mode mode-${playMode}`}>
-            {/* 頂部控制列：關閉、Edit/Play 子模式切換、help */}
+        <div className={`note-editor-area edit-play-mode mode-${playMode} side-${editPanelSide}`}>
+            {/* 頂部控制列 */}
             <div className="ep-top-bar">
                 <button
                     className="ep-top-btn ep-close-btn"
@@ -1417,17 +1408,34 @@ function NoteEditor({
                 <div className="ep-mode-switch" role="tablist" aria-label="Edit / Play 切換">
                     <button
                         className={`ep-mode-btn ${playMode === 'edit' ? 'active' : ''}`}
-                        onClick={() => { setPlayMode('edit'); }}
+                        onClick={() => setPlayMode('edit')}
                         role="tab" aria-selected={playMode === 'edit'}
-                        title="Edit 模式：左側工具列可開啟編輯抽屜"
+                        title="Edit 模式：固定顯示 Edit Panel"
                     >✏️ Edit</button>
                     <button
                         className={`ep-mode-btn ${playMode === 'play' ? 'active' : ''}`}
-                        onClick={() => { setPlayMode('play'); setDrawerSection(null); }}
+                        onClick={() => setPlayMode('play')}
                         role="tab" aria-selected={playMode === 'play'}
-                        title="Play 模式：純譜面+播放，隱藏編輯工具"
+                        title="Play 模式：隱藏 Edit Panel"
                     >▶ Play</button>
                 </div>
+                {playMode === 'edit' && (
+                    <button
+                        className="ep-top-btn"
+                        onClick={() => setEditPanelSide(s => s === 'left' ? 'right' : 'left')}
+                        title={`切換 Edit Panel 到${editPanelSide === 'left' ? '右側' : '左側'}`}
+                    >{editPanelSide === 'left' ? '⇥' : '⇤'}</button>
+                )}
+                {/* 音色 */}
+                {onInstrumentChange && (
+                    <div className="ep-top-instrument" title="音色">
+                        <span className="ep-top-instrument-label">🎵</span>
+                        <InstrumentSelector
+                            instrument={instrument}
+                            onInstrumentChange={onInstrumentChange}
+                        />
+                    </div>
+                )}
                 <button
                     className={`ep-top-btn ep-help-btn ${showShortcutsHelp ? 'active' : ''}`}
                     onClick={() => setShowShortcutsHelp(p => !p)}
@@ -1435,41 +1443,22 @@ function NoteEditor({
                 >?</button>
             </div>
 
-            {/* 主區域：左側 icon 工具列 + 中央 Notes + 右側 overlay drawer */}
+            {/* 主區域：Edit Panel + Notes */}
             <div className="ep-main">
 
-            {/* 左側 icon 工具列（僅 Edit 子模式） */}
-            {playMode === 'edit' && (
-                <div className="ep-left-toolbar" role="toolbar" aria-label="編輯工具">
-                    <button className={`ep-tool-btn ${drawerSection === 'pitch' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'pitch' ? null : 'pitch')} title="音高 — 升記號 ♯ / 降記號 ♭ / 八度">♯♭</button>
-                    <button className={`ep-tool-btn ${drawerSection === 'duration' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'duration' ? null : 'duration')} title="時值 / 附點 / 連音 / 延音線">♩</button>
-                    <button className={`ep-tool-btn ${drawerSection === 'chord' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'chord' ? null : 'chord')} title="和弦標記">𝄞</button>
-                    <button className={`ep-tool-btn ${drawerSection === 'tab' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'tab' ? null : 'tab')} title="TAB 指法">𝄢</button>
-                    <button className={`ep-tool-btn ${drawerSection === 'insert' ? 'active' : ''}`} onClick={() => setDrawerSection(s => s === 'insert' ? null : 'insert')} title="插入符號 / 小節線 / 反覆 / 方向記號">＋</button>
-                    <button className="ep-tool-btn" onClick={() => setTypewriterOpen(true)} title="打字機：批次輸入 0-7 與 | 串入音符">⌨</button>
-                    <button className="ep-tool-btn danger" onClick={handleDeleteNote} disabled={selectedNoteIndex < 0} title="刪除選中音符">🗑</button>
-                </div>
-            )}
-
-            {/* Drawer backdrop — 點外圍關閉 */}
-            {drawerOpen && (
-                <div className="ep-drawer-backdrop" onClick={() => setDrawerSection(null)} />
-            )}
-
-            {/* 右側 overlay drawer：Edit Panel（class 仍含 editor-panel 沿用既有樣式） */}
+            {/* Edit Panel — 固定 sidebar；Play 模式隱藏 */}
             <div
-                ref={drawerRef}
-                className={`editor-panel ep-drawer ${drawerOpen ? 'open' : 'closed'}`}
-                data-active-section={drawerSection || ''}
+                className={`editor-panel ep-panel ${playMode === 'edit' ? 'visible' : 'hidden'}`}
                 title={`Edit Panel 鍵盤快捷鍵\n\n${shortcutsTitle}`}
             >
-                <div className="ep-drawer-header">
+                <div className="ep-panel-header">
                     <h4 style={{ margin: 0 }}>Edit Panel</h4>
                     <button
-                        className="ep-drawer-close"
-                        onClick={() => setDrawerSection(null)}
-                        title="收合 Edit Panel"
-                    >✕</button>
+                        className="ep-top-btn"
+                        style={{ minWidth: 32, minHeight: 32, padding: 0, fontSize: 13 }}
+                        onClick={() => setTypewriterOpen(true)}
+                        title="打字機：批次輸入 0-7 與 |"
+                    >⌨</button>
                 </div>
 
                 <>
@@ -1550,173 +1539,6 @@ function NoteEditor({
                     </div>
                 </div>
 
-                {/* ── 和弦 ── */}
-                <div className="editor-group" data-section="chord">
-                    <span className="editor-label">和弦</span>
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        <select
-                            value={selectedNote?.chordSymbol ?? ''}
-                            onChange={(e) => {
-                                const chord = e.target.value || null;
-                                if (!chord) {
-                                    // 清除和弦 + TAB
-                                    const newNotes = [...notes];
-                                    newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordSymbol: null, chordPosition: null, chordFrets: [], stringIndex: undefined, fret: undefined };
-                                    onNotesChange(newNotes);
-                                    syncEditableText(newNotes);
-                                } else {
-                                    // 設定和弦 + 自動選最低把位 + 產生 TAB
-                                    const positions = getAvailablePositions(chord);
-                                    const defaultPos = positions.length > 0 ? positions[0] : null;
-                                    const frets = defaultPos != null
-                                        ? chordPositionToFrets(chord, defaultPos)
-                                        : chordToFrets(chord);
-                                    const newNotes = [...notes];
-                                    newNotes[selectedNoteIndex] = {
-                                        ...newNotes[selectedNoteIndex],
-                                        chordSymbol: chord,
-                                        chordPosition: defaultPos,
-                                        chordFrets: frets,
-                                        stringIndex: frets.length > 0 ? frets[0].string : undefined,
-                                        fret: frets.length > 0 ? frets[0].fret : undefined
-                                    };
-                                    onNotesChange(newNotes);
-                                    syncEditableText(newNotes);
-                                }
-                            }}
-                            disabled={!isNoteEditable}
-                            style={{ flex: 1, padding: '4px 6px', background: '#333', color: '#ff9800', border: '1px solid #555', borderRadius: '4px', fontSize: '13px' }}
-                        >
-                            <option value="">-- 無 --</option>
-                            {CHORD_ROOTS.map(root => (
-                                <React.Fragment key={root}>
-                                    <option value={root}>{root}</option>
-                                    <option value={`${root}m`}>{root}m</option>
-                                    <option value={`${root}7`}>{root}7</option>
-                                    <option value={`${root}m7`}>{root}m7</option>
-                                    <option value={`${root}maj7`}>{root}maj7</option>
-                                    <option value={`${root}dim`}>{root}dim</option>
-                                    <option value={`${root}aug`}>{root}aug</option>
-                                    <option value={`${root}sus2`}>{root}sus2</option>
-                                    <option value={`${root}sus4`}>{root}sus4</option>
-                                </React.Fragment>
-                            ))}
-                        </select>
-                        {selectedNote?.chordSymbol && (
-                            <button className="editor-btn small" onClick={() => {
-                                const newNotes = [...notes];
-                                newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordSymbol: null, chordPosition: null, chordFrets: [], stringIndex: undefined, fret: undefined };
-                                onNotesChange(newNotes);
-                                syncEditableText(newNotes);
-                            }} title="清除">✕</button>
-                        )}
-                    </div>
-
-                    {/* 把位選擇 */}
-                    {selectedNote?.chordSymbol && getAvailablePositions(selectedNote.chordSymbol).length > 0 && (
-                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
-                            <span style={{ fontSize: '11px', color: '#888', minWidth: '36px' }}>把位</span>
-                            <select
-                                value={selectedNote?.chordPosition ?? ''}
-                                onChange={(e) => {
-                                    const pos = e.target.value === '' ? null : parseInt(e.target.value);
-                                    const chord = selectedNote.chordSymbol;
-                                    const frets = pos != null
-                                        ? chordPositionToFrets(chord, pos)
-                                        : chordToFrets(chord);
-                                    const newNotes = [...notes];
-                                    newNotes[selectedNoteIndex] = {
-                                        ...newNotes[selectedNoteIndex],
-                                        chordPosition: pos,
-                                        chordFrets: frets,
-                                        stringIndex: frets.length > 0 ? frets[0].string : undefined,
-                                        fret: frets.length > 0 ? frets[0].fret : undefined
-                                    };
-                                    onNotesChange(newNotes);
-                                    syncEditableText(newNotes);
-                                }}
-                                onMouseEnter={() => setHoverInfo('選擇此和弦的把位（fret 位置）')}
-                                onMouseLeave={() => setHoverInfo('')}
-                                disabled={!isNoteEditable}
-                                style={{ flex: 1, padding: '4px 6px', background: '#333', color: '#fff', border: '1px solid #555', borderRadius: '4px', fontSize: '13px' }}
-                            >
-                                <option value="">自動推算</option>
-                                {getAvailablePositions(selectedNote.chordSymbol).map(p => (
-                                    <option key={p} value={p}>第 {p} 把位</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-                </div>
-
-                {/* ── TAB 指法 ── */}
-                <div className="editor-group" data-section="tab">
-                    <span className="editor-label">TAB</span>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 6px', alignItems: 'center', fontSize: '12px' }}>
-                        {['e', 'B', 'G', 'D', 'A', 'E'].map((name, s) => {
-                            const currentFrets = selectedNote?.chordFrets || [];
-                            const existingPos = currentFrets.find(p => p.string === s);
-                            const singleMatch = (selectedNote?.stringIndex === s) ? selectedNote?.fret : undefined;
-                            const fretVal = existingPos ? existingPos.fret : (singleMatch !== undefined ? singleMatch : '');
-                            return (
-                                <React.Fragment key={s}>
-                                    <span style={{ color: '#888', textAlign: 'right' }}>{name}</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="24"
-                                        placeholder="–"
-                                        value={fretVal}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            const newFrets = (selectedNote?.chordFrets || []).filter(p => p.string !== s);
-                                            if (val !== '') {
-                                                newFrets.push({ string: s, fret: parseInt(val) || 0 });
-                                                newFrets.sort((a, b) => a.string - b.string);
-                                            }
-                                            if (newFrets.length === 0) {
-                                                // 清除所有 tab 資料
-                                                const newNotes = [...notes];
-                                                newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordFrets: [], stringIndex: undefined, fret: undefined };
-                                                onNotesChange(newNotes);
-                                                syncEditableText(newNotes);
-                                            } else if (newFrets.length === 1) {
-                                                // 單音：同時設 stringIndex/fret 和 chordFrets
-                                                const newNotes = [...notes];
-                                                newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordFrets: newFrets, stringIndex: newFrets[0].string, fret: newFrets[0].fret };
-                                                onNotesChange(newNotes);
-                                                syncEditableText(newNotes);
-                                            } else {
-                                                // 多音：用 chordFrets
-                                                const newNotes = [...notes];
-                                                newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordFrets: newFrets, stringIndex: newFrets[0].string, fret: newFrets[0].fret };
-                                                onNotesChange(newNotes);
-                                                syncEditableText(newNotes);
-                                            }
-                                        }}
-                                        disabled={!isNoteEditable}
-                                        style={{ width: '44px', padding: '2px 4px', background: '#333', color: '#ccc', border: '1px solid #555', borderRadius: '3px', fontSize: '12px', textAlign: 'center' }}
-                                    />
-                                </React.Fragment>
-                            );
-                        })}
-                    </div>
-                    {isNoteEditable && (selectedNote?.chordFrets?.length > 0 || typeof selectedNote?.fret === 'number') && (
-                        <button
-                            className="editor-btn small"
-                            onClick={() => {
-                                const newNotes = [...notes];
-                                newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordFrets: [], stringIndex: undefined, fret: undefined };
-                                onNotesChange(newNotes);
-                                syncEditableText(newNotes);
-                            }}
-                            style={{ marginTop: '4px', width: '100%' }}
-                            onMouseEnter={() => setHoverInfo('清除所有 TAB 指法')}
-                            onMouseLeave={() => setHoverInfo('')}
-                        >清除 TAB</button>
-                    )}
-                </div>
-
                 {/* ── 符號/插入 ── */}
                 <div className="editor-group" data-section="insert">
                     <span className="editor-label">插入</span>
@@ -1760,6 +1582,162 @@ function NoteEditor({
                     </div>
                 </div>
 
+                {/* ── 和弦（僅當 Notes 區 Chord toggle 開啟時顯示） ── */}
+                {showChords && (
+                    <div className="editor-group ep-group-chord" data-section="chord">
+                        <span className="editor-label">和弦</span>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            <select
+                                value={selectedNote?.chordSymbol ?? ''}
+                                onChange={(e) => {
+                                    const chord = e.target.value || null;
+                                    if (!chord) {
+                                        const newNotes = [...notes];
+                                        newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordSymbol: null, chordPosition: null, chordFrets: [], stringIndex: undefined, fret: undefined };
+                                        onNotesChange(newNotes);
+                                        syncEditableText(newNotes);
+                                    } else {
+                                        const positions = getAvailablePositions(chord);
+                                        const defaultPos = positions.length > 0 ? positions[0] : null;
+                                        const frets = defaultPos != null
+                                            ? chordPositionToFrets(chord, defaultPos)
+                                            : chordToFrets(chord);
+                                        const newNotes = [...notes];
+                                        newNotes[selectedNoteIndex] = {
+                                            ...newNotes[selectedNoteIndex],
+                                            chordSymbol: chord,
+                                            chordPosition: defaultPos,
+                                            chordFrets: frets,
+                                            stringIndex: frets.length > 0 ? frets[0].string : undefined,
+                                            fret: frets.length > 0 ? frets[0].fret : undefined
+                                        };
+                                        onNotesChange(newNotes);
+                                        syncEditableText(newNotes);
+                                    }
+                                }}
+                                disabled={!isNoteEditable}
+                                style={{ flex: 1, padding: '4px 6px', background: '#333', color: '#ff9800', border: '1px solid #555', borderRadius: '4px', fontSize: '13px', minWidth: 0 }}
+                            >
+                                <option value="">-- 無 --</option>
+                                {CHORD_ROOTS.map(root => (
+                                    <React.Fragment key={root}>
+                                        <option value={root}>{root}</option>
+                                        <option value={`${root}m`}>{root}m</option>
+                                        <option value={`${root}7`}>{root}7</option>
+                                        <option value={`${root}m7`}>{root}m7</option>
+                                        <option value={`${root}maj7`}>{root}maj7</option>
+                                        <option value={`${root}dim`}>{root}dim</option>
+                                        <option value={`${root}aug`}>{root}aug</option>
+                                        <option value={`${root}sus2`}>{root}sus2</option>
+                                        <option value={`${root}sus4`}>{root}sus4</option>
+                                    </React.Fragment>
+                                ))}
+                            </select>
+                            {selectedNote?.chordSymbol && (
+                                <button className="editor-btn small" onClick={() => {
+                                    const newNotes = [...notes];
+                                    newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordSymbol: null, chordPosition: null, chordFrets: [], stringIndex: undefined, fret: undefined };
+                                    onNotesChange(newNotes);
+                                    syncEditableText(newNotes);
+                                }} title="清除">✕</button>
+                            )}
+                        </div>
+
+                        {/* 把位選擇 */}
+                        {selectedNote?.chordSymbol && getAvailablePositions(selectedNote.chordSymbol).length > 0 && (
+                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
+                                <span style={{ fontSize: '11px', color: '#888', minWidth: '32px' }}>把位</span>
+                                <select
+                                    value={selectedNote?.chordPosition ?? ''}
+                                    onChange={(e) => {
+                                        const pos = e.target.value === '' ? null : parseInt(e.target.value);
+                                        const chord = selectedNote.chordSymbol;
+                                        const frets = pos != null
+                                            ? chordPositionToFrets(chord, pos)
+                                            : chordToFrets(chord);
+                                        const newNotes = [...notes];
+                                        newNotes[selectedNoteIndex] = {
+                                            ...newNotes[selectedNoteIndex],
+                                            chordPosition: pos,
+                                            chordFrets: frets,
+                                            stringIndex: frets.length > 0 ? frets[0].string : undefined,
+                                            fret: frets.length > 0 ? frets[0].fret : undefined
+                                        };
+                                        onNotesChange(newNotes);
+                                        syncEditableText(newNotes);
+                                    }}
+                                    onMouseEnter={() => setHoverInfo('選擇此和弦的把位（fret 位置）')}
+                                    onMouseLeave={() => setHoverInfo('')}
+                                    disabled={!isNoteEditable}
+                                    style={{ flex: 1, padding: '4px 6px', background: '#333', color: '#fff', border: '1px solid #555', borderRadius: '4px', fontSize: '13px', minWidth: 0 }}
+                                >
+                                    <option value="">自動推算</option>
+                                    {getAvailablePositions(selectedNote.chordSymbol).map(p => (
+                                        <option key={p} value={p}>第 {p} 把位</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* TAB 指法（也限定於 Chord 區開啟時顯示） */}
+                        <div style={{ marginTop: '8px' }}>
+                            <span className="editor-label" style={{ display: 'block', marginBottom: '4px' }}>TAB</span>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 6px', alignItems: 'center', fontSize: '12px' }}>
+                                {['e', 'B', 'G', 'D', 'A', 'E'].map((name, s) => {
+                                    const currentFrets = selectedNote?.chordFrets || [];
+                                    const existingPos = currentFrets.find(p => p.string === s);
+                                    const singleMatch = (selectedNote?.stringIndex === s) ? selectedNote?.fret : undefined;
+                                    const fretVal = existingPos ? existingPos.fret : (singleMatch !== undefined ? singleMatch : '');
+                                    return (
+                                        <React.Fragment key={s}>
+                                            <span style={{ color: '#888', textAlign: 'right' }}>{name}</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="24"
+                                                placeholder="–"
+                                                value={fretVal}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    const newFrets = (selectedNote?.chordFrets || []).filter(p => p.string !== s);
+                                                    if (val !== '') {
+                                                        newFrets.push({ string: s, fret: parseInt(val) || 0 });
+                                                        newFrets.sort((a, b) => a.string - b.string);
+                                                    }
+                                                    const newNotes = [...notes];
+                                                    if (newFrets.length === 0) {
+                                                        newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordFrets: [], stringIndex: undefined, fret: undefined };
+                                                    } else {
+                                                        newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordFrets: newFrets, stringIndex: newFrets[0].string, fret: newFrets[0].fret };
+                                                    }
+                                                    onNotesChange(newNotes);
+                                                    syncEditableText(newNotes);
+                                                }}
+                                                disabled={!isNoteEditable}
+                                                style={{ width: '44px', padding: '2px 4px', background: '#333', color: '#ccc', border: '1px solid #555', borderRadius: '3px', fontSize: '12px', textAlign: 'center' }}
+                                            />
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </div>
+                            {isNoteEditable && (selectedNote?.chordFrets?.length > 0 || typeof selectedNote?.fret === 'number') && (
+                                <button
+                                    className="editor-btn small"
+                                    onClick={() => {
+                                        const newNotes = [...notes];
+                                        newNotes[selectedNoteIndex] = { ...newNotes[selectedNoteIndex], chordFrets: [], stringIndex: undefined, fret: undefined };
+                                        onNotesChange(newNotes);
+                                        syncEditableText(newNotes);
+                                    }}
+                                    style={{ marginTop: '6px', width: '100%' }}
+                                    onMouseEnter={() => setHoverInfo('清除所有 TAB 指法')}
+                                    onMouseLeave={() => setHoverInfo('')}
+                                >清除 TAB</button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* 說明 + 刪除 */}
                 <div className="editor-info-bar" style={{ minHeight: '22px', padding: '4px 8px', background: '#333', borderRadius: '4px', color: '#4caf50', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
                     {hoverInfo || '滑鼠移至按鈕可查看說明　·　點頂部「?」看鍵盤快捷鍵'}
@@ -1772,19 +1750,53 @@ function NoteEditor({
 
             {/* 右側：簡譜樂譜顯示 */}
             <div className="notes-list-area">
-                <div className="section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h3>Notes ({notes.filter(n => !n.isSeparator).length})</h3>
-                    <div style={{ display: 'flex', gap: '4px' }}>
+                {/* section-header 合併 Chord/TAB toggle 與 transport（BPM / 時間 / Guitar / Score / Start） */}
+                <div className="section-header ep-notes-header">
+                    <div className="ep-notes-header-left">
+                        <h3>Notes ({notes.filter(n => !n.isSeparator).length})</h3>
+                        <div className="ep-toggle-group">
+                            <button
+                                className={`editor-btn small ${showChords ? 'active' : ''}`}
+                                onClick={() => setShowChords(v => !v)}
+                                title="顯示/隱藏和弦標記（同時控制 Edit Panel 內和弦區）"
+                            >Chord</button>
+                            <button
+                                className={`editor-btn small ${showTab ? 'active' : ''}`}
+                                onClick={() => setShowTab(v => !v)}
+                                title="顯示/隱藏 TAB 譜行"
+                            >TAB</button>
+                        </div>
+                    </div>
+                    <div className="ep-notes-header-right">
+                        {onTempoChange && (
+                            <div className="ep-bpm">
+                                <input type="range" min="40" max="240" value={tempo || 120} onChange={(e) => onTempoChange(Number(e.target.value))} />
+                                <span className="ep-bpm-value">{tempo || 120} BPM</span>
+                            </div>
+                        )}
+                        <div className={`ep-timer ${isPlaying ? 'playing' : ''}`}>{formatPlayTime(playTime)}</div>
+                        {onOpenFretboardPopup && (
+                            <button
+                                className={`ep-link-btn ${showInlineFretboard ? 'active' : ''}`}
+                                onClick={onOpenFretboardPopup}
+                                onContextMenu={(e) => { e.preventDefault(); onToggleInlineFretboard?.(); }}
+                                title="開新視窗顯示指板（右鍵切換 inline）"
+                            >🎸 Guitar</button>
+                        )}
+                        {onOpenScorePopup && (
+                            <button
+                                className={`ep-link-btn ${showInlineScore ? 'active' : ''}`}
+                                onClick={onOpenScorePopup}
+                                onContextMenu={(e) => { e.preventDefault(); onToggleInlineScore?.(); }}
+                                title="開新視窗顯示樂譜（右鍵切換 inline）"
+                            >🎼 Score</button>
+                        )}
                         <button
-                            className={`editor-btn small ${showChords ? 'active' : ''}`}
-                            onClick={() => setShowChords(v => !v)}
-                            style={{ fontSize: '11px', padding: '2px 6px' }}
-                        >Chord</button>
-                        <button
-                            className={`editor-btn small ${showTab ? 'active' : ''}`}
-                            onClick={() => setShowTab(v => !v)}
-                            style={{ fontSize: '11px', padding: '2px 6px' }}
-                        >TAB</button>
+                            className={`ep-start-btn ${isPlaying ? 'stop' : ''}`}
+                            onClick={onTogglePlay}
+                            disabled={audioLoading}
+                            title={isPlaying ? '停止播放' : '開始播放'}
+                        >{audioLoading ? '...' : (isPlaying ? 'Stop' : 'Start')}</button>
                     </div>
                 </div>
                 <JianpuScoreView
@@ -1795,48 +1807,6 @@ function NoteEditor({
                     showChords={showChords}
                     showTab={showTab}
                 />
-
-                {/* Play Controls */}
-                <div className="controls-bar" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px', gap: '8px' }}>
-                    {/* Tempo slider */}
-                    {onTempoChange && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: 'auto' }}>
-                            <input type="range" min="40" max="240" value={tempo || 120} onChange={(e) => onTempoChange(Number(e.target.value))} style={{ width: '80px' }} />
-                            <span style={{ fontSize: '12px', color: '#aaa', minWidth: '50px' }}>{tempo || 120} BPM</span>
-                        </div>
-                    )}
-                    <div style={{
-                        background: '#111', padding: '6px 12px', borderRadius: '6px',
-                        fontFamily: 'monospace', fontSize: '16px', fontWeight: 'bold',
-                        color: isPlaying ? '#4caf50' : '#666', border: '1px solid #333',
-                        minWidth: '90px', textAlign: 'center'
-                    }}>
-                        {formatPlayTime(playTime)}
-                    </div>
-                    {/* Guitar — 開新視窗顯示指板（同步播放） */}
-                    {onOpenFretboardPopup && (
-                        <button
-                            onClick={onOpenFretboardPopup}
-                            onContextMenu={(e) => { e.preventDefault(); onToggleInlineFretboard?.(); }}
-                            style={{ padding: '6px 10px', fontSize: '13px', background: showInlineFretboard ? '#2196F3' : '#333', color: '#fff', border: '1px solid #555', borderRadius: '6px', cursor: 'pointer' }}
-                            title="開新視窗顯示指板（右鍵切換 inline 顯示）"
-                        >🎸 Guitar</button>
-                    )}
-                    {/* Score — 開新視窗顯示五線譜（同步播放） */}
-                    {onOpenScorePopup && (
-                        <button
-                            onClick={onOpenScorePopup}
-                            onContextMenu={(e) => { e.preventDefault(); onToggleInlineScore?.(); }}
-                            style={{ padding: '6px 10px', fontSize: '13px', background: showInlineScore ? '#2196F3' : '#333', color: '#fff', border: '1px solid #555', borderRadius: '6px', cursor: 'pointer' }}
-                            title="開新視窗顯示樂譜（右鍵切換 inline 顯示）"
-                        >🎼 Score</button>
-                    )}
-                    <button
-                        className="ep-play-btn"
-                        onClick={onTogglePlay} disabled={audioLoading}
-                        style={{ padding: '8px 22px', fontSize: '15px', background: isPlaying ? '#f44336' : '#4caf50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', minHeight: '44px' }}
-                    >{audioLoading ? '...' : (isPlaying ? 'Stop' : 'Play')}</button>
-                </div>
             </div>
 
             </div>{/* /.ep-main */}
@@ -1860,21 +1830,32 @@ function NoteEditor({
                             <div className="ep-help-title">頂部</div>
                             <div className="ep-help-grid">
                                 <span>✕</span><span>關閉 Edit / Play 模式（回到上傳/設定）</span>
-                                <span>✏️ Edit</span><span>顯示左側工具列，可點 icon 開啟編輯抽屜</span>
-                                <span>▶ Play</span><span>純譜面 + 播放，隱藏編輯工具</span>
+                                <span>✏️ Edit</span><span>顯示 Edit Panel，可編輯所有屬性</span>
+                                <span>▶ Play</span><span>純譜面 + 播放，隱藏 Edit Panel</span>
+                                <span>⇤ / ⇥</span><span>Edit Panel 切換到左 / 右側</span>
+                                <span>🎵</span><span>音色選擇</span>
                                 <span>?</span><span>顯示 / 關閉此說明</span>
                             </div>
                         </div>
                         <div className="ep-help-section">
-                            <div className="ep-help-title">左側工具列（Edit 子模式）</div>
+                            <div className="ep-help-title">Notes 區頂部</div>
                             <div className="ep-help-grid">
-                                <span>♯♭</span><span>音高 — 升記號 / 降記號 / 上下八度（含全曲移調）</span>
-                                <span>♩</span><span>時值 — 二分 / 四分 / 八分… / 附點 / 三連音 / 延音線</span>
-                                <span>𝄞</span><span>和弦標記與把位</span>
-                                <span>𝄢</span><span>TAB 指法（六弦 fret）</span>
-                                <span>＋</span><span>插入符號 / 小節線 / 反覆記號 / 方向記號</span>
-                                <span>⌨</span><span>打字機：批次輸入 0-7 與 | 串入音符</span>
-                                <span>🗑</span><span>刪除選中音符</span>
+                                <span>Chord</span><span>顯示/隱藏譜面和弦標記，同時控制 Edit Panel 內和弦區是否顯示</span>
+                                <span>TAB</span><span>顯示/隱藏譜面 TAB 譜行</span>
+                                <span>BPM</span><span>調整播放速度</span>
+                                <span>🎸 Guitar</span><span>開新視窗顯示指板（右鍵切換 inline 顯示）</span>
+                                <span>🎼 Score</span><span>開新視窗顯示五線譜（右鍵切換 inline 顯示）</span>
+                                <span>Start</span><span>開始 / 停止播放</span>
+                            </div>
+                        </div>
+                        <div className="ep-help-section">
+                            <div className="ep-help-title">Edit Panel</div>
+                            <div className="ep-help-grid">
+                                <span>⌨</span><span>面板頂部打字機按鈕：批次輸入 0-7 與 |</span>
+                                <span>音高</span><span>升記號 ♯ / 降記號 ♭ / 上下八度 / 全曲升降八度</span>
+                                <span>時值</span><span>二分 / 四分 / 八分… / 附點 / 連音 / 延音線</span>
+                                <span>插入</span><span>休止符 / 延音 / 小節線 / 反覆記號 / 方向記號</span>
+                                <span>和弦</span><span>需 Chord toggle 開啟才顯示；和弦標記 / 把位 / TAB fret</span>
                             </div>
                         </div>
                         <div className="ep-help-section">

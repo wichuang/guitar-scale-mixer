@@ -606,6 +606,8 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     onToggleInlineScore={() => setShowInlineScore(p => !p)}
                     onClose={() => setEditPlayOpen(false)}
                     initialPlayMode={editPlayInitialMode}
+                    instrument={guitarType}
+                    onInstrumentChange={setGuitarType}
                 />
             )}
 
