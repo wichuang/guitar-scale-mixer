@@ -707,7 +707,13 @@ function NoteEditor({
     const [editPanelSide, setEditPanelSide] = useState('left');
 
     /**
-     * 打字機輸入：解析 0-7 與 ; 字串為一串音符，插入到選中音符之後
+     * 打字機輸入：解析 0-7 / | / + / - 字串為一串音符，插入到選中音符之後
+     *  - 0      = 休止符
+     *  - 1-7    = 簡譜音
+     *  - |      = 小節線
+     *  - +      = 將「上一個簡譜音」升 8 度（可疊用：1++ 升 2 個八度）
+     *  - -      = 將「上一個簡譜音」降 8 度（可疊用）
+     *  + / - 找不到對應的前置音符（或前面是休止符 / 小節線）時忽略。
      */
     const handleTypewriterConfirm = useCallback((text) => {
         setTypewriterOpen(false);
@@ -715,6 +721,38 @@ function NoteEditor({
         const newNotes = [...notes];
         const insertIndex = selectedNoteIndex >= 0 ? selectedNoteIndex + 1 : newNotes.length;
         const toInsert = [];
+
+        // 從 toInsert 由後往前找最後一個「真實的簡譜音 1-7」，回傳 index 或 -1
+        const findLastJianpuIndex = () => {
+            for (let i = toInsert.length - 1; i >= 0; i--) {
+                const n = toInsert[i];
+                if (n.isNote && n.jianpu >= '1' && n.jianpu <= '7') return i;
+            }
+            return -1;
+        };
+
+        // 套用 +/- 到目標音符：重算 octave / midiNote / displayStr
+        const shiftOctave = (note, delta) => {
+            const oldOctave = note.octave || 4;
+            const newOctave = Math.max(2, Math.min(6, oldOctave + delta));
+            if (newOctave === oldOctave) return note;
+            const jp = note.jianpu;
+            // 重新組顯示字串：高八度用 ·，低八度用底線
+            let ds = String(jp);
+            if (newOctave >= 5) ds = ds + '.'.repeat(newOctave - 4);
+            if (newOctave === 3) ds = '_' + ds;
+            if (newOctave === 2) ds = '__' + ds;
+            if (note.accidentalStr) ds += note.accidentalStr;
+            const oldMidi = note.midiNote ?? note.midi ?? 60;
+            return {
+                ...note,
+                octave: newOctave,
+                midiNote: oldMidi + (newOctave - oldOctave) * 12,
+                midi: oldMidi + (newOctave - oldOctave) * 12,
+                displayStr: ds,
+            };
+        };
+
         for (const ch of text) {
             if (ch === '0') {
                 toInsert.push({
@@ -737,6 +775,11 @@ function NoteEditor({
                     _type: 'separator', isSeparator: true,
                     octave: 4, index: 0
                 });
+            } else if (ch === '+' || ch === '-') {
+                const idx = findLastJianpuIndex();
+                if (idx >= 0) {
+                    toInsert[idx] = shiftOctave(toInsert[idx], ch === '+' ? 1 : -1);
+                }
             }
         }
         if (toInsert.length === 0) return;
@@ -1816,6 +1859,8 @@ function NoteEditor({
                 open={typewriterOpen}
                 onConfirm={handleTypewriterConfirm}
                 onCancel={() => setTypewriterOpen(false)}
+                notes={notes}
+                selectedNoteIndex={selectedNoteIndex}
             />
 
             {/* 鍵盤快捷鍵 / icon 圖示說明 overlay */}
