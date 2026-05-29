@@ -4,8 +4,7 @@ import Fretboard from './components/Fretboard';
 import LiveMode from './components/LiveMode';
 import ReadMode from './components/ReadMode/index.jsx';
 import ReadPopup from './components/ReadMode/ReadPopup.jsx';
-import ScalePanelCompact from './components/ScalePanelCompact';
-import ChordMode from './components/ChordMode';
+import PlayItemCard from './components/PlayItemCard';
 import SettingsPage from './components/SettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import YouTubeSync from './components/YouTubeSync';
@@ -15,6 +14,7 @@ import { usePresets, useAutoSave, getInitialState } from './hooks/usePresets';
 import { usePitchDetection } from './hooks/usePitchDetection';
 import { useAuth } from './contexts/AuthContext';
 import { getScaleNotes, CAGED_SHAPES } from './data/scaleData';
+import { getChordNotes } from './data/chordData';
 import './App.css';
 
 const getBackgroundPath = (name) => `${import.meta.env.BASE_URL}backgrounds/${name}.png`;
@@ -37,27 +37,53 @@ export const GUITAR_OPTIONS = [
   { value: 'distortion_guitar', label: 'Distort' },
 ];
 
+// 預設 Play 項目（最多 4 個，使用者可選 scale / chord）
+const DEFAULT_PLAY_ITEMS = [
+  { type: 'scale', root: 'A', scale: 'major-pentatonic', enabledNotes: null },
+  { type: 'chord', root: 'C', quality: 'Major', extension: '7',
+    enabledNotes: getChordNotes('C', 'Major', '7') },
+  { type: 'chord', root: 'G', quality: 'Dominant', extension: '7',
+    enabledNotes: getChordNotes('G', 'Dominant', '7') },
+  { type: 'scale', root: 'A', scale: 'natural-minor', enabledNotes: null },
+];
+
 const DEFAULT_STATE = {
-  scaleCount: 2,
+  itemCount: 2,
   displayMode: 'notes',
   guitarType: 'acoustic_guitar_steel',
   fretCount: 26,
-  scales: [
-    { root: 'A', scale: 'harmonic-minor', enabledNotes: null },
-    { root: 'A', scale: 'minor-pentatonic', enabledNotes: null },
-    { root: 'E', scale: 'major', enabledNotes: null },
-  ]
+  playItems: DEFAULT_PLAY_ITEMS,
 };
+
+/**
+ * 把舊版 state（scales / scaleCount）轉成新版（playItems / itemCount）。
+ * 若已是新版則直接回傳，並補齊 4 個項目以避免 itemCount=4 時越界。
+ */
+function migrateLegacyState(state) {
+  if (!state) return DEFAULT_STATE;
+  const base = { ...DEFAULT_STATE, ...state };
+  if (!base.playItems && Array.isArray(state.scales)) {
+    base.playItems = state.scales.map(s => ({ type: 'scale', ...s }));
+    if (typeof state.scaleCount === 'number') base.itemCount = state.scaleCount;
+  }
+  // 確保 playItems 至少 4 個（不足補預設）
+  const items = Array.isArray(base.playItems) ? [...base.playItems] : [];
+  while (items.length < 4) items.push(DEFAULT_PLAY_ITEMS[items.length] || DEFAULT_PLAY_ITEMS[0]);
+  base.playItems = items;
+  if (!base.itemCount) base.itemCount = 2;
+  base.itemCount = Math.max(1, Math.min(4, base.itemCount));
+  return base;
+}
 
 // Main App Content (Protected)
 function MainContent() {
-  const [mode, setMode] = useState('scale');
+  const [mode, setMode] = useState('play');
   const [showSettings, setShowSettings] = useState(false);
-  const initialState = useMemo(() => getInitialState(DEFAULT_STATE), []);
+  const initialState = useMemo(() => migrateLegacyState(getInitialState(DEFAULT_STATE)), []);
 
-  const [scaleCount, setScaleCount] = useState(initialState.scaleCount);
+  const [itemCount, setItemCount] = useState(initialState.itemCount);
   const [displayMode, setDisplayMode] = useState(initialState.displayMode);
-  const [scales, setScales] = useState(initialState.scales);
+  const [playItems, setPlayItems] = useState(initialState.playItems);
   const [guitarType, setGuitarType] = useState(initialState.guitarType);
   const [fretCount, setFretCount] = useState(initialState.fretCount || 15);
 
@@ -90,38 +116,42 @@ function MainContent() {
   const [fretboardLayout, setFretboardLayout] = useState('overlay'); // 'overlay' | 'separate'
 
   const currentState = useMemo(() => ({
-    scaleCount, displayMode, guitarType, scales, fretCount
-  }), [scaleCount, displayMode, guitarType, scales, fretCount]);
+    itemCount, displayMode, guitarType, playItems, fretCount
+  }), [itemCount, displayMode, guitarType, playItems, fretCount]);
 
   useAutoSave(currentState, true);
 
-  const updateScale = (index, field, value) => {
-    setScales(prev => {
-      const newScales = [...prev];
-      newScales[index] = { ...newScales[index], [field]: value };
-      if (field === 'scale' || field === 'root') {
-        newScales[index].enabledNotes = null;
-      }
-      return newScales;
+  // 更新某項目（patch 為部分屬性）
+  const updateItem = (index, patch) => {
+    setPlayItems(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...patch };
+      return next;
     });
   };
 
-  const toggleNote = (index, note) => {
-    setScales(prev => {
-      const newScales = [...prev];
-      const scale = newScales[index];
-      // 如果還沒有自定義過，預設是全部開啟
-      const currentNotes = scale.enabledNotes || getScaleNotes(scale.root, scale.scale);
-
-      let nextNotes;
-      if (currentNotes.includes(note)) {
-        nextNotes = currentNotes.filter(n => n !== note);
+  // 切換 note picker 中的單個音（Scale: 自由開關；Chord: chord tones 鎖定，passing tones 可切）
+  const toggleItemNote = (index, note) => {
+    setPlayItems(prev => {
+      const next = [...prev];
+      const it = next[index];
+      if (it.type === 'scale') {
+        const baseline = getScaleNotes(it.root, it.scale);
+        const current = it.enabledNotes || baseline;
+        const newNotes = current.includes(note)
+          ? current.filter(n => n !== note)
+          : [...current, note];
+        next[index] = { ...it, enabledNotes: newNotes };
       } else {
-        nextNotes = [...currentNotes, note];
+        const chordTones = getChordNotes(it.root, it.quality, it.extension);
+        if (chordTones.includes(note)) return prev; // chord tones 鎖定
+        const current = it.enabledNotes || chordTones;
+        const newNotes = current.includes(note)
+          ? current.filter(n => n !== note)
+          : [...current, note];
+        next[index] = { ...it, enabledNotes: newNotes };
       }
-
-      newScales[index] = { ...scale, enabledNotes: nextNotes };
-      return newScales;
+      return next;
     });
   };
 
@@ -129,11 +159,12 @@ function MainContent() {
   const handleLoadPreset = (id) => {
     const state = loadPreset(id);
     if (state) {
-      setScaleCount(state.scaleCount);
-      setDisplayMode(state.displayMode);
-      setGuitarType(state.guitarType);
-      setScales(state.scales);
-      setFretCount(state.fretCount || 15);
+      const migrated = migrateLegacyState(state);
+      setItemCount(migrated.itemCount);
+      setDisplayMode(migrated.displayMode);
+      setGuitarType(migrated.guitarType);
+      setPlayItems(migrated.playItems);
+      setFretCount(migrated.fretCount || 15);
       setShowSettings(false);
     }
   };
@@ -143,7 +174,26 @@ function MainContent() {
     navigate('/login');
   };
 
-  const activeScales = scales.slice(0, scaleCount);
+  const activeItems = playItems.slice(0, itemCount);
+
+  // 把 Play 項目轉成 Fretboard 吃的 scales 結構：
+  //  - scale 項目原樣傳遞
+  //  - chord 項目轉為 chromatic + enabledNotes + chordNotes + isChord
+  const itemToFretboardScale = (it) => {
+    if (it.type === 'chord') {
+      return {
+        root: it.root,
+        scale: 'chromatic',
+        enabledNotes: it.enabledNotes,
+        chordNotes: getChordNotes(it.root, it.quality, it.extension),
+        isChord: true,
+      };
+    }
+    return { root: it.root, scale: it.scale, enabledNotes: it.enabledNotes };
+  };
+  const fretboardScales = activeItems.map(itemToFretboardScale);
+  const activeScaleItems = activeItems.filter(it => it.type === 'scale');
+
   const backgroundImage = GUITAR_BACKGROUNDS[guitarType];
 
   return (
@@ -160,16 +210,10 @@ function MainContent() {
               {/* Mode Toggle */}
               <div className="mode-toggle">
                 <button
-                  className={`mode-btn ${mode === 'scale' ? 'active' : ''}`}
-                  onClick={() => setMode('scale')}
+                  className={`mode-btn ${mode === 'play' ? 'active' : ''}`}
+                  onClick={() => setMode('play')}
                 >
-                  📚 Scales
-                </button>
-                <button
-                  className={`mode-btn ${mode === 'chord' ? 'active' : ''}`}
-                  onClick={() => setMode('chord')}
-                >
-                  🎹 Chords
+                  🎼 Play
                 </button>
                 <button
                   className={`mode-btn ${mode === 'live' ? 'active' : ''}`}
@@ -236,25 +280,25 @@ function MainContent() {
           </div>
         )}
 
-        {/* Scale Mode */}
-        {mode === 'scale' && (
+        {/* Play Mode — 整合 Scale + Chord，可混選最多 4 個項目 */}
+        {mode === 'play' && (
           <div className="scale-mode">
 
-            {/* Controls - Only show if not black screen */}
+            {/* Controls */}
             {!blackScreenMode && (
               <div className="controls-card">
                 <div className="control-section">
-                  <label className="section-label">Scales</label>
+                  <label className="section-label">Items</label>
                   <div className="btn-group">
-                    {[1, 2, 3].map(n => (
+                    {[1, 2, 3, 4].map(n => (
                       <button
                         key={n}
-                        className={`sm-btn ${scaleCount === n ? 'active' : ''}`}
-                        onClick={() => setScaleCount(n)}
+                        className={`sm-btn ${itemCount === n ? 'active' : ''}`}
+                        onClick={() => setItemCount(n)}
                       >{n}</button>
                     ))}
                   </div>
-                  {scaleCount > 1 && (
+                  {itemCount > 1 && (
                     <div className="btn-group" style={{ marginLeft: '8px' }}>
                       <button
                         className={`sm-btn ${fretboardLayout === 'overlay' ? 'active' : ''}`}
@@ -316,31 +360,28 @@ function MainContent() {
               </div>
             )}
 
-            {/* Scale Selectors */}
+            {/* Item Cards — 每張卡片可切 Scale / Chord */}
             {!blackScreenMode && (
               <div className="scales-row">
-                {activeScales.map((s, i) => (
-                  <ScalePanelCompact
+                {activeItems.map((it, i) => (
+                  <PlayItemCard
                     key={i}
                     index={i}
-                    root={s.root}
-                    scale={s.scale}
-                    enabledNotes={s.enabledNotes}
-                    onRootChange={(v) => updateScale(i, 'root', v)}
-                    onScaleChange={(v) => updateScale(i, 'scale', v)}
-                    onToggleNote={(note) => toggleNote(i, note)}
+                    item={it}
+                    onChange={(patch) => updateItem(i, patch)}
+                    onToggleNote={(note) => toggleItemNote(i, note)}
                   />
                 ))}
               </div>
             )}
 
-            {/* Fretboard - Always visible */}
-            {fretboardLayout === 'separate' && scaleCount > 1 ? (
+            {/* Fretboard */}
+            {fretboardLayout === 'separate' && itemCount > 1 ? (
               <div className="fretboards-separate">
-                {activeScales.map((scale, idx) => (
+                {fretboardScales.map((sc, idx) => (
                   <div key={idx} className="fretboard-container">
                     <Fretboard
-                      scales={[scale]}
+                      scales={[sc]}
                       guitarType={guitarType}
                       displayMode={displayMode}
                       fretCount={fretCount}
@@ -355,7 +396,7 @@ function MainContent() {
             ) : (
               <div className="fretboard-container">
                 <Fretboard
-                  scales={activeScales}
+                  scales={fretboardScales}
                   guitarType={guitarType}
                   displayMode={displayMode}
                   fretCount={fretCount}
@@ -368,22 +409,11 @@ function MainContent() {
           </div>
         )}
 
-        {/* Chord Mode */}
-        {mode === 'chord' && (
-          <ChordMode
-            guitarType={guitarType}
-            setGuitarType={setGuitarType}
-            displayMode={displayMode}
-            setDisplayMode={setDisplayMode}
-            fretCount={fretCount}
-          />
-        )}
-
-        {/* Live Mode */}
+        {/* Live Mode — 只看 scale 類項目作為 pitch guide */}
         {mode === 'live' && (
           <LiveMode
             guitarType={guitarType}
-            scales={activeScales}
+            scales={activeScaleItems.length > 0 ? activeScaleItems : [DEFAULT_PLAY_ITEMS[0]]}
             fretCount={fretCount}
             pitchDetection={pitchDetection}
             displayMode={displayMode}
