@@ -33,7 +33,7 @@ const DISABLED_COLORS = [
 const STRING_NAMES = ['E', 'B', 'G', 'D', 'A', 'E'];
 
 // Visible frets (controlled from Settings)
-function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, colorOffset = 0, disabledFrets: extDisabledFrets, onToggleFret: extOnToggleFret }) {
+function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, colorOffset = 0, disabledFrets: extDisabledFrets, onToggleFret: extOnToggleFret, onFretClick, activeNoteKey }) {
     const { playNote, isLoading } = useAudio(guitarType);
     const [activeNote, setActiveNote] = useState(null);
     const scrollRef = useRef(null);
@@ -103,12 +103,14 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
     const scaleNotesArray = scales.map(s => getScaleNotes(s.root, s.scale));
     const rootNotes = scales.map(s => s.root);
 
-    const handleNoteClick = useCallback((midiNote, stringIdx, noteName) => {
+    const handleNoteClick = useCallback((midiNote, stringIdx, noteName, fret) => {
         if (isLoading) return;
         playNote(midiNote, stringIdx);
         setActiveNote(`${stringIdx}-${midiNote}`);
         setTimeout(() => setActiveNote(null), 150);
-    }, [playNote, isLoading]);
+        // Compose 模式：把點擊的音寫入樂譜（其他模式不傳此 prop，行為不變）
+        if (onFretClick) onFretClick({ stringIndex: stringIdx, fret, midiNote, noteName });
+    }, [playNote, isLoading, onFretClick]);
 
     const fretMarkers = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24];
     const doubleDotFrets = [12, 24];
@@ -317,7 +319,9 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                                         const midiNote = openMidi + fret;
                                         const noteName = getNoteName(midiNote);
                                         const { inScales, isRootOf } = getNoteScaleInfo(noteName);
-                                        const isActive = activeNote === `${stringIdx}-${midiNote}`;
+                                        const noteKey = `${stringIdx}-${midiNote}`;
+                                        // 自身點擊 (activeNote) 或外部播放高亮 (activeNoteKey) 皆亮起
+                                        const isActive = activeNote === noteKey || activeNoteKey === noteKey;
 
                                         // Filter to only enabled notes
                                         const enabledInScales = inScales.filter(s => s.enabled);
@@ -412,7 +416,7 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                                                         fontSize: isLongText ? '8px' : undefined,
                                                         lineHeight: isLongText ? '1' : undefined
                                                     }}
-                                                    onClick={() => handleNoteClick(midiNote, stringIdx, noteName)}
+                                                    onClick={() => handleNoteClick(midiNote, stringIdx, noteName, fret)}
                                                     title={`${noteName} (Fret ${fret})`}
                                                 >
                                                     {displayText}

@@ -1580,6 +1580,26 @@ function NoteEditor({
                             style={{ flex: 1 }}
                         >{selectedNote?.tieStart ? '⌢ 延音 ON' : '⌢ 延音'}</button>
                     </div>
+                    {/* 演奏技巧 (Slide / Vibrato) */}
+                    <span className="editor-label" style={{ marginTop: '6px' }}>演奏技巧</span>
+                    <div className="editor-buttons" style={{ gap: '4px' }}>
+                        <button
+                            className={`editor-btn ${selectedNote?.technique === 'slide' ? 'active' : ''}`}
+                            onClick={() => handleUpdateNoteProperty('technique', selectedNote?.technique === 'slide' ? null : 'slide')}
+                            disabled={!isNoteEditable}
+                            onMouseEnter={() => setHoverInfo('滑音：滑向下一個音')}
+                            onMouseLeave={() => setHoverInfo('')}
+                            style={{ flex: 1 }}
+                        >⟋ 滑音</button>
+                        <button
+                            className={`editor-btn ${selectedNote?.technique === 'vibrato' ? 'active' : ''}`}
+                            onClick={() => handleUpdateNoteProperty('technique', selectedNote?.technique === 'vibrato' ? null : 'vibrato')}
+                            disabled={!isNoteEditable}
+                            onMouseEnter={() => setHoverInfo('顫音：單音顫動效果')}
+                            onMouseLeave={() => setHoverInfo('')}
+                            style={{ flex: 1 }}
+                        >〰 顫音</button>
+                    </div>
                 </div>
 
                 {/* ── 符號/插入 ── */}

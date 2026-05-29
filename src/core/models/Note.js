@@ -65,6 +65,12 @@ export class Note {
         this.technique = props.technique ?? null;
         this.tabPosition = props.tabPosition ?? null;
 
+        // 延音線 / 附點 / 和弦把位（編輯態屬性，需可序列化供 Read 模式讀取）
+        this.tieStart = props.tieStart ?? false;
+        this.tieEnd = props.tieEnd ?? false;
+        this.dotted = props.dotted ?? 0;
+        this.chordFrets = props.chordFrets ?? null;
+
         // Chord symbol (e.g. "Am", "B7", "Em")
         this.chordSymbol = props.chordSymbol ?? null;
 
@@ -314,12 +320,13 @@ export class Note {
      * @returns {Note}
      */
     static fromObject(obj) {
-        // Determine type from flags
-        let type = 'note';
+        // Determine type from flags（優先用明確旗標，否則退回 _type）
+        let type = obj._type || 'note';
         if (obj.isRest) type = 'rest';
         else if (obj.isExtension) type = 'extension';
         else if (obj.isSeparator) type = 'separator';
         else if (obj.isSymbol) type = 'symbol';
+        else if (obj.isNote) type = 'note';
 
         return new Note({
             midi: obj.midiNote ?? obj.midi,
@@ -330,7 +337,17 @@ export class Note {
             displayStr: obj.displayStr,
             index: obj.index,
             duration: obj.duration,
-            type
+            type,
+            // 六線譜 / 演奏技巧 / 延音 等欄位（存檔→讀檔需保留）
+            stringIndex: obj.stringIndex,
+            fret: obj.fret,
+            technique: obj.technique,
+            tabPosition: obj.tabPosition,
+            tieStart: obj.tieStart,
+            tieEnd: obj.tieEnd,
+            dotted: obj.dotted,
+            chordSymbol: obj.chordSymbol,
+            chordFrets: obj.chordFrets,
         });
     }
 
@@ -343,7 +360,18 @@ export class Note {
             index: this.index,
             jianpu: this.jianpu,
             displayStr: this.displayStr,
+            duration: this.duration,
         };
+
+        // 保留六線譜 / 演奏技巧 / 延音 等編輯態欄位（供存檔→Read 模式載入）
+        if (this.technique != null) obj.technique = this.technique;
+        if (this.stringIndex != null) obj.stringIndex = this.stringIndex;
+        if (this.fret != null) obj.fret = this.fret;
+        if (this.tieStart) obj.tieStart = true;
+        if (this.tieEnd) obj.tieEnd = true;
+        if (this.dotted) obj.dotted = this.dotted;
+        if (this.chordSymbol != null) obj.chordSymbol = this.chordSymbol;
+        if (this.chordFrets != null) obj.chordFrets = this.chordFrets;
 
         if (this.isNote) {
             obj.midiNote = this.midi;
@@ -391,6 +419,10 @@ export class Note {
             technique: overrides.technique ?? this.technique,
             tabPosition: overrides.tabPosition ?? this.tabPosition,
             chordSymbol: overrides.chordSymbol ?? this.chordSymbol,
+            chordFrets: overrides.chordFrets ?? this.chordFrets,
+            tieStart: overrides.tieStart ?? this.tieStart,
+            tieEnd: overrides.tieEnd ?? this.tieEnd,
+            dotted: overrides.dotted ?? this.dotted,
             format: overrides.format ?? this.format
         });
     }

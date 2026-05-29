@@ -149,7 +149,8 @@ function JianpuView({
     noteXCoordinates = [],
     currentNoteIndex = -1,
     showDuration = true,
-    height = 80
+    height = 80,
+    color = 'white'
 }) {
     return (
         <div
@@ -176,7 +177,7 @@ function JianpuView({
                 // 是否為當前播放的音符
                 const isActive = index === currentNoteIndex;
 
-                const noteColor = isActive ? '#4caf50' : 'white';
+                const noteColor = isActive ? '#4caf50' : color;
 
                 // 是否為特殊符號（分隔線、延長線等不需要時值標記）
                 const isSpecial = note.isSeparator || note.isExtension || note.isSymbol;

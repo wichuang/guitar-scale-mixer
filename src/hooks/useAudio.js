@@ -160,6 +160,8 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
     }, []);
 
     // Play a note — 如果音色未載入，等待載入後再播放（不靜默跳過）
+    // 回傳 soundfont-player 的播放節點（含 .source = AudioBufferSourceNode，
+    // 可用 source.detune 做滑音 / 顫音），失敗時回傳 null
     const playNote = useCallback(async (midiNote, stringIndex = 2, options = {}) => {
         const ac = getAudioContext();
 
@@ -167,7 +169,7 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         if (!instrument) {
             // 等待音色載入完成再播放
             instrument = await ensureLoaded();
-            if (!instrument) return; // 載入失敗才放棄
+            if (!instrument) return null; // 載入失敗才放棄
         }
 
         // 確保 AudioContext 是 running（iOS 可能被 suspend）
@@ -179,12 +181,13 @@ export function useAudio(instrumentName = 'acoustic_guitar_nylon') {
         const gain = options.gain || 0.8;
 
         try {
-            instrument.play(noteName, ac.currentTime, {
+            return instrument.play(noteName, ac.currentTime, {
                 duration: options.duration || 2,
                 gain: gain,
             });
         } catch (err) {
             console.error('Error playing note:', err);
+            return null;
         }
     }, [midiToNoteName, ensureLoaded]);
 

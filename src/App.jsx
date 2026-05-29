@@ -5,6 +5,7 @@ import LiveMode from './components/LiveMode';
 import ReadMode from './components/ReadMode/index.jsx';
 import ReadPopup from './components/ReadMode/ReadPopup.jsx';
 import PlayItemCard from './components/PlayItemCard';
+import ComposeMode from './components/ComposeMode';
 import SettingsPage from './components/SettingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import YouTubeSync from './components/YouTubeSync';
@@ -222,6 +223,12 @@ function MainContent() {
                   🎸 Live
                 </button>
                 <button
+                  className={`mode-btn ${mode === 'compose' ? 'active' : ''}`}
+                  onClick={() => setMode('compose')}
+                >
+                  ✏️ Compose
+                </button>
+                <button
                   className={`mode-btn ${mode === 'read' ? 'active' : ''}`}
                   onClick={() => setMode('read')}
                 >
@@ -418,6 +425,15 @@ function MainContent() {
             pitchDetection={pitchDetection}
             displayMode={displayMode}
             onDisplayModeChange={setDisplayMode}
+          />
+        )}
+
+        {/* Compose Mode — 指板選 scale/chord + 編寫六線譜 */}
+        {mode === 'compose' && (
+          <ComposeMode
+            guitarType={guitarType}
+            setGuitarType={setGuitarType}
+            fretCount={fretCount}
           />
         )}
 

@@ -1,0 +1,90 @@
+.compose-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.compose-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+}
+
+/* 六線譜編寫區 */
+.compose-score {
+  background: rgba(20, 20, 25, 0.55);
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.compose-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.compose-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compose-tool-group .section-label {
+  margin-right: 2px;
+}
+
+.dur-btn {
+  min-width: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+}
+
+.tech-btn {
+  font-size: 13px;
+}
+
+.tempo-input {
+  width: 64px;
+  text-align: center;
+}
+
+.play-btn.active,
+.play-btn {
+  color: #6ee787;
+}
+
+.compose-hint {
+  font-size: 12px;
+  color: #9aa;
+  margin: 0 0 8px 2px;
+}
+
+.compose-tab-wrapper {
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 4px;
+  overflow-x: auto;
+  min-height: 120px;
+}
+
+/* 深色主題：明暗反相讓黑色譜線→白色（在深色底可讀），
+   再 hue-rotate(180) 抵銷色相翻轉 → 滑音/延音/顫音三色保持正確 */
+.compose-tab-wrapper .tab-view {
+  filter: invert(1) hue-rotate(180deg) !important;
+}
+
+.compose-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 110px;
+  color: #888;
+  font-size: 15px;
+}
