@@ -802,6 +802,8 @@ function NoteEditor({
         { keys: '=', desc: '時值改 16 分音符' },
         { keys: '.', desc: '附點 toggle（無→單→複→無）' },
         { keys: '~', desc: '切換延音 (tie)' },
+        { keys: 'h', desc: '切換搥音 (hammer-on)' },
+        { keys: 'p', desc: '切換勾音 (pull-off)' },
         { keys: '^', desc: '向後插入休止符' },
         { keys: '|', desc: '向後插入小節線' },
         { keys: 'Del / Backspace', desc: '刪除選中音符' },
@@ -1164,6 +1166,22 @@ function NoteEditor({
                     newNotes[i] = { ...n, tieEnd: !currentTie };
                     break;
                 }
+                onNotesChange(newNotes);
+                syncEditableText(newNotes);
+                return;
+            }
+
+            // h: 切換搥音 (hammer-on)；p: 切換勾音 (pull-off)（用 e.code 比對實體鍵，避開 IME）
+            const noMod = !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey;
+            const isHammer = noMod && (e.key === 'h' || e.code === 'KeyH');
+            const isPull = noMod && (e.key === 'p' || e.code === 'KeyP');
+            if (isHammer || isPull) {
+                const note = notes[selectedNoteIndex];
+                if (note.isSeparator || note.isRest || note.isExtension || note.isSymbol) return;
+                e.preventDefault();
+                const tech = isHammer ? 'hammer-on' : 'pull-off';
+                const newNotes = [...notes];
+                newNotes[selectedNoteIndex] = { ...note, technique: note.technique === tech ? null : tech };
                 onNotesChange(newNotes);
                 syncEditableText(newNotes);
                 return;
@@ -1580,7 +1598,7 @@ function NoteEditor({
                             style={{ flex: 1 }}
                         >{selectedNote?.tieStart ? '⌢ 延音 ON' : '⌢ 延音'}</button>
                     </div>
-                    {/* 演奏技巧 (Slide / Vibrato) */}
+                    {/* 演奏技巧 (Slide / Hammer-on / Pull-off / Vibrato) */}
                     <span className="editor-label" style={{ marginTop: '6px' }}>演奏技巧</span>
                     <div className="editor-buttons" style={{ gap: '4px' }}>
                         <button
@@ -1599,6 +1617,24 @@ function NoteEditor({
                             onMouseLeave={() => setHoverInfo('')}
                             style={{ flex: 1 }}
                         >〰 顫音</button>
+                    </div>
+                    <div className="editor-buttons" style={{ gap: '4px', marginTop: '4px' }}>
+                        <button
+                            className={`editor-btn ${selectedNote?.technique === 'hammer-on' ? 'active' : ''}`}
+                            onClick={() => handleUpdateNoteProperty('technique', selectedNote?.technique === 'hammer-on' ? null : 'hammer-on')}
+                            disabled={!isNoteEditable}
+                            onMouseEnter={() => setHoverInfo('搥音 (hammer-on)：搥向下一個音（六線譜顯示 H）')}
+                            onMouseLeave={() => setHoverInfo('')}
+                            style={{ flex: 1 }}
+                        >H 搥音</button>
+                        <button
+                            className={`editor-btn ${selectedNote?.technique === 'pull-off' ? 'active' : ''}`}
+                            onClick={() => handleUpdateNoteProperty('technique', selectedNote?.technique === 'pull-off' ? null : 'pull-off')}
+                            disabled={!isNoteEditable}
+                            onMouseEnter={() => setHoverInfo('勾音 (pull-off)：勾向下一個音（六線譜顯示 P）')}
+                            onMouseLeave={() => setHoverInfo('')}
+                            style={{ flex: 1 }}
+                        >P 勾音</button>
                     </div>
                 </div>
 
@@ -1919,6 +1955,7 @@ function NoteEditor({
                                 <span>⌨</span><span>面板頂部打字機按鈕：批次輸入 0-7 與 |</span>
                                 <span>音高</span><span>升記號 ♯ / 降記號 ♭ / 上下八度 / 全曲升降八度</span>
                                 <span>時值</span><span>二分 / 四分 / 八分… / 附點 / 連音 / 延音線</span>
+                                <span>技巧</span><span>延音 (~) / 滑音 / 顫音 / 搥音 H (h) / 勾音 P (p)</span>
                                 <span>插入</span><span>休止符 / 延音 / 小節線 / 反覆記號 / 方向記號</span>
                                 <span>和弦</span><span>需 Chord toggle 開啟才顯示；和弦標記 / 把位 / TAB fret</span>
                             </div>

@@ -9,8 +9,11 @@ import { Factory, TabNote, TabStave, Voice, Formatter, Dot, TabSlide, TabTie, An
 /**
  * 將 Note.duration 轉換為 VexFlow duration 字串
  */
-// 三種技巧的顏色（與 Compose 工具列按鈕一致）：滑音橘、延音綠、顫音紫
-const TECH_COLORS = { slide: '#E8943A', tie: '#3fae5a', vibrato: '#9b59b6' };
+// 技巧顏色（與 Compose 工具列按鈕一致）：滑音橘、延音綠、顫音紫、搥音藍、勾音紅
+const TECH_COLORS = {
+  slide: '#E8943A', tie: '#3fae5a', vibrato: '#9b59b6',
+  'hammer-on': '#3a8ee8', 'pull-off': '#e0556b',
+};
 
 function toVexDuration(duration, isRest = false) {
     const map = {
@@ -146,15 +149,18 @@ function TabView({
         // （需在音符繪製後再畫；跳過休止符、延音線、小節線、符號）
         notes.forEach((note, idx) => {
             const wantsSlide = note.technique === 'slide';
+            const wantsHammer = note.technique === 'hammer-on';
+            const wantsPull = note.technique === 'pull-off';
             const wantsTie = note.tieStart;
-            if (!wantsSlide && !wantsTie) return;
+            if (!wantsSlide && !wantsHammer && !wantsPull && !wantsTie) return;
             const fromVf = noteMapping[idx];
             if (fromVf == null) return;
-            // 找後面第一個實際音符作為連接終點
+            // 找後面第一個有指法的元素作為連接終點（延音增時線 isExtension 也算，
+            // 因為它保留指法、會在 TAB 上畫出 fret 供延音線連接）
             let toVf = null, toNote = null;
             for (let j = idx + 1; j < notes.length; j++) {
                 const nj = notes[j];
-                if (nj.isSeparator || nj.isSymbol || nj.isRest || nj.isExtension) continue;
+                if (nj.isSeparator || nj.isSymbol || nj.isRest) continue;
                 if (noteMapping[j] != null) { toVf = noteMapping[j]; toNote = nj; }
                 break;
             }
@@ -169,7 +175,7 @@ function TabView({
                     context.setStrokeStyle(TECH_COLORS.slide);
                     context.setFillStyle(TECH_COLORS.slide);
                     new TabSlide(
-                        { first_note: first, last_note: last, first_indices: [0], last_indices: [0] },
+                        { firstNote: first, lastNote: last, firstIndexes: [0], lastIndexes: [0] },
                         dir
                     ).setContext(context).draw();
                     context.restore();
@@ -179,8 +185,21 @@ function TabView({
                     context.setStrokeStyle(TECH_COLORS.tie);
                     context.setFillStyle(TECH_COLORS.tie);
                     new TabTie(
-                        { first_note: first, last_note: last, first_indices: [0], last_indices: [0] }
+                        { firstNote: first, lastNote: last, firstIndexes: [0], lastIndexes: [0] }
                     ).setContext(context).draw();
+                    context.restore();
+                }
+                if (wantsHammer || wantsPull) {
+                    // 搥音 (hammer-on) → H、勾音 (pull-off) → P，以圓滑線連接兩音
+                    const col = wantsHammer ? TECH_COLORS['hammer-on'] : TECH_COLORS['pull-off'];
+                    const notesArg = { firstNote: first, lastNote: last, firstIndexes: [0], lastIndexes: [0] };
+                    const tie = wantsHammer
+                        ? TabTie.createHammeron(notesArg)
+                        : TabTie.createPulloff(notesArg);
+                    context.save();
+                    context.setStrokeStyle(col);
+                    context.setFillStyle(col);
+                    tie.setContext(context).draw();
                     context.restore();
                 }
             } catch (err) {

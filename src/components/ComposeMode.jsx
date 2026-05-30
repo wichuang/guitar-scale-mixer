@@ -23,8 +23,13 @@ const DURATIONS = [
 const beatsOf = (duration) =>
   DURATIONS.find(d => d.value === duration)?.beats ?? 1;
 
-// 三種技巧顏色（需與 TabView 的 TECH_COLORS 一致）：滑音橘、延音綠、顫音紫
-const TECH_COLORS = { slide: '#E8943A', tie: '#3fae5a', vibrato: '#9b59b6' };
+// 技巧顏色（需與 TabView 的 TECH_COLORS 一致）：
+// 滑音橘、延音綠、顫音紫、搥音藍、勾音紅
+// 技巧值沿用全專案慣例（解析器/OCR）：'hammer-on' / 'pull-off'
+const TECH_COLORS = {
+  slide: '#E8943A', tie: '#3fae5a', vibrato: '#9b59b6',
+  'hammer-on': '#3a8ee8', 'pull-off': '#e0556b',
+};
 
 const EMPTY_SEL = []; // 穩定的空陣列參考，避免每次 render 產生新陣列觸發重繪
 
@@ -52,6 +57,44 @@ function NoteIcon({ type }) {
         <path d={`M${stemX} 7 q4.5 2.5 3 7`} fill="none" stroke="currentColor" strokeWidth="1.3" />
       )}
     </svg>
+  );
+}
+
+/**
+ * 音名列 — 在簡譜下方對齊顯示 ABCDEFG 音名（X 座標與 TAB / 簡譜一致）
+ */
+function NoteNameRow({ notes, noteXs, currentNoteIndex, height = 24 }) {
+  return (
+    <div style={{ position: 'relative', width: '100%', height }}>
+      {notes.map((note, index) => {
+        const x = noteXs[index];
+        if (x == null) return null;
+        // 小節線 / 符號 / 延長線不顯示音名（延音續音仍顯示音名，與簡譜列一致）
+        if (note.isSeparator || note.isSymbol || note.isExtension) return null;
+        const label = note.isRest ? '0' : (note.noteName || '');
+        if (!label) return null;
+        const isActive = index === currentNoteIndex;
+        return (
+          <div
+            key={index}
+            style={{
+              position: 'absolute',
+              left: x - 12,
+              top: 2,
+              width: 24,
+              textAlign: 'center',
+              fontSize: 13,
+              fontWeight: 'bold',
+              color: isActive ? '#4caf50' : '#9fb6cc',
+              whiteSpace: 'nowrap',
+              transition: 'color 0.1s ease',
+            }}
+          >
+            {label}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -130,12 +173,16 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
 
   // 技巧模式操作提示
   const techHint = !techMode
-    ? '技巧：先點下方「滑音／延音／顫音」鈕進入模式，再點六線譜上的音套用。'
+    ? '時值：先點上方時值鈕選好時值，再點六線譜上的音 → 改變該音時值。'
     : techMode === 'slide'
       ? (slidePending == null ? '滑音模式：點第一個音' : '滑音模式：再點相鄰的第二個音（再點同一顆取消）')
-      : techMode === 'tie'
-        ? '延音模式：點一個音 → 與下一個音相連。再點「延音」鈕關閉。'
-        : '顫音模式：點要加顫音的音。再點「顫音」鈕關閉。';
+      : techMode === 'hammer-on'
+        ? (slidePending == null ? '搥音模式：點第一個音（通常較低）' : '搥音模式：再點相鄰的第二個音（通常較高，再點同一顆取消）')
+        : techMode === 'pull-off'
+          ? (slidePending == null ? '勾音模式：點第一個音（通常較高）' : '勾音模式：再點相鄰的第二個音（通常較低，再點同一顆取消）')
+          : techMode === 'tie'
+            ? '延音模式：點一個音 → 該音加長一拍（延音線）。再點同一個音取消。'
+            : '顫音模式：點要加顫音的音。再點「顫音」鈕關閉。';
 
   // 播放中當前音 → 指板高亮 key（格式同 Fretboard 內部 `${stringIdx}-${midi}`）
   const playingNote = playingIndex >= 0 ? notes[playingIndex] : null;
@@ -161,6 +208,10 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
     const p = playableIdx.indexOf(i);
     return (p >= 0 && p + 1 < playableIdx.length) ? playableIdx[p + 1] : -1;
   };
+  const prevPlayable = (i) => {
+    const p = playableIdx.indexOf(i);
+    return (p > 0) ? playableIdx[p - 1] : -1;
+  };
 
   // —— 技巧模式：先點技巧鈕進入模式，再點音符套用（再點同一鈕關閉）——
   const armTech = (mode) => {
@@ -172,7 +223,18 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
   const handleNoteClick = (idx) => {
     const note = notes[idx];
     if (!note || !note.isNote) return;   // 只對實際音符
-    if (!techMode) return;               // 未選技巧 → 不動作
+
+    // 未選技巧 → 時值模式：把目前選的時值套用到這個音（先選時值、再點音）
+    if (!techMode) {
+      setNotes(prev => {
+        const n = [...prev];
+        const c = n[idx].clone();
+        c.duration = duration;
+        n[idx] = c;
+        return n;
+      });
+      return;
+    }
 
     if (techMode === 'vibrato') {
       setNotes(prev => {
@@ -186,20 +248,39 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
     }
 
     if (techMode === 'tie') {
-      const j = nextPlayable(idx);
-      if (j < 0) return;                 // 沒有下一個音可連
+      // 延音：在此音後加入「增時線」→ 該音延長一拍（播放時持續、不重新起音）。
+      //   - 簡譜顯示「–」（增時線），不重複數字
+      //   - 六線譜保留指法 → 畫出延音線（TabTie）
+      // 再點同一個音則移除增時線。永遠有效（即使是最後一個音）。
       setNotes(prev => {
         const n = [...prev];
-        const on = !n[idx].tieStart;
-        const a = n[idx].clone(); a.tieStart = on;
-        const b = n[j].clone(); b.tieEnd = on;
-        n[idx] = a; n[j] = b;
+        const src = n[idx];
+        const next = n[idx + 1];
+        const hasCont = src.tieStart && next && next.isExtension && next.tieEnd;
+        if (hasCont) {
+          const a = src.clone(); a.tieStart = false;
+          n[idx] = a;
+          n.splice(idx + 1, 1);          // 移除增時線
+        } else {
+          const a = src.clone(); a.tieStart = true;
+          // 增時線：沿用同指法/音高（供六線譜畫延音線 + 播放續音），
+          // 但類型設為 extension → 簡譜顯示「–」、音名列略過。
+          const cont = src.clone();
+          cont._type = 'extension';
+          cont.tieStart = false;
+          cont.tieEnd = true;
+          cont.jianpu = '-';
+          cont.displayStr = '–';
+          n[idx] = a;
+          n.splice(idx + 1, 0, cont);    // 緊接在後
+        }
         return n;
       });
       return;
     }
 
-    if (techMode === 'slide') {
+    // 滑音 / 搥音 / 勾音：皆為「連接兩個相鄰音」的技巧（技巧記在前一個音上）
+    if (techMode === 'slide' || techMode === 'hammer-on' || techMode === 'pull-off') {
       if (slidePending === null) { setSlidePending(idx); return; }
       if (slidePending === idx) { setSlidePending(null); return; } // 取消起點
       const a = Math.min(slidePending, idx);
@@ -210,7 +291,7 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
         setNotes(prev => {
           const n = [...prev];
           const c = n[a].clone();
-          c.technique = c.technique === 'slide' ? null : 'slide';
+          c.technique = c.technique === techMode ? null : techMode;
           n[a] = c;
           return n;
         });
@@ -299,7 +380,11 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
             });
           }, startMs));
         } else {
-          timers.push(setTimeout(() => playNote(n.midi, stringIdx, { duration: playDur }), startMs));
+          // 搥音 / 勾音的「第二個音」不是用撥弦發聲（圓滑奏）→ 音量降低模擬不重新撥弦
+          const pj = prevPlayable(i);
+          const legato = pj >= 0 && (notes[pj].technique === 'hammer-on' || notes[pj].technique === 'pull-off');
+          const gain = legato ? 0.45 : 0.8;
+          timers.push(setTimeout(() => playNote(n.midi, stringIdx, { duration: playDur, gain }), startMs));
         }
       }
 
@@ -399,9 +484,9 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
             {DURATIONS.map(d => (
               <button
                 key={d.value}
-                className={`sm-btn dur-btn ${duration === d.value ? 'active' : ''}`}
-                onClick={() => setDuration(d.value)}
-                title={d.cn}
+                className={`sm-btn dur-btn ${duration === d.value && !techMode ? 'active' : ''}`}
+                onClick={() => { setDuration(d.value); setTechMode(null); setSlidePending(null); }}
+                title={`${d.cn}（點此選時值，再點六線譜上的音可改變該音時值）`}
               ><NoteIcon type={d.value} /></button>
             ))}
           </div>
@@ -415,11 +500,25 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
               title="滑音：先點此鈕，再點兩個相鄰音連接（數字旁顯示 /）"
             >⟋ 滑音</button>
             <button
+              className={`sm-btn tech-btn ${techMode === 'hammer-on' ? 'active' : ''}`}
+              onClick={() => armTech('hammer-on')}
+              disabled={notes.length === 0}
+              style={{ color: TECH_COLORS['hammer-on'], borderColor: TECH_COLORS['hammer-on'] }}
+              title="搥音 (hammer-on)：先點此鈕，再點兩個相鄰音連接（六線譜顯示 H）"
+            >H 搥音</button>
+            <button
+              className={`sm-btn tech-btn ${techMode === 'pull-off' ? 'active' : ''}`}
+              onClick={() => armTech('pull-off')}
+              disabled={notes.length === 0}
+              style={{ color: TECH_COLORS['pull-off'], borderColor: TECH_COLORS['pull-off'] }}
+              title="勾音 (pull-off)：先點此鈕，再點兩個相鄰音連接（六線譜顯示 P）"
+            >P 勾音</button>
+            <button
               className={`sm-btn tech-btn ${techMode === 'tie' ? 'active' : ''}`}
               onClick={() => armTech('tie')}
               disabled={notes.length === 0}
               style={{ color: TECH_COLORS.tie, borderColor: TECH_COLORS.tie }}
-              title="延音：先點此鈕，再點一個音（與下一個音相連）"
+              title="延音：先點此鈕，再點一個音 → 該音延長一拍（再點一次取消）"
             >⌣ 延音</button>
             <button
               className={`sm-btn tech-btn ${techMode === 'vibrato' ? 'active' : ''}`}
@@ -474,6 +573,12 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
                 currentNoteIndex={playingIndex}
                 color="#eaeaea"
                 height={70}
+              />
+              {/* 簡譜下方再顯示音名 ABCDEFG（X 座標對齊） */}
+              <NoteNameRow
+                notes={notes}
+                noteXs={noteXs}
+                currentNoteIndex={playingIndex}
               />
             </div>
           )}
