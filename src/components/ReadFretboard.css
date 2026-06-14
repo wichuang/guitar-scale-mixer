@@ -111,8 +111,8 @@
 .read-fretboard .fret-number {
     font-size: 12px;
     font-weight: 600;
-    color: #666;
-    opacity: 0;
+    color: #555;
+    opacity: 1;
     transition: all 0.2s;
 }
 
@@ -220,15 +220,24 @@
 }
 
 /* Scale Ghost Notes (Background) */
+/* scale 背景音：以音名色半實心顯示（顏色由 inline style 提供，與 Compose 一致）*/
 .read-fretboard .note-marker.scale-ghost {
-    background: rgba(255, 255, 255, 0.15);
-    color: rgba(255, 255, 255, 0.8);
-    border: 1px dashed rgba(255, 255, 255, 0.3);
-    font-size: 10px;
+    border-style: solid;
+    border-width: 1.5px;
 }
 
 .read-fretboard .note-marker.scale-ghost:hover {
-    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+/* 調外 ghost 音：空心描邊（顏色由 inline style 提供）*/
+.read-fretboard .note-marker.score-ghost {
+    border-style: solid;
+    border-width: 2px;
+}
+
+.read-fretboard .note-marker.score-ghost:hover {
+    transform: scale(1.1);
 }
 
 /* CAGED 範圍外的音符變暗（與 Scale/Chord 模式同步） */

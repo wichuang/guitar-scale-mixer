@@ -1,6 +1,6 @@
 // Update ReadFretboard.jsx
 
-import { useMemo, useRef, useState, useLayoutEffect } from 'react';
+import { useMemo, useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { STRING_TUNINGS, getNoteName, getNoteIndex, getIntervalForNote, getCAGEDFretRange, isInCAGEDPosition, getScaleNotes, SCALE_TYPES } from '../data/scaleData';
 import { calculate3NPSPositions, calculateCAGEDPositions, get3NPSInfo, generate3NPSMap } from '../parsers/JianpuParser';
 import { getPitchColor } from '../data/pitchColors';
@@ -8,7 +8,7 @@ import './ReadFretboard.css';
 
 const STRING_NAMES = ['E', 'B', 'G', 'D', 'A', 'E'];
 
-function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startString = 5, onStartStringChange, rangeOctave = 0, onRangeOctaveChange, cagedPosition = null, musicKey = 'C', scaleType = 'Major', showScaleGuide = false, toolbarExtra }) {
+function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlayMidi, startString = 5, onStartStringChange, rangeOctave = 0, onRangeOctaveChange, cagedPosition = null, musicKey = 'C', scaleType = 'Major', showScaleGuide = false, toolbarExtra }) {
     // CAGED 範圍 — 用於把範圍外的音符變暗
     const cagedRange = useMemo(() => (
         cagedPosition ? getCAGEDFretRange(musicKey, cagedPosition) : null
@@ -81,9 +81,21 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
     const arrowToKey = currentPosition ? `${currentPosition.string}-${currentPosition.fret}` : null;
     const drawArrow = !!(arrowFromKey && arrowToKey && arrowFromKey !== arrowToKey);
 
-    // 計算格子寬度
+    // 計算格子寬度 — 依容器寬度 fit-to-width（與 Compose 的 Fretboard 一致，不再橫向捲動）
     const visibleFrets = fretCount || 19; // Allow wider range
-    const fretWidth = Math.max(24, Math.floor((window.innerWidth - 64) / (visibleFrets + 0.5)));
+    const containerRef = useRef(null);
+    const [fretWidth, setFretWidth] = useState(40);
+    useEffect(() => {
+        const update = () => {
+            const el = containerRef.current;
+            if (!el) return;
+            const avail = el.clientWidth - 28 - 8; // 扣掉左側弦名 gutter 與 padding
+            setFretWidth(Math.max(22, Math.floor(avail / (visibleFrets + 0.5))));
+        };
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, [visibleFrets]);
 
     // 量測箭頭兩端 marker 的位置，畫出單一條箭頭亮線（下一條出現時上一條消失）
     const fretboardRef = useRef(null);
@@ -114,7 +126,7 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
     const doubleDotFrets = [12];
 
     return (
-        <div className="read-fretboard-container">
+        <div className="read-fretboard-container" ref={containerRef}>
             {toolbarExtra && (
                 <div className="position-indicator" style={{ justifyContent: 'flex-end' }}>
                     {toolbarExtra}
@@ -248,9 +260,8 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                             data-key={`${stringIdx}-${fret}`}
                                             style={markerStyle}
                                             onClick={() => {
-                                                if (scoreNote) {
-                                                    onNoteClick(scoreNote.index);
-                                                }
+                                                if (onPlayMidi) onPlayMidi(midiNote);
+                                                if (scoreNote) onNoteClick(scoreNote.index);
                                             }}
                                             title={`${noteName} (格 ${fret})`}
                                         >

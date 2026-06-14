@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import ReadFretboard from '../ReadFretboard';
 import ScoreDisplay from '../ScoreDisplay';
-import { CAGED_SHAPES } from '../../data/scaleData';
+import { CAGED_SHAPES, NOTES } from '../../data/scaleData';
+import { useAudio } from '../../hooks/useAudio';
 
 export const READ_SYNC_CHANNEL = 'guitar-scale-mixer-read-sync';
 
@@ -27,10 +28,12 @@ function ReadPopup({ view }) {
         return () => { bc.close(); bcRef.current = null; };
     }, []);
 
-    // popup 對主視窗送指令（CAGED position 切換）
-    const setCagedPosition = (pos) => {
-        bcRef.current?.postMessage({ type: 'set-caged', value: pos });
-    };
+    // popup 本地發聲（獨立 AudioContext；隨主視窗同步的樂器載入）
+    const { playNote, resumeAudio } = useAudio(state?.instrument);
+
+    // popup 對主視窗送指令
+    const send = (type, value) => bcRef.current?.postMessage({ type, value });
+    const setCagedPosition = (pos) => send('set-caged', pos);
 
     if (!state) {
         return (
@@ -57,10 +60,43 @@ function ReadPopup({ view }) {
                 flexWrap: 'wrap'
             }}>
                 <strong>{title}</strong>
-                <span style={{ color: '#888' }}>
-                    Key: {state.musicKey} {state.scaleType} · {state.tempo} BPM
-                    {state.isPlaying && <span style={{ color: '#4caf50', marginLeft: '8px' }}>● 播放中</span>}
-                </span>
+
+                {/* 調號 + 速度 + 整首移調（雙向同步主視窗）*/}
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <span style={{ color: '#888', fontSize: '11px' }}>Key</span>
+                    <select
+                        value={state.musicKey}
+                        onChange={(e) => send('set-key', e.target.value)}
+                        style={{ background: '#222', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '12px', padding: '2px 4px' }}
+                    >
+                        {NOTES.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                    <select
+                        value={state.scaleType}
+                        onChange={(e) => send('set-scale', e.target.value)}
+                        style={{ background: '#222', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '12px', padding: '2px 4px' }}
+                    >
+                        <option value="Major">Major</option>
+                        <option value="Minor">Minor</option>
+                    </select>
+
+                    <span style={{ color: '#888', fontSize: '11px', marginLeft: '4px' }}>BPM</span>
+                    <input
+                        type="number" min="40" max="240" value={state.tempo}
+                        onChange={(e) => send('set-tempo', Number(e.target.value))}
+                        style={{ width: '52px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '12px', padding: '2px 4px' }}
+                    />
+
+                    <span style={{ color: '#888', fontSize: '11px', marginLeft: '4px' }}>8ve</span>
+                    <button onClick={() => send('set-octave', (state.rangeOctave ?? 0) - 1)}
+                        style={{ background: '#222', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}>−</button>
+                    <span style={{ color: '#fff', fontSize: '12px', minWidth: '20px', textAlign: 'center' }}>
+                        {(state.rangeOctave ?? 0) > 0 ? `+${state.rangeOctave}` : (state.rangeOctave ?? 0)}
+                    </span>
+                    <button onClick={() => send('set-octave', (state.rangeOctave ?? 0) + 1)}
+                        style={{ background: '#222', color: '#fff', border: '1px solid #444', borderRadius: '4px', fontSize: '12px', padding: '2px 8px', cursor: 'pointer' }}>＋</button>
+                    {state.isPlaying && <span style={{ color: '#4caf50', marginLeft: '4px' }}>● 播放中</span>}
+                </div>
 
                 {/* CAGED position 選擇器（與 Scale/Chord 一致；雙向同步） */}
                 {view === 'fretboard' && (
@@ -100,7 +136,8 @@ function ReadPopup({ view }) {
                     notes={state.notes || []}
                     currentNoteIndex={state.currentNoteIndex ?? -1}
                     fretCount={state.fretCount || 22}
-                    onNoteClick={() => { /* popup read-only */ }}
+                    onNoteClick={() => { /* popup 不改譜，只發聲 */ }}
+                    onPlayMidi={(midi) => { resumeAudio?.(); playNote(midi); }}
                     startString={state.startString ?? 5}
                     rangeOctave={state.rangeOctave ?? 0}
                     cagedPosition={state.cagedPosition ?? null}

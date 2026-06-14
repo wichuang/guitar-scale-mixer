@@ -125,13 +125,25 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(guitarType);
     const { debouncedSave, load } = useAutosave({ key: AUTOSAVE_KEY });
 
+    // 整首移調（±八度）：非破壞性。套用在指板/播放/譜面「檢視」上；
+    // 編輯（NoteEditor）與存檔仍使用原始 notes，不會改到譜本身。
+    const viewNotes = useMemo(() => {
+        if (!rangeOctave) return notes;
+        return notes.map(n => {
+            const m = n.midiNote ?? n.midi;
+            if (m == null) return n;
+            const shifted = m + rangeOctave * 12;
+            return { ...n, midi: shifted, midiNote: shifted };
+        });
+    }, [notes, rangeOctave]);
+
     // 計算指板位置（memoized）：選了 CAGED 指型用 CAGED 定位（指板/播放/譜面統一），
     // 否則沿用 3NPS。播放發聲弦、五線/六線譜位置都會跟著一致。
     const notePositions = useMemo(() =>
         cagedPosition
-            ? calculateCAGEDPositions(notes, key, cagedPosition)
-            : calculate3NPSPositions(notes, startString, key, scaleType, rangeOctave),
-        [notes, startString, key, scaleType, rangeOctave, cagedPosition]
+            ? calculateCAGEDPositions(viewNotes, key, cagedPosition)
+            : calculate3NPSPositions(viewNotes, startString, key, scaleType, rangeOctave),
+        [viewNotes, startString, key, scaleType, rangeOctave, cagedPosition]
     );
 
     // Loop Section Hook
@@ -156,7 +168,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
         setEnableCountIn,
         startCountIn
     } = usePlayback({
-        notes,
+        notes: viewNotes,
         notePositions,
         tempo,
         timeSignature,
@@ -190,6 +202,15 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                 publishStateRef.current?.();
             } else if (msg.type === 'set-caged') {
                 setCagedPosition(msg.value ?? null);
+            } else if (msg.type === 'set-key') {
+                setKey(msg.value);
+            } else if (msg.type === 'set-scale') {
+                setScaleType(msg.value);
+            } else if (msg.type === 'set-tempo') {
+                const t = Number(msg.value);
+                if (!Number.isNaN(t)) setTempo(t);
+            } else if (msg.type === 'set-octave') {
+                setRangeOctave(msg.value || 0);
             }
         };
         return () => { bc.close(); bcRef.current = null; };
@@ -289,7 +310,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
         bcRef.current.postMessage({
             type: 'state',
             payload: {
-                notes,
+                notes: viewNotes,
                 notePositions,
                 currentNoteIndex,
                 isPlaying,
@@ -303,9 +324,10 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                 cagedPosition,
                 showScaleGuide,
                 fretCount,
+                instrument: guitarType,
             }
         });
-    }, [notes, notePositions, currentNoteIndex, isPlaying, playTime, key, scaleType, tempo, timeSignature, startString, rangeOctave, cagedPosition, showScaleGuide, fretCount]);
+    }, [viewNotes, notePositions, currentNoteIndex, isPlaying, playTime, key, scaleType, tempo, timeSignature, startString, rangeOctave, cagedPosition, showScaleGuide, fretCount, guitarType]);
     publishStateRef.current = publishState;
     useEffect(() => { publishState(); }, [publishState]);
 
@@ -622,10 +644,11 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
             {/* 指板顯示 — 預設關閉，可由 NoteEditor 的 Guitar 鈕開新視窗或開 inline */}
             {showInlineFretboard && (
                 <ReadFretboard
-                    notes={notes}
+                    notes={viewNotes}
                     currentNoteIndex={currentNoteIndex}
                     fretCount={fretCount}
                     onNoteClick={handleNoteClick}
+                    onPlayMidi={(midi) => { resumeAudio?.(); playNote(midi); }}
                     startString={startString}
                     onStartStringChange={setStartString}
                     rangeOctave={rangeOctave}
@@ -684,7 +707,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                 <div style={{ padding: '0 20px 20px 20px' }}>
                     <h3 style={{ color: '#aaa', marginBottom: '10px' }}>Score Preview</h3>
                     <ScoreDisplay
-                        notes={notes}
+                        notes={viewNotes}
                         notePositions={notePositions}
                         timeSignature={timeSignature}
                         currentNoteIndex={currentNoteIndex}
