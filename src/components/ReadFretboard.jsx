@@ -1,8 +1,8 @@
 // Update ReadFretboard.jsx
 
 import { useMemo, useRef, useState, useLayoutEffect } from 'react';
-import { STRING_TUNINGS, getNoteName, getNoteIndex, getIntervalForNote, getCAGEDFretRange, isInCAGEDPosition } from '../data/scaleData';
-import { calculate3NPSPositions, get3NPSInfo, generate3NPSMap } from '../parsers/JianpuParser';
+import { STRING_TUNINGS, getNoteName, getNoteIndex, getIntervalForNote, getCAGEDFretRange, isInCAGEDPosition, getScaleNotes, SCALE_TYPES } from '../data/scaleData';
+import { calculate3NPSPositions, calculateCAGEDPositions, get3NPSInfo, generate3NPSMap } from '../parsers/JianpuParser';
 import { getPitchColor } from '../data/pitchColors';
 import './ReadFretboard.css';
 
@@ -16,19 +16,52 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
     const isFretInCAGED = (fret) => !cagedRange || isInCAGEDPosition(fret, cagedRange.startFret, cagedRange.endFret);
     // 1. Calculate Score Note Positions
     const notePositions = useMemo(() => {
-        const positions = calculate3NPSPositions(notes, startString, musicKey, scaleType, rangeOctave);
+        // 選了 CAGED 指型 → 用 CAGED 定位；否則沿用 3NPS（就近取格）
+        const positions = cagedPosition
+            ? calculateCAGEDPositions(notes, musicKey, cagedPosition)
+            : calculate3NPSPositions(notes, startString, musicKey, scaleType, rangeOctave);
         return notes.map((note, idx) => ({
             ...note,
             position: positions[idx],
             index: idx // Keep original index
         })).filter(n => n.position); // Filter out nulls for easier finding
-    }, [notes, startString, musicKey, scaleType, rangeOctave]);
+    }, [notes, startString, musicKey, scaleType, rangeOctave, cagedPosition]);
 
-    // 2. Generate Full Scale Map (Background Pattern)
+    // 2. Generate Full Scale Map (Background Pattern) — 3NPS 模式用
     const scaleMap = useMemo(() => {
-        if (!showScaleGuide) return []; // Don't compute if hidden
+        if (!showScaleGuide || cagedPosition) return []; // CAGED 模式改用 cagedBoxMap
         return generate3NPSMap(startString, musicKey, scaleType);
-    }, [startString, musicKey, scaleType, showScaleGuide]);
+    }, [startString, musicKey, scaleType, showScaleGuide, cagedPosition]);
+
+    // 所選調的音階音名集合（判斷某音是否為「調外 ghost 音」用）
+    const scaleNoteSet = useMemo(() => {
+        const arr = getScaleNotes(musicKey, SCALE_TYPES[scaleType] || (scaleType || 'major').toLowerCase());
+        return new Set(arr);
+    }, [musicKey, scaleType]);
+
+    // 2b. CAGED 模式：只在 box 範圍內顯示「scale 內音（實心）+ 樂譜用到的 ghost 音（空心）」
+    // 與 Compose 一致；先讀取整個樂譜取得 ghost 音名。box 外不顯示。
+    // 註：選了 CAGED 指型即顯示 box 內 scale/ghost（不受「顯示背景音階」開關影響，
+    // 因為這正是 CAGED 模式要呈現的內容）。
+    const cagedBoxMap = useMemo(() => {
+        if (!cagedPosition || !cagedRange) return null;
+        const scoreNames = new Set();
+        (notes || []).forEach(n => {
+            if (!n) return;
+            const m = n.midiNote ?? n.midi;
+            if (m != null && !(n.isSeparator || n._type === 'separator')) scoreNames.add(getNoteName(m));
+        });
+        const map = new Map();
+        for (let s = 0; s < 6; s++) {
+            for (let f = 0; f <= (fretCount || 19); f++) {
+                if (!isInCAGEDPosition(f, cagedRange.startFret, cagedRange.endFret)) continue;
+                const name = getNoteName(STRING_TUNINGS[s] + f);
+                if (scaleNoteSet.has(name)) map.set(`${s}-${f}`, 'scale');
+                else if (scoreNames.has(name)) map.set(`${s}-${f}`, 'ghost');
+            }
+        }
+        return map;
+    }, [cagedPosition, cagedRange, scaleNoteSet, notes, fretCount]);
 
     // 3NPS 模式資訊 - Derive from notePositions (Visible Notes)
     const modeInfo = useMemo(() => {
@@ -135,16 +168,19 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                     np => np.position?.string === stringIdx && np.position?.fret === fret
                                 );
 
-                                // 2. Check Scale Map Note (Background Pattern) - Only if enabled
+                                // 2. Check Scale Map Note (Background Pattern) - Only if enabled (3NPS 模式)
                                 const scaleNote = showScaleGuide ? scaleMap.find(
                                     sm => sm.string === stringIdx && sm.fret === fret
                                 ) : null;
 
+                                // 2b. CAGED box 內的背景：'scale'（實心）或 'ghost'（空心）
+                                const boxRole = cagedBoxMap ? cagedBoxMap.get(`${stringIdx}-${fret}`) : null;
+
                                 const isCurrent = currentPosition?.string === stringIdx &&
                                     currentPosition?.fret === fret;
 
-                                // If neither, return empty
-                                if (!scoreNote && !scaleNote && !isCurrent) {
+                                // If none, return empty
+                                if (!scoreNote && !scaleNote && !boxRole && !isCurrent) {
                                     return (
                                         <div
                                             key={fret}
@@ -158,13 +194,26 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                 let label = '';
                                 let classNames = 'note-marker';
                                 const isRoot = scoreNote && (scoreNote.jianpu == '1' || scoreNote.jianpu === 1);
+                                // 旋律音以 ghost（空心）顯示的條件：被迫彈在把位外，或本身是「調外音」
+                                const scoreGhost = scoreNote &&
+                                    (scoreNote.position?.outOfBox || !scaleNoteSet.has(noteName));
 
                                 if (scoreNote) {
                                     label = noteName; // 用音名顯示（與 Scale/Chord 模式一致）
-                                    classNames += ' has-note';
-                                    if (isRoot) classNames += ' root-note';
+                                    if (scoreGhost) {
+                                        classNames += ' score-ghost';
+                                    } else {
+                                        classNames += ' has-note';
+                                        if (isRoot) classNames += ' root-note';
+                                    }
                                 } else if (scaleNote) {
                                     classNames += ' scale-ghost';
+                                    label = noteName;
+                                } else if (boxRole === 'scale') {
+                                    classNames += ' scale-ghost';
+                                    label = noteName;
+                                } else if (boxRole === 'ghost') {
+                                    classNames += ' score-ghost';
                                     label = noteName;
                                 }
 
@@ -176,13 +225,17 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                     label = 'e';
                                 }
 
-                                // 套用 12 音名色（scale ghost 用較淡）
+                                // 套用 12 音名色。scale tone 半實心；ghost（樂譜外音）空心描邊。
                                 const pc = getPitchColor(noteName);
                                 const markerStyle = scoreNote
-                                    ? { background: pc.bg, color: pc.fg, borderColor: 'transparent' }
-                                    : scaleNote
-                                        ? { background: `${pc.bg}66`, color: pc.fg, borderColor: `${pc.bg}aa` }
-                                        : {};
+                                    ? (scoreGhost
+                                        ? { background: 'transparent', color: pc.fg, borderColor: pc.bg, borderWidth: '2px', borderStyle: 'solid' }
+                                        : { background: pc.bg, color: pc.fg, borderColor: 'transparent' })
+                                    : (scaleNote || boxRole === 'scale')
+                                        ? { background: `${pc.bg}aa`, color: pc.fg, borderColor: `${pc.bg}` }
+                                        : boxRole === 'ghost'
+                                            ? { background: 'transparent', color: pc.fg, borderColor: pc.bg, borderWidth: '2px', borderStyle: 'solid' }
+                                            : {};
 
                                 return (
                                     <div

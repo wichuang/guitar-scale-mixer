@@ -7,7 +7,7 @@
 
 import { ParserInterface } from '../core/interfaces/ParserInterface.js';
 import { Note } from '../core/models/Note.js';
-import { NOTES, STRING_TUNINGS, SCALES } from '../data/scaleData.js';
+import { NOTES, STRING_TUNINGS, SCALES, getCAGEDFretRange } from '../data/scaleData.js';
 
 // Map UI Scale Types to SCALES keys
 export const SCALE_MAPPING = {
@@ -368,6 +368,74 @@ export function calculate3NPSPositions(notes, startStringIdx = 5, key = 'C', sca
         }
 
         return bestPos;
+    });
+}
+
+/**
+ * 依 CAGED 指型計算每個音的指板位置。
+ *
+ * 一個指型在指板上會出現多處（每 12 格重複，如 C 大調 C 型在 0–3 與 12–15）。
+ * 為了「儘量在同一把位彈奏、不要跳到很遠的把位」：
+ *   1. 先在所有候選把位中，挑出讓整段旋律總距離最小的「單一把位」。
+ *   2. 把所有音都放進這個把位；窗內找不到的音改放最接近的格（鄰近處），
+ *      並標記 outOfBox=true，讓 UI 以 ghost（空心）顯示。
+ *
+ * @param {Array} notes
+ * @param {string} root 調根音（同 musicKey）
+ * @param {string} shape CAGED 指型 'C'|'A'|'G'|'E'|'D'
+ * @returns {Array} 每個音對應 { string, fret, midi, outOfBox } 或 null（與 notes 同長度）
+ */
+export function calculateCAGEDPositions(notes, root, shape) {
+    if (!notes || notes.length === 0) return [];
+    const base = getCAGEDFretRange(root, shape);
+    const getMidi = (n) => n.midiNote ?? n.midi;
+    const isSep = (n) => n.isSeparator || n._type === 'separator';
+
+    // 候選把位：主視窗 ± 八度，且與 0..24 有交集者
+    const windows = [];
+    for (let oct = -24; oct <= 24; oct += 12) {
+        const lo = base.startFret + oct, hi = base.endFret + oct;
+        if (hi >= 0 && lo <= 24) windows.push({ lo, hi });
+    }
+    if (windows.length === 0) windows.push({ lo: base.startFret, hi: base.endFret });
+
+    // 在指定把位內，為某 midi 找最佳弦/格：窗內優先，否則取最接近窗的格（鄰近處）
+    const placeInWindow = (m, win) => {
+        const center = (win.lo + win.hi) / 2;
+        let best = null;
+        for (let s = 0; s < 6; s++) {
+            const f = m - STRING_TUNINGS[s];
+            if (f < 0 || f > 24) continue;
+            const d = f < win.lo ? win.lo - f : (f > win.hi ? f - win.hi : 0);
+            // 距離最近者優先；同距離挑靠近把位中心的（手不亂跑）
+            if (!best || d < best.d ||
+                (d === best.d && Math.abs(f - center) < Math.abs(best.fret - center))) {
+                best = { string: s, fret: f, d };
+            }
+        }
+        return best;
+    };
+
+    // 選讓整段旋律總距離最小的單一把位（黏在同一把位）
+    const playable = notes.filter(n => n && !isSep(n) && getMidi(n));
+    let bestWin = windows[0], bestCost = Infinity;
+    for (const win of windows) {
+        let cost = 0;
+        for (const n of playable) {
+            const p = placeInWindow(getMidi(n), win);
+            cost += p ? p.d : 99;
+        }
+        if (cost < bestCost) { bestCost = cost; bestWin = win; }
+    }
+
+    // 用選定的單一把位放置所有音；窗外者標 outOfBox（UI 以 ghost 顯示）
+    return notes.map((note) => {
+        if (!note || isSep(note)) return null;
+        const m = getMidi(note);
+        if (!m) return null;
+        const p = placeInWindow(m, bestWin);
+        if (!p) return null;
+        return { string: p.string, fret: p.fret, midi: m, outOfBox: p.d > 0 };
     });
 }
 

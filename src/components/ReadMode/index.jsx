@@ -7,7 +7,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
     parseJianpuText,
     jianpuToNote,
-    calculate3NPSPositions
+    calculate3NPSPositions,
+    calculateCAGEDPositions
 } from '../../parsers/JianpuParser.js';
 import { Note } from '../../core/models/Note.js';
 import { useAudio } from '../../hooks/useAudio.js';
@@ -124,10 +125,13 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(guitarType);
     const { debouncedSave, load } = useAutosave({ key: AUTOSAVE_KEY });
 
-    // 計算 3NPS 位置（memoized）
+    // 計算指板位置（memoized）：選了 CAGED 指型用 CAGED 定位（指板/播放/譜面統一），
+    // 否則沿用 3NPS。播放發聲弦、五線/六線譜位置都會跟著一致。
     const notePositions = useMemo(() =>
-        calculate3NPSPositions(notes, startString, key, scaleType, rangeOctave),
-        [notes, startString, key, scaleType, rangeOctave]
+        cagedPosition
+            ? calculateCAGEDPositions(notes, key, cagedPosition)
+            : calculate3NPSPositions(notes, startString, key, scaleType, rangeOctave),
+        [notes, startString, key, scaleType, rangeOctave, cagedPosition]
     );
 
     // Loop Section Hook
@@ -320,6 +324,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                 if (saved.tempo) setTempo(saved.tempo);
                 if (saved.timeSignature) setTimeSignature(saved.timeSignature);
                 if (typeof saved.startString === 'number') setStartString(saved.startString);
+                if (saved.cagedPosition !== undefined) setCagedPosition(saved.cagedPosition);
                 if (typeof saved.octaveOffset === 'number') setOctaveOffset(saved.octaveOffset);
                 if (saved.showScaleGuide !== undefined) setShowScaleGuide(saved.showScaleGuide);
                 if (saved.youtubeUrl) setYoutubeUrl(saved.youtubeUrl);
@@ -343,6 +348,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
             tempo: tempo,
             timeSignature: timeSignature,
             startString: startString,
+            cagedPosition: cagedPosition,
             octaveOffset: octaveOffset,
             showScaleGuide: showScaleGuide,
             youtubeUrl,
@@ -352,7 +358,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
             instrument: guitarType
         };
         debouncedSave(dataToSave);
-    }, [editableText, notes, key, scaleType, tempo, timeSignature, startString, octaveOffset, showScaleGuide, youtubeUrl, showYoutube, youtubeLayout, viewMode, guitarType, debouncedSave]);
+    }, [editableText, notes, key, scaleType, tempo, timeSignature, startString, cagedPosition, octaveOffset, showScaleGuide, youtubeUrl, showYoutube, youtubeLayout, viewMode, guitarType, debouncedSave]);
 
     // ===== 調號/音階變更時更新音符 =====
     useEffect(() => {
@@ -433,6 +439,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
             setScaleType(actualData.scaleType || 'Major');
             setTempo(actualData.tempo || 120);
             if (typeof actualData.startString === 'number') setStartString(actualData.startString);
+            if (actualData.cagedPosition !== undefined) setCagedPosition(actualData.cagedPosition);
             if (typeof actualData.octaveOffset === 'number') setOctaveOffset(actualData.octaveOffset);
             if (actualData.youtubeUrl) setYoutubeUrl(actualData.youtubeUrl);
             if (actualData.showYoutube !== undefined) setShowYoutube(actualData.showYoutube);
@@ -528,6 +535,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     tempo={tempo}
                     timeSignature={timeSignature}
                     startString={startString}
+                    cagedPosition={cagedPosition}
                     octaveOffset={octaveOffset}
                     youtubeUrl={youtubeUrl}
                     showYoutube={showYoutube}

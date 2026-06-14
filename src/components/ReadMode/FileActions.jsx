@@ -14,6 +14,7 @@ function FileActions({
     scaleType,
     tempo,
     startString,
+    cagedPosition,
     octaveOffset,
     youtubeUrl,
     showYoutube,
@@ -85,6 +86,7 @@ function FileActions({
                 scaleType: scaleType,
                 tempo: tempo,
                 startString: startString,
+                cagedPosition: cagedPosition,
                 octaveOffset: octaveOffset,
                 youtubeUrl: youtubeUrl,
                 showYoutube: showYoutube,
@@ -180,6 +182,7 @@ function FileActions({
                 scaleType: scaleType,
                 tempo: tempo,
                 startString: startString,
+                cagedPosition: cagedPosition,
                 octaveOffset: octaveOffset
             }
         };
