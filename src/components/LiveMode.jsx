@@ -100,7 +100,9 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
 
     const fretMarkers = [3, 5, 7, 9, 12, 15, 17, 19, 21];
     const doubleDotFrets = [12];
-    const recentNotes = noteHistory.slice(0, 5).map(h => h.note);
+    // 用「音名+八度」(如 E3) 比對，讓指板只亮起偵測到的那個八度，而非所有同名音
+    const recentNotes = noteHistory.slice(0, 5).map(h => h.fullNote || `${h.note}${h.octave}`);
+    const detectedFull = (detectedNote && detectedOctave != null) ? `${detectedNote}${detectedOctave}` : null;
 
     // Calculate interval from liveRoot
     const NOTES_ORDER = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -325,8 +327,10 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
                                     {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => {
                                         const midiNote = openMidi + fret;
                                         const noteName = getNoteName(midiNote);
-                                        const isDetected = detectedNote === noteName;
-                                        const trailIdx = recentNotes.indexOf(noteName);
+                                        const cellOctave = Math.floor(midiNote / 12) - 1;
+                                        const cellFull = `${noteName}${cellOctave}`;
+                                        const isDetected = detectedFull === cellFull;
+                                        const trailIdx = recentNotes.indexOf(cellFull);
                                         const isTrail = trailIdx > 0;
 
                                         if (!isDetected && !isTrail) {

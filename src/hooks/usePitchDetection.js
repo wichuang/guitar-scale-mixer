@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import Pitchfinder from 'pitchfinder';
 
 // Note frequencies (A4 = 440Hz standard tuning)
 const A4 = 440;
@@ -29,10 +28,85 @@ function median(arr) {
 }
 
 // 分析參數
-const FFT_SIZE = 4096;        // ~93ms @44.1kHz，低音弦也有足夠週期數
+// 8192 取樣 @44.1kHz ≈ 186ms，低音 E(82Hz) 有 ~15 個週期，
+// 自相關才有足夠資料把弱基頻的低音粗弦穩定抓出來。
+const FFT_SIZE = 8192;
 const FREQ_WINDOW = 5;        // 頻率中位數視窗（幀數）
-const MIN_STABLE = 3;         // 視窗至少這麼多筆才開始輸出
-const RMS_GATE = 0.01;        // 訊號門檻
+const MIN_STABLE = 2;         // 視窗至少這麼多筆才開始輸出（低音衰減快，門檻放低才來得及顯示）
+// 低音粗弦的基頻常被麥克風高通衰減，RMS 偏低；門檻太高會把它整個擋掉。
+// NSDF 的 CLARITY_GATE 才是真正的「是否有穩定音高」判斷，RMS 只擋全靜音。
+const RMS_GATE = 0.004;       // 訊號門檻（放低讓較弱的低音弦也能進入辨識）
+
+// 吉他音域（留餘裕）：最低 ~70Hz（低音 E 82Hz 之下），最高 ~1320Hz
+const MIN_FREQ = 70;
+const MAX_FREQ = 1320;
+const CLARITY_GATE = 0.30;    // 全域 NSDF 峰值低於此 → 視為無穩定音高（低音弦峰值較低，放寬）
+const PEAK_PICK_K = 0.88;     // 選第一個 >= k×全域峰 的關鍵峰（抗八度誤判的核心）
+
+/**
+ * 以正規化平方差自相關 (NSDF) + McLeod 取峰法估計基頻。
+ * 比 YIN 更適合吉他低音粗弦：諧波會在「基頻週期」的整數倍互相增強，
+ * 即使基頻本身很弱（或被麥克風高通濾掉）也能從諧波還原出真正的週期；
+ * 取「第一個」足夠高的關鍵峰 → 自然鎖定最短真實週期，不會誤判到八度。
+ * @param {Float32Array} buffer 時域取樣
+ * @param {number} sampleRate
+ * @returns {number|null} 頻率 (Hz)，無法判定回 null
+ */
+function detectPitchAC(buffer, sampleRate) {
+    const n = buffer.length;
+    const maxLag = Math.min(n - 1, Math.ceil(sampleRate / MIN_FREQ));
+    const minLag = Math.max(2, Math.floor(sampleRate / MAX_FREQ));
+
+    // NSDF: n(tau) = 2·Σ x[i]x[i+tau] / Σ(x[i]²+x[i+tau]²)，值域 [-1, 1]
+    const nsdf = new Float32Array(maxLag + 1);
+    for (let tau = 0; tau <= maxLag; tau++) {
+        let acf = 0, energy = 0;
+        for (let i = 0; i + tau < n; i++) {
+            const a = buffer[i], b = buffer[i + tau];
+            acf += a * b;
+            energy += a * a + b * b;
+        }
+        nsdf[tau] = energy > 0 ? (2 * acf) / energy : 0;
+    }
+
+    // 收集「關鍵峰」：跳過 tau=0 附近的初始正向大瓣，之後每段正值區間取區域最大
+    const peaks = [];
+    let tau = 1;
+    while (tau <= maxLag && nsdf[tau] > 0) tau++;   // 跳過初始大瓣直到首次轉負
+    while (tau <= maxLag) {
+        if (nsdf[tau] > 0) {
+            let localMax = tau;
+            while (tau <= maxLag && nsdf[tau] > 0) {
+                if (nsdf[tau] > nsdf[localMax]) localMax = tau;
+                tau++;
+            }
+            if (localMax >= minLag) peaks.push(localMax);
+        } else {
+            tau++;
+        }
+    }
+    if (peaks.length === 0) return null;
+
+    let globalMax = 0;
+    for (const p of peaks) if (nsdf[p] > globalMax) globalMax = nsdf[p];
+    if (globalMax < CLARITY_GATE) return null;       // 訊號太不週期 → 無音高
+
+    // 取第一個越過門檻的峰（= 最短真實週期 → 正確八度）
+    const cutoff = globalMax * PEAK_PICK_K;
+    let chosen = peaks[0];
+    for (const p of peaks) {
+        if (nsdf[p] >= cutoff) { chosen = p; break; }
+    }
+
+    // 拋物線插值微調 tau（子取樣精度，高音也準）
+    let betterTau = chosen;
+    if (chosen > minLag && chosen < maxLag) {
+        const s0 = nsdf[chosen - 1], s1 = nsdf[chosen], s2 = nsdf[chosen + 1];
+        const denom = 2 * (2 * s1 - s2 - s0);
+        if (denom !== 0) betterTau = chosen + (s2 - s0) / denom;
+    }
+    return sampleRate / betterTau;
+}
 
 export function usePitchDetection() {
     const [isListening, setIsListening] = useState(false);
@@ -54,7 +128,7 @@ export function usePitchDetection() {
     const rafIdRef = useRef(null);
     const lastNoteRef = useRef(null);
     const lastNoteTimeRef = useRef(0);
-    const detectPitchFnRef = useRef(null);
+    const sampleRateRef = useRef(44100);
     const stopListeningRef = useRef(null);
 
     // 預配置的時域 buffer（避免每幀 new Float32Array 造成 GC 抖動）
@@ -96,9 +170,9 @@ export function usePitchDetection() {
         refreshDevices(false);
     }, [refreshDevices]);
 
-    // Pitch detection loop using YIN algorithm
+    // Pitch detection loop（NSDF 自相關 + 中位數平滑 + 一致性閘門）
     const detectPitch = useCallback(() => {
-        if (!analyserRef.current || !detectPitchFnRef.current) return;
+        if (!analyserRef.current) return;
 
         const analyser = analyserRef.current;
         const buffer = bufferRef.current;
@@ -126,18 +200,12 @@ export function usePitchDetection() {
             return;
         }
 
-        let frequency = detectPitchFnRef.current(buffer);
+        const frequency = detectPitchAC(buffer, sampleRateRef.current);
 
-        // 吉他音域：低音E(82Hz) ~ 高把位(~1100Hz)，留點餘裕
-        if (frequency && frequency > 60 && frequency < 1320) {
-            // 八度跳變修正：YIN 在低音弦常誤判到上/下八度的諧波。
-            // 若新頻率約為上一穩定頻率的 2x 或 0.5x，snap 回原八度。
-            const stable = lastStableFreqRef.current;
-            if (stable) {
-                if (centsBetween(frequency / 2, stable) < 50) frequency /= 2;
-                else if (centsBetween(frequency * 2, stable) < 50) frequency *= 2;
-            }
-
+        // 吉他音域：低音E(82Hz) ~ 高把位(~1100Hz)，留點餘裕。
+        // NSDF 取峰法本身已鎖定正確八度，不需再做相對於前一音的八度修正
+        //（否則使用者真的換八度時會被錯誤地拉回原八度）。
+        if (frequency && frequency > MIN_FREQ && frequency < MAX_FREQ) {
             // 推入頻率視窗做中位數平滑
             const win = freqWindowRef.current;
             win.push(frequency);
@@ -188,13 +256,7 @@ export function usePitchDetection() {
     // 共用：把任意 MediaStream 接到 analyser 並開始辨識（mic 與 tab 音訊共用）
     const beginDetection = useCallback((stream) => {
         audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        const sampleRate = audioContextRef.current.sampleRate;
-
-        // Initialize YIN detector with correct sample rate
-        detectPitchFnRef.current = Pitchfinder.YIN({
-            sampleRate: sampleRate,
-            threshold: 0.1,  // Lower = more sensitive, higher = more accurate
-        });
+        sampleRateRef.current = audioContextRef.current.sampleRate;
 
         streamRef.current = stream;
 
@@ -296,7 +358,6 @@ export function usePitchDetection() {
         freqWindowRef.current = [];
         lastStableFreqRef.current = null;
         bufferRef.current = null;
-        detectPitchFnRef.current = null;
         setIsListening(false);
         setDetectedNote(null);
         setDetectedOctave(null);
