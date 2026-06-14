@@ -7,7 +7,6 @@
       "dependencies": {
         "@supabase/supabase-js": "^2.89.0",
         "guitarpro-parser": "^1.2.0",
-        "pitchfinder": "^2.3.4",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "react-draggable": "^4.5.0",
@@ -463,8 +462,6 @@
     "picocolors": ["picocolors@1.1.1", "", {}, "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="],
 
     "picomatch": ["picomatch@4.0.3", "", {}, "sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q=="],
-
-    "pitchfinder": ["pitchfinder@2.3.4", "", {}, "sha512-GK1bWPaS1p2fB8ZUh1qXi/6iA55qxLoAS9NgqvReM5+tlUr1ch3dJvO9pikp7qpWLI7FlQBQhsl9eOwR6GAPwg=="],
 
     "playwright": ["playwright@1.58.2", "", { "dependencies": { "playwright-core": "1.58.2" }, "optionalDependencies": { "fsevents": "2.3.2" }, "bin": { "playwright": "cli.js" } }, "sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A=="],
 
