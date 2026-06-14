@@ -131,11 +131,13 @@ function SettingsPage({
                     <div className="current-state-info">
                         <p><strong>Guitar:</strong> {currentState.guitarType.replace(/_/g, ' ')}</p>
                         <p><strong>Display:</strong> {currentState.displayMode === 'notes' ? 'Notes (ABC)' : 'Intervals (123)'}</p>
-                        <p><strong>Scales:</strong> {currentState.scaleCount}</p>
+                        <p><strong>Items:</strong> {currentState.itemCount}</p>
                         <p><strong>Frets:</strong> {currentState.fretCount}</p>
-                        {currentState.scales.slice(0, currentState.scaleCount).map((s, i) => (
+                        {(currentState.playItems || []).slice(0, currentState.itemCount).map((s, i) => (
                             <p key={i} className="scale-info">
-                                Scale {i + 1}: {s.root} {s.scale.replace(/-/g, ' ')}
+                                {s.type === 'chord' ? 'Chord' : 'Scale'} {i + 1}: {s.root} {s.type === 'chord'
+                                    ? `${s.quality || ''}${s.extension || ''}`
+                                    : (s.scale || '').replace(/-/g, ' ')}
                             </p>
                         ))}
                     </div>
