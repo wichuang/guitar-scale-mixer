@@ -1,11 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import Fretboard from './Fretboard';
 import PlayItemCard from './PlayItemCard';
 import TabView from './ScoreDisplay/TabView';
 import JianpuView from './ScoreDisplay/JianpuView';
 import { Note } from '../core/models/Note';
 import { Score } from '../core/models/Score';
-import { getScaleNotes, CAGED_SHAPES } from '../data/scaleData';
+import { getScaleNotes, CAGED_SHAPES, getNoteName } from '../data/scaleData';
 import { getChordNotes } from '../data/chordData';
 import { useAudio, GUITAR_INSTRUMENTS } from '../hooks/useAudio';
 import './ComposeMode.css';
@@ -167,7 +167,20 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
     });
   };
 
-  const fretboardScale = itemToFretboardScale(item);
+  // 指板顯示：在所選 scale/chord 之上，再把樂譜內實際用到的音名也加進來。
+  // 不在 scale/chord 內的（ghost 音）會因為不屬於 chordNotes 而以空心顯示，
+  // 但因為被加進 enabledNotes 而會出現在指板上 → 播放時也能在正確位置發亮。
+  const fretboardScale = useMemo(() => {
+    const base = itemToFretboardScale(item);
+    // enabledNotes 為 null 代表「全部顯示」(如未篩選的 chord)，不需也不該合併
+    if (base.enabledNotes == null || notes.length === 0) return base;
+    const enabled = new Set(base.enabledNotes);
+    notes.forEach(n => {
+      if (n.isNote && n.midi != null) enabled.add(getNoteName(n.midi));
+    });
+    return { ...base, enabledNotes: Array.from(enabled) };
+  }, [item, notes]);
+
   // TAB 與簡譜共用寬度（與 TabView 預設一致），確保兩者 X 座標對齊
   const tabWidth = Math.max(800, notes.length * 60 + 100);
 
