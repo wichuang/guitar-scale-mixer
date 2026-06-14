@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
 import {
     STRING_TUNINGS,
     NUM_FRETS,
@@ -33,7 +33,7 @@ const DISABLED_COLORS = [
 const STRING_NAMES = ['E', 'B', 'G', 'D', 'A', 'E'];
 
 // Visible frets (controlled from Settings)
-function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, colorOffset = 0, disabledFrets: extDisabledFrets, onToggleFret: extOnToggleFret, onFretClick, activeNoteKey }) {
+function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, colorOffset = 0, disabledFrets: extDisabledFrets, onToggleFret: extOnToggleFret, onFretClick, activeNoteKey, arrowFromKey = null, arrowToKey = null }) {
     const { playNote, isLoading } = useAudio(guitarType);
     const [activeNote, setActiveNote] = useState(null);
     const scrollRef = useRef(null);
@@ -98,6 +98,30 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
         window.addEventListener('resize', updateFretWidth);
         return () => window.removeEventListener('resize', updateFretWidth);
     }, [fretCount]);
+
+    // 播放動線：量測「上一個音」與「目前音」兩個 marker 的位置，畫出箭頭亮線。
+    // 只渲染單一條線 → 下一條出現時上一條自然消失。
+    const [arrowCoords, setArrowCoords] = useState(null);
+    useLayoutEffect(() => {
+        const fb = fretboardRef.current;
+        let next = null;
+        if (fb && arrowFromKey && arrowToKey) {
+            const fromEl = fb.querySelector(`[data-key="${arrowFromKey}"]`);
+            const toEl = fb.querySelector(`[data-key="${arrowToKey}"]`);
+            if (fromEl && toEl) {
+                const fbRect = fb.getBoundingClientRect();
+                const center = (el) => {
+                    const r = el.getBoundingClientRect();
+                    return { x: r.left - fbRect.left + r.width / 2, y: r.top - fbRect.top + r.height / 2 };
+                };
+                const p1 = center(fromEl);
+                const p2 = center(toEl);
+                next = { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, w: fb.offsetWidth, h: fb.offsetHeight };
+            }
+        }
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- 量測 DOM marker 後寫回座標是必要的 layout 同步
+        setArrowCoords(next);
+    }, [arrowFromKey, arrowToKey, fretWidth, scales]);
 
     // Get scale notes for each scale
     const scaleNotesArray = scales.map(s => getScaleNotes(s.root, s.scale));
@@ -407,6 +431,7 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                                             >
                                                 <button
                                                     className={markerClass}
+                                                    data-key={noteKey}
                                                     style={{
                                                         background: backgroundStyle,
                                                         borderColor: borderColor,
@@ -460,6 +485,36 @@ function Fretboard({ scales, guitarType, displayMode, fretCount, cagedPosition, 
                                 />
                             ))}
                         </div>
+
+                        {/* 播放動線（箭頭亮線）— 由上個音指向目前音 */}
+                        {arrowCoords && (
+                            <svg
+                                className="play-arrow-layer"
+                                width={arrowCoords.w}
+                                height={arrowCoords.h}
+                            >
+                                <defs>
+                                    <marker
+                                        id="play-arrowhead"
+                                        markerWidth="6"
+                                        markerHeight="6"
+                                        refX="4.6"
+                                        refY="3"
+                                        orient="auto"
+                                    >
+                                        <path className="play-arrow-head" d="M0,0 L6,3 L0,6 Z" />
+                                    </marker>
+                                </defs>
+                                <line
+                                    className="play-arrow-line"
+                                    x1={arrowCoords.x1}
+                                    y1={arrowCoords.y1}
+                                    x2={arrowCoords.x2}
+                                    y2={arrowCoords.y2}
+                                    markerEnd="url(#play-arrowhead)"
+                                />
+                            </svg>
+                        )}
 
                         {/* Drawing canvas overlay */}
                         <canvas

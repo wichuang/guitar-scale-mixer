@@ -1,6 +1,6 @@
 // Update ReadFretboard.jsx
 
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { STRING_TUNINGS, getNoteName, getNoteIndex, getIntervalForNote, getCAGEDFretRange, isInCAGEDPosition } from '../data/scaleData';
 import { calculate3NPSPositions, get3NPSInfo, generate3NPSMap } from '../parsers/JianpuParser';
 import { getPitchColor } from '../data/pitchColors';
@@ -38,12 +38,43 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
 
     // 當前播放音符的位置
     // Fix: Find by matching index (np.index), not array index (notePositions is filtered!)
-    const currentNoteObj = notePositions.find(np => np.index === currentNoteIndex);
-    const currentPosition = currentNoteObj ? currentNoteObj.position : null;
+    const curPosIdx = notePositions.findIndex(np => np.index === currentNoteIndex);
+    const currentPosition = curPosIdx >= 0 ? notePositions[curPosIdx].position : null;
+
+    // —— 播放動線：由「上一個有位置的音」→「目前音」的箭頭亮線（取代單點高亮）——
+    // notePositions 已過濾掉無位置的音並保留原順序，故前一筆即上一個發聲音
+    const prevPosition = curPosIdx > 0 ? notePositions[curPosIdx - 1].position : null;
+    const arrowFromKey = prevPosition ? `${prevPosition.string}-${prevPosition.fret}` : null;
+    const arrowToKey = currentPosition ? `${currentPosition.string}-${currentPosition.fret}` : null;
+    const drawArrow = !!(arrowFromKey && arrowToKey && arrowFromKey !== arrowToKey);
 
     // 計算格子寬度
     const visibleFrets = fretCount || 19; // Allow wider range
     const fretWidth = Math.max(24, Math.floor((window.innerWidth - 64) / (visibleFrets + 0.5)));
+
+    // 量測箭頭兩端 marker 的位置，畫出單一條箭頭亮線（下一條出現時上一條消失）
+    const fretboardRef = useRef(null);
+    const [arrowCoords, setArrowCoords] = useState(null);
+    useLayoutEffect(() => {
+        const fb = fretboardRef.current;
+        let next = null;
+        if (fb && drawArrow) {
+            const fromEl = fb.querySelector(`[data-key="${arrowFromKey}"]`);
+            const toEl = fb.querySelector(`[data-key="${arrowToKey}"]`);
+            if (fromEl && toEl) {
+                const fbRect = fb.getBoundingClientRect();
+                const center = (el) => {
+                    const r = el.getBoundingClientRect();
+                    return { x: r.left - fbRect.left + r.width / 2, y: r.top - fbRect.top + r.height / 2 };
+                };
+                const p1 = center(fromEl);
+                const p2 = center(toEl);
+                next = { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, w: fb.offsetWidth, h: fb.offsetHeight };
+            }
+        }
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- 量測 DOM marker 後寫回座標是必要的 layout 同步
+        setArrowCoords(next);
+    }, [arrowFromKey, arrowToKey, drawArrow, fretWidth, notePositions]);
 
     // 把位標記
     const fretMarkers = [3, 5, 7, 9, 12, 15, 17, 19, 21];
@@ -58,7 +89,7 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
             )}
 
             {/* 指板主體 */}
-            <div className="read-fretboard">
+            <div className="read-fretboard" ref={fretboardRef}>
                 {/* 格數標記 */}
                 <div className="fret-numbers">
                     <div className="string-gutter spacer">·</div>
@@ -137,7 +168,8 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                     label = noteName;
                                 }
 
-                                if (isCurrent) classNames += ' current';
+                                // 畫箭頭時不再顯示單點高亮；第一個音（無前音）仍以單點高亮
+                                if (isCurrent && !drawArrow) classNames += ' current';
                                 if (!isFretInCAGED(fret)) classNames += ' caged-dim';
 
                                 if (fret === 0 && stringIdx === 0 && label === 'E') {
@@ -160,6 +192,7 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                                     >
                                         <button
                                             className={classNames}
+                                            data-key={`${stringIdx}-${fret}`}
                                             style={markerStyle}
                                             onClick={() => {
                                                 if (scoreNote) {
@@ -198,6 +231,25 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, startS
                         </div>
                     ))}
                 </div>
+
+                {/* 播放動線（箭頭亮線）— 由上個音指向目前音 */}
+                {arrowCoords && (
+                    <svg className="play-arrow-layer" width={arrowCoords.w} height={arrowCoords.h}>
+                        <defs>
+                            <marker id="read-play-arrowhead" markerWidth="6" markerHeight="6" refX="4.6" refY="3" orient="auto">
+                                <path className="play-arrow-head" d="M0,0 L6,3 L0,6 Z" />
+                            </marker>
+                        </defs>
+                        <line
+                            className="play-arrow-line"
+                            x1={arrowCoords.x1}
+                            y1={arrowCoords.y1}
+                            x2={arrowCoords.x2}
+                            y2={arrowCoords.y2}
+                            markerEnd="url(#read-play-arrowhead)"
+                        />
+                    </svg>
+                )}
 
                 {/* 格線 */}
                 <div className="fret-lines">

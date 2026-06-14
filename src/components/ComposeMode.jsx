@@ -226,6 +226,21 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
     return (p > 0) ? playableIdx[p - 1] : -1;
   };
 
+  // —— 播放動線：由「上一個實際音」→「目前音」的箭頭亮線（取代單點高亮）——
+  let arrowFromKey = null;
+  let arrowToKey = null;
+  if (playingNote?.isNote && playingNote.midi != null && playingNote.stringIndex != null) {
+    arrowToKey = `${playingNote.stringIndex}-${playingNote.midi}`;
+    const pj = prevPlayable(playingIndex);
+    const pn = pj >= 0 ? notes[pj] : null;
+    if (pn?.isNote && pn.midi != null && pn.stringIndex != null) {
+      arrowFromKey = `${pn.stringIndex}-${pn.midi}`;
+    }
+  }
+  const drawArrow = !!(arrowFromKey && arrowToKey && arrowFromKey !== arrowToKey);
+  // 畫箭頭時不再顯示單點；第一個音（無前音）或前後同位置時仍以單點高亮
+  const dotKey = drawArrow ? null : activeNoteKey;
+
   // —— 技巧模式：先點技巧鈕進入模式，再點音符套用（再點同一鈕關閉）——
   const armTech = (mode) => {
     setTechMode(prev => (prev === mode ? null : mode));
@@ -607,7 +622,9 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
           fretCount={fretCount}
           cagedPosition={cagedPosition}
           onFretClick={addFromFret}
-          activeNoteKey={activeNoteKey}
+          activeNoteKey={dotKey}
+          arrowFromKey={drawArrow ? arrowFromKey : null}
+          arrowToKey={drawArrow ? arrowToKey : null}
         />
       </div>
     </div>

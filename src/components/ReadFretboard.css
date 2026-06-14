@@ -33,6 +33,28 @@
     overflow-x: auto;
 }
 
+/* —— 播放動線（箭頭亮線）—— */
+.read-fretboard .play-arrow-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 4;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.read-fretboard .play-arrow-line {
+    stroke: #ffd54a;
+    stroke-width: 4;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 5px rgba(255, 213, 74, 0.95));
+    transition: all 0.08s linear;
+}
+
+.read-fretboard .play-arrow-head {
+    fill: #ffd54a;
+}
+
 /* 左側 string label 列（E B G D A E） */
 .read-fretboard .string-gutter {
     width: 28px;

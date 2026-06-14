@@ -384,3 +384,25 @@
 :global(.black-screen-mode) .fret-number {
   display: none !important;
 }
+
+/* —— 播放動線（箭頭亮線）—— */
+.fretboard .play-arrow-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;            /* 在音符/格線之上、繪圖層(5)之下 */
+  pointer-events: none;  /* 不擋點擊，仍可點指板寫音 */
+  overflow: visible;
+}
+
+.fretboard .play-arrow-line {
+  stroke: #ffd54a;
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 5px rgba(255, 213, 74, 0.95));
+  transition: all 0.08s linear;
+}
+
+.fretboard .play-arrow-head {
+  fill: #ffd54a;
+}
