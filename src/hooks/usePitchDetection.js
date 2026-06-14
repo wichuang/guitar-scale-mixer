@@ -5,11 +5,6 @@ import Pitchfinder from 'pitchfinder';
 const A4 = 440;
 const A4_MIDI = 69;
 
-// Convert frequency to MIDI note number
-function frequencyToMidi(frequency) {
-    return Math.round(12 * Math.log2(frequency / A4) + A4_MIDI);
-}
-
 // Convert MIDI to note name
 function midiToNoteName(midi) {
     const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -21,12 +16,23 @@ function midiToOctave(midi) {
     return Math.floor(midi / 12) - 1;
 }
 
-// Convert frequency to cents deviation from nearest note
-function frequencyToCents(frequency) {
-    const midi = 12 * Math.log2(frequency / A4) + A4_MIDI;
-    const roundedMidi = Math.round(midi);
-    return Math.round((midi - roundedMidi) * 100);
+// 兩個頻率相差多少 cents（用於一致性判斷）
+function centsBetween(f1, f2) {
+    return Math.abs(1200 * Math.log2(f1 / f2));
 }
+
+// 中位數（對單幀八度誤判 / 雜訊很穩健）
+function median(arr) {
+    const sorted = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+// 分析參數
+const FFT_SIZE = 4096;        // ~93ms @44.1kHz，低音弦也有足夠週期數
+const FREQ_WINDOW = 5;        // 頻率中位數視窗（幀數）
+const MIN_STABLE = 3;         // 視窗至少這麼多筆才開始輸出
+const RMS_GATE = 0.01;        // 訊號門檻
 
 export function usePitchDetection() {
     const [isListening, setIsListening] = useState(false);
@@ -40,6 +46,8 @@ export function usePitchDetection() {
     const [noteHistory, setNoteHistory] = useState([]);
     const [confidence, setConfidence] = useState(0);
 
+    const [inputSource, setInputSource] = useState('mic'); // 'mic' | 'tab'
+
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);
     const streamRef = useRef(null);
@@ -47,9 +55,14 @@ export function usePitchDetection() {
     const lastNoteRef = useRef(null);
     const lastNoteTimeRef = useRef(0);
     const detectPitchFnRef = useRef(null);
+    const stopListeningRef = useRef(null);
 
-    // Note buffer for smoothing
-    const noteBufferRef = useRef([]);
+    // 預配置的時域 buffer（避免每幀 new Float32Array 造成 GC 抖動）
+    const bufferRef = useRef(null);
+    // 最近幾幀的原始頻率，做中位數平滑
+    const freqWindowRef = useRef([]);
+    // 上一個穩定頻率，用於八度跳變修正
+    const lastStableFreqRef = useRef(null);
 
     // Get available audio input devices
     // requestPermission=true 才會跳出麥克風權限對話框並取得 device labels；
@@ -88,7 +101,8 @@ export function usePitchDetection() {
         if (!analyserRef.current || !detectPitchFnRef.current) return;
 
         const analyser = analyserRef.current;
-        const buffer = new Float32Array(analyser.fftSize);
+        const buffer = bufferRef.current;
+        if (!buffer) { rafIdRef.current = requestAnimationFrame(detectPitch); return; }
         analyser.getFloatTimeDomainData(buffer);
 
         // Calculate volume (RMS)
@@ -99,97 +113,116 @@ export function usePitchDetection() {
         const rms = Math.sqrt(sum / buffer.length);
         setVolume(Math.min(1, rms * 8));
 
-        // Only detect if there's enough signal
-        if (rms > 0.015) {
-            // Use YIN algorithm from pitchfinder
-            const frequency = detectPitchFnRef.current(buffer);
-
-            if (frequency && frequency > 70 && frequency < 1500) {
-                const midi = frequencyToMidi(frequency);
-                const noteName = midiToNoteName(midi);
-                const octave = midiToOctave(midi);
-                const cents = frequencyToCents(frequency);
-
-                // Add to note buffer for smoothing (note+octave combined)
-                const noteWithOctave = `${noteName}${octave}`;
-                noteBufferRef.current.push(noteWithOctave);
-                if (noteBufferRef.current.length > 4) {
-                    noteBufferRef.current.shift();
-                }
-
-                // Count note occurrences
-                const noteCounts = {};
-                noteBufferRef.current.forEach(n => {
-                    noteCounts[n] = (noteCounts[n] || 0) + 1;
-                });
-
-                // Find most common note
-                let mostCommonNoteWithOctave = noteWithOctave;
-                let maxCount = 0;
-                Object.entries(noteCounts).forEach(([note, count]) => {
-                    if (count > maxCount) {
-                        maxCount = count;
-                        mostCommonNoteWithOctave = note;
-                    }
-                });
-
-                // Parse note and octave from most common
-                const mostCommonNote = mostCommonNoteWithOctave.replace(/[0-9]/g, '');
-                const mostCommonOctave = parseInt(mostCommonNoteWithOctave.match(/[0-9]+/)?.[0] || octave);
-
-                // Update if note is stable (appears 2+ times)
-                if (maxCount >= 2) {
-                    setDetectedFrequency(Math.round(frequency));
-                    setDetectedNote(mostCommonNote);
-                    setDetectedOctave(mostCommonOctave);
-                    setCentsDeviation(cents);
-                    setConfidence(maxCount / 4);
-
-                    // Add to history with debounce
-                    const now = Date.now();
-                    if (mostCommonNoteWithOctave !== lastNoteRef.current || now - lastNoteTimeRef.current > 350) {
-                        lastNoteRef.current = mostCommonNoteWithOctave;
-                        lastNoteTimeRef.current = now;
-                        setNoteHistory(prev => {
-                            const newHistory = [{
-                                note: mostCommonNote,
-                                octave: mostCommonOctave,
-                                fullNote: mostCommonNoteWithOctave,
-                                time: now,
-                                freq: Math.round(frequency)
-                            }, ...prev];
-                            return newHistory.slice(0, 20);
-                        });
-                    }
-                }
-            }
-        } else {
-            // Low signal - clear detection after a moment
-            if (noteBufferRef.current.length > 0) {
-                noteBufferRef.current = [];
-            }
+        // 訊號太弱 → 清空狀態
+        if (rms <= RMS_GATE) {
+            freqWindowRef.current = [];
+            lastStableFreqRef.current = null;
             setDetectedNote(null);
             setDetectedOctave(null);
             setDetectedFrequency(null);
             setCentsDeviation(0);
             setConfidence(0);
+            rafIdRef.current = requestAnimationFrame(detectPitch);
+            return;
+        }
+
+        let frequency = detectPitchFnRef.current(buffer);
+
+        // 吉他音域：低音E(82Hz) ~ 高把位(~1100Hz)，留點餘裕
+        if (frequency && frequency > 60 && frequency < 1320) {
+            // 八度跳變修正：YIN 在低音弦常誤判到上/下八度的諧波。
+            // 若新頻率約為上一穩定頻率的 2x 或 0.5x，snap 回原八度。
+            const stable = lastStableFreqRef.current;
+            if (stable) {
+                if (centsBetween(frequency / 2, stable) < 50) frequency /= 2;
+                else if (centsBetween(frequency * 2, stable) < 50) frequency *= 2;
+            }
+
+            // 推入頻率視窗做中位數平滑
+            const win = freqWindowRef.current;
+            win.push(frequency);
+            if (win.length > FREQ_WINDOW) win.shift();
+
+            if (win.length >= MIN_STABLE) {
+                const medFreq = median(win);
+                // 一致性閘門：視窗內所有值都在中位數 ±半音內才輸出，
+                // 否則代表正在換音/不穩，先不更新（避免顯示垃圾音）
+                const converged = win.every(f => centsBetween(f, medFreq) < 50);
+
+                if (converged) {
+                    const midiFloat = 12 * Math.log2(medFreq / A4) + A4_MIDI;
+                    const midi = Math.round(midiFloat);
+                    const noteName = midiToNoteName(midi);
+                    const octave = midiToOctave(midi);
+                    const cents = Math.round((midiFloat - midi) * 100);
+                    const noteWithOctave = `${noteName}${octave}`;
+
+                    lastStableFreqRef.current = medFreq;
+
+                    setDetectedFrequency(Math.round(medFreq));
+                    setDetectedNote(noteName);
+                    setDetectedOctave(octave);
+                    setCentsDeviation(cents);
+                    setConfidence(Math.max(0, 1 - Math.abs(cents) / 50));
+
+                    // Add to history with debounce
+                    const now = Date.now();
+                    if (noteWithOctave !== lastNoteRef.current || now - lastNoteTimeRef.current > 350) {
+                        lastNoteRef.current = noteWithOctave;
+                        lastNoteTimeRef.current = now;
+                        setNoteHistory(prev => [{
+                            note: noteName,
+                            octave,
+                            fullNote: noteWithOctave,
+                            time: now,
+                            freq: Math.round(medFreq)
+                        }, ...prev].slice(0, 20));
+                    }
+                }
+            }
         }
 
         rafIdRef.current = requestAnimationFrame(detectPitch);
     }, []);
 
-    // Start listening
+    // 共用：把任意 MediaStream 接到 analyser 並開始辨識（mic 與 tab 音訊共用）
+    const beginDetection = useCallback((stream) => {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = audioContextRef.current.sampleRate;
+
+        // Initialize YIN detector with correct sample rate
+        detectPitchFnRef.current = Pitchfinder.YIN({
+            sampleRate: sampleRate,
+            threshold: 0.1,  // Lower = more sensitive, higher = more accurate
+        });
+
+        streamRef.current = stream;
+
+        // 若使用者從瀏覽器分享列停止分享，audio track 會 ended → 自動停止辨識
+        stream.getAudioTracks().forEach(track => {
+            track.addEventListener('ended', () => stopListeningRef.current?.());
+        });
+
+        // Use larger FFT for better low-frequency resolution
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = FFT_SIZE;
+        analyserRef.current.smoothingTimeConstant = 0;
+
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        source.connect(analyserRef.current);
+
+        // Reset buffers
+        bufferRef.current = new Float32Array(FFT_SIZE);
+        freqWindowRef.current = [];
+        lastStableFreqRef.current = null;
+
+        setIsListening(true);
+        rafIdRef.current = requestAnimationFrame(detectPitch);
+    }, [detectPitch]);
+
+    // Start listening from microphone
     const startListening = useCallback(async () => {
         try {
-            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-            const sampleRate = audioContextRef.current.sampleRate;
-
-            // Initialize YIN detector with correct sample rate
-            detectPitchFnRef.current = Pitchfinder.YIN({
-                sampleRate: sampleRate,
-                threshold: 0.1,  // Lower = more sensitive, higher = more accurate
-            });
-
             const constraints = {
                 audio: {
                     deviceId: selectedDevice ? { exact: selectedDevice } : undefined,
@@ -199,7 +232,7 @@ export function usePitchDetection() {
                 }
             };
 
-            streamRef.current = await navigator.mediaDevices.getUserMedia(constraints);
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
             // 取得權限後重新 enumerate 一次，讓裝置清單帶上 labels
             try {
@@ -208,24 +241,43 @@ export function usePitchDetection() {
                 setDevices(audioInputs);
             } catch { /* ignore */ }
 
-            // Use larger FFT for better frequency resolution
-            analyserRef.current = audioContextRef.current.createAnalyser();
-            analyserRef.current.fftSize = 2048;
-            analyserRef.current.smoothingTimeConstant = 0;
-
-            const source = audioContextRef.current.createMediaStreamSource(streamRef.current);
-            source.connect(analyserRef.current);
-
-            // Reset buffers
-            noteBufferRef.current = [];
-
-            setIsListening(true);
-            rafIdRef.current = requestAnimationFrame(detectPitch);
-
+            beginDetection(stream);
         } catch (err) {
             console.error('Failed to start listening:', err);
         }
-    }, [selectedDevice, detectPitch]);
+    }, [selectedDevice, beginDetection]);
+
+    // Start listening from a captured tab / system audio stream (getDisplayMedia)
+    // 用於 YouTube：使用者在本分頁播放影片，分享「本分頁 + 分頁音訊」後，
+    // 整個分頁(含 YouTube iframe)的聲音就會進到 analyser 做音高辨識。
+    // throws 'NO_AUDIO' 若使用者沒有勾選分享音訊；throws 'CANCELLED' 若取消。
+    const startListeningFromTab = useCallback(async () => {
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,           // 多數瀏覽器要求一定要有 video track
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                },
+            });
+        } catch (err) {
+            // 使用者按取消 / 沒授權
+            throw Object.assign(new Error('CANCELLED'), { cause: err });
+        }
+
+        if (stream.getAudioTracks().length === 0) {
+            // 使用者沒有勾選「分享分頁音訊 / 系統音訊」
+            stream.getTracks().forEach(t => t.stop());
+            throw new Error('NO_AUDIO');
+        }
+
+        // 不需要畫面，停掉 video track 省資源（audio track 不受影響）
+        stream.getVideoTracks().forEach(t => t.stop());
+
+        beginDetection(stream);
+    }, [beginDetection]);
 
     // Stop listening
     const stopListening = useCallback(() => {
@@ -241,7 +293,9 @@ export function usePitchDetection() {
             audioContextRef.current.close();
         }
 
-        noteBufferRef.current = [];
+        freqWindowRef.current = [];
+        lastStableFreqRef.current = null;
+        bufferRef.current = null;
         detectPitchFnRef.current = null;
         setIsListening(false);
         setDetectedNote(null);
@@ -251,6 +305,11 @@ export function usePitchDetection() {
         setVolume(0);
         setConfidence(0);
     }, []);
+
+    // 讓 track 'ended' 事件能呼叫到最新的 stopListening
+    useEffect(() => {
+        stopListeningRef.current = stopListening;
+    }, [stopListening]);
 
     useEffect(() => {
         return () => {
@@ -274,7 +333,10 @@ export function usePitchDetection() {
         volume,
         confidence,
         noteHistory,
+        inputSource,
+        setInputSource,
         startListening,
+        startListeningFromTab,
         stopListening,
         refreshDevices,
         clearHistory

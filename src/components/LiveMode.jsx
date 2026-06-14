@@ -1,22 +1,88 @@
 import { useRef, useEffect, useState } from 'react';
+import YouTube from 'react-youtube';
 import {
     STRING_TUNINGS,
     NUM_FRETS,
     getNoteName,
     NOTES,
 } from '../data/scaleData';
+import { Note } from '../core/models/Note';
+import { Score } from '../core/models/Score';
 import './LiveMode.css';
+
+// 從各種 YouTube 連結格式抽出 11 碼 video id（也接受直接貼 id）
+function extractVideoId(url) {
+    if (!url) return '';
+    const trimmed = url.trim();
+    if (/^[\w-]{11}$/.test(trimmed)) return trimmed;
+    const m = trimmed.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/);
+    return (m && m[7] && m[7].length === 11) ? m[7] : '';
+}
 
 function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fretCount }) {
     const {
         isListening, devices, selectedDevice, setSelectedDevice,
         detectedNote, detectedOctave, detectedFrequency, centsDeviation, volume, noteHistory,
-        startListening, stopListening, refreshDevices, clearHistory
+        inputSource, setInputSource,
+        startListening, startListeningFromTab, stopListening, refreshDevices, clearHistory
     } = pitchDetection;
 
     const containerRef = useRef(null);
     const [fretWidth, setFretWidth] = useState(45);
     const [liveRoot, setLiveRoot] = useState(scales.length > 0 ? scales[0].root : 'A');
+
+    // YouTube 來源
+    const [ytUrl, setYtUrl] = useState('');
+    const [videoId, setVideoId] = useState('');
+    const [captureMsg, setCaptureMsg] = useState('');
+
+    const loadVideo = () => {
+        const id = extractVideoId(ytUrl);
+        setVideoId(id);
+        setCaptureMsg(id ? '' : '無法解析連結，請確認是有效的 YouTube 網址');
+    };
+
+    const handleCaptureTab = async () => {
+        setCaptureMsg('');
+        try {
+            await startListeningFromTab();
+        } catch (err) {
+            if (err.message === 'NO_AUDIO') {
+                setCaptureMsg('沒有擷取到聲音 — 請在分享對話框勾選「分享分頁音訊 / 系統音訊」後再試一次。');
+            } else if (err.message === 'CANCELLED') {
+                setCaptureMsg('已取消擷取。');
+            } else {
+                setCaptureMsg('擷取失敗：' + (err.message || '未知錯誤'));
+            }
+        }
+    };
+
+    // —— 將擷取到的音符記錄存成 Score JSON（可在 Compose / Read 模式載入）——
+    // noteHistory 以「最新在前」儲存，存檔時反轉回演奏順序。
+    const saveHistory = () => {
+        if (noteHistory.length === 0) return;
+        const chrono = [...noteHistory].reverse();
+        const notes = chrono.map((h, idx) => {
+            const noteIndex = NOTES.indexOf(h.note);
+            // 由偵測到的音名 + 八度還原真實發聲音高（C4 = MIDI 60）
+            const midi = (h.octave + 1) * 12 + (noteIndex < 0 ? 0 : noteIndex);
+            // displayOctaveShift: 1 → 與 Compose 一致（吉他記譜比實音高八度）
+            return Note.fromMidi(midi, { index: idx, duration: 'quarter', displayOctaveShift: 1 });
+        });
+        const score = new Score({
+            notes,
+            metadata: { name: 'Live', key: liveRoot, viewMode: 'both' },
+        });
+        const blob = new Blob([JSON.stringify(score.toJSON(), null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        a.href = url;
+        a.download = `Live_${today}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setCaptureMsg(`已存檔 ${notes.length} 個音符！可到 Compose / Read 模式用「開啟」載入。`);
+    };
 
     useEffect(() => {
         const updateFretWidth = () => {
@@ -51,38 +117,105 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
 
     return (
         <div className="live-mode" ref={containerRef}>
-            {/* Audio Controls - Only device and listen button */}
-            <div className="audio-controls">
-                <select
-                    className="device-select"
-                    value={selectedDevice}
-                    onChange={(e) => setSelectedDevice(e.target.value)}
-                    disabled={isListening}
-                >
-                    {devices.length === 0 ? (
-                        <option value="">No devices</option>
-                    ) : (
-                        devices.map(d => (
-                            <option key={d.deviceId} value={d.deviceId}>
-                                {d.label || `Input ${d.deviceId.slice(0, 6)}`}
-                            </option>
-                        ))
-                    )}
-                </select>
-
-                <button className="ref-btn" onClick={refreshDevices} disabled={isListening}>↻</button>
-
+            {/* 輸入來源切換：麥克風 / YouTube */}
+            <div className="source-toggle">
                 <button
-                    className={`listen-btn ${isListening ? 'active' : ''}`}
-                    onClick={isListening ? stopListening : startListening}
-                >
-                    {isListening ? '⏹ Stop' : '▶ Listen'}
-                </button>
-
-                {noteHistory.length > 0 && (
-                    <button className="clear-btn" onClick={clearHistory}>Clear</button>
-                )}
+                    className={`src-btn ${inputSource === 'mic' ? 'active' : ''}`}
+                    onClick={() => setInputSource('mic')}
+                    disabled={isListening}
+                >🎤 麥克風</button>
+                <button
+                    className={`src-btn ${inputSource === 'tab' ? 'active' : ''}`}
+                    onClick={() => setInputSource('tab')}
+                    disabled={isListening}
+                >▶️ YouTube</button>
             </div>
+
+            {/* Audio Controls */}
+            {inputSource === 'mic' ? (
+                <div className="audio-controls">
+                    <select
+                        className="device-select"
+                        value={selectedDevice}
+                        onChange={(e) => setSelectedDevice(e.target.value)}
+                        disabled={isListening}
+                    >
+                        {devices.length === 0 ? (
+                            <option value="">No devices</option>
+                        ) : (
+                            devices.map(d => (
+                                <option key={d.deviceId} value={d.deviceId}>
+                                    {d.label || `Input ${d.deviceId.slice(0, 6)}`}
+                                </option>
+                            ))
+                        )}
+                    </select>
+
+                    <button className="ref-btn" onClick={refreshDevices} disabled={isListening}>↻</button>
+
+                    <button
+                        className={`listen-btn ${isListening ? 'active' : ''}`}
+                        onClick={isListening ? stopListening : startListening}
+                    >
+                        {isListening ? '⏹ Stop' : '▶ Listen'}
+                    </button>
+
+                    {noteHistory.length > 0 && (
+                        <>
+                            <button className="save-btn" onClick={saveHistory}>💾 存檔</button>
+                            <button className="clear-btn" onClick={clearHistory}>Clear</button>
+                        </>
+                    )}
+                </div>
+            ) : (
+                <div className="youtube-source">
+                    <div className="yt-url-row">
+                        <input
+                            className="yt-url-input"
+                            type="text"
+                            placeholder="貼上 YouTube 連結…"
+                            value={ytUrl}
+                            onChange={(e) => setYtUrl(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && loadVideo()}
+                            disabled={isListening}
+                        />
+                        <button className="ref-btn" onClick={loadVideo} disabled={isListening}>載入</button>
+                    </div>
+
+                    {videoId && (
+                        <div className="yt-embed">
+                            <YouTube
+                                videoId={videoId}
+                                opts={{ width: '100%', height: '220', playerVars: { playsinline: 1 } }}
+                            />
+                        </div>
+                    )}
+
+                    <div className="audio-controls">
+                        <button
+                            className={`listen-btn ${isListening ? 'active' : ''}`}
+                            onClick={isListening ? stopListening : handleCaptureTab}
+                        >
+                            {isListening ? '⏹ Stop' : '🎧 擷取分頁聲音並辨識'}
+                        </button>
+                        {noteHistory.length > 0 && (
+                            <>
+                                <button className="save-btn" onClick={saveHistory}>💾 存檔</button>
+                                <button className="clear-btn" onClick={clearHistory}>Clear</button>
+                            </>
+                        )}
+                    </div>
+
+                    {!isListening && (
+                        <p className="yt-hint">
+                            先按播放讓影片出聲，再按「擷取分頁聲音」。瀏覽器跳出分享視窗時，
+                            選 <strong>「本分頁」</strong> 並務必勾選 <strong>「分享分頁音訊」</strong>。
+                            （單音/獨奏辨識最準；和弦或整首伴奏為複音，辨識會較不穩定。建議用 Chrome / Edge 桌面版。）
+                        </p>
+                    )}
+                    {captureMsg && <p className="yt-error">{captureMsg}</p>}
+                </div>
+            )}
 
             {/* Detection Display - Fixed height structure */}
             <div className={`detection-box ${isListening ? 'active' : ''}`}>
