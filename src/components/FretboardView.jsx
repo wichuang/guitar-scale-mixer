@@ -40,9 +40,12 @@ function FretboardView({
     stringTunings = STRING_TUNINGS,
     fretMarkers = DEFAULT_FRET_MARKERS,
     doubleDotFrets = DEFAULT_DOUBLE_DOTS,
+    fretboardRef: externalFretboardRef = null,   // 由外層傳入時用它（繪圖 canvas 需要 ref 到 .fretboard）
+    containerClassName = '',                      // 額外容器 class（如 interval bw-mode）
 }) {
     const containerRef = useRef(null);
-    const fretboardRef = useRef(null);
+    const internalFretboardRef = useRef(null);
+    const fretboardRef = externalFretboardRef || internalFretboardRef;
     const [fretWidth, setFretWidth] = useState(48);
 
     // fit-to-width：依容器寬度算格寬（與 Compose Fretboard 同公式）
@@ -78,13 +81,13 @@ function FretboardView({
             }
         }
         setArrowCoords(next);
-    }, [arrowFromKey, arrowToKey, fretWidth, cells]);
+    }, [arrowFromKey, arrowToKey, fretWidth, cells, fretboardRef]);
 
     const frets = Array.from({ length: fretCount + 1 }, (_, f) => f);
     const isFretDisabled = (fret) => !!(disabledFrets && disabledFrets.has && disabledFrets.has(fret));
 
     return (
-        <div className="fretboard-container" ref={containerRef}>
+        <div className={`fretboard-container ${containerClassName}`} ref={containerRef}>
             <div className="fretboard-wrapper">
                 {header && <div className="fretboard-header">{header}</div>}
 
