@@ -4,15 +4,12 @@
  */
 
 import React from 'react';
-import { NOTES, CAGED_SHAPES } from '../../data/scaleData.js';
+import { CAGED_SHAPES } from '../../data/scaleData.js';
 import InstrumentSelector from './InstrumentSelector.jsx';
 
 function SettingsPanel({
-    musicKey,
-    scaleType,
     timeSignature,
     tempo,
-    startString,
     cagedPosition,
     showScaleGuide,
     displayMode,
@@ -20,8 +17,6 @@ function SettingsPanel({
     showYoutube,
     viewMode,
     instrument,
-    onKeyChange,
-    onScaleTypeChange,
     onTimeSignatureChange,
     onTempoChange,
     onStartStringChange,
@@ -55,29 +50,7 @@ function SettingsPanel({
                 </div>
             )}
 
-            <div className="setting-row">
-                <label>調號</label>
-                <select value={musicKey} onChange={(e) => onKeyChange(e.target.value)}>
-                    {NOTES.map(n => (
-                        <option key={n} value={n}>{n}</option>
-                    ))}
-                </select>
-            </div>
-
-            <div className="setting-row">
-                <label>音階</label>
-                <select value={scaleType} onChange={(e) => onScaleTypeChange(e.target.value)}>
-                    <option value="Major">Major (大調)</option>
-                    <option value="Minor">Minor (小調)</option>
-                    <option value="Dorian">Dorian</option>
-                    <option value="Phrygian">Phrygian</option>
-                    <option value="Lydian">Lydian</option>
-                    <option value="Mixolydian">Mixolydian</option>
-                    <option value="Locrian">Locrian</option>
-                    <option value="HarmonicMinor">Harmonic Minor</option>
-                    <option value="MelodicMinor">Melodic Minor</option>
-                </select>
-            </div>
+            {/* 調號 / 音階改由上方 Scale/Chord 選擇器（PlayItemCard）控制 */}
 
             <div className="setting-row">
                 <label>拍子</label>

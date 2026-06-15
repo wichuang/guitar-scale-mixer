@@ -10,13 +10,13 @@ import { calculate3NPSPositions, calculateCAGEDPositions, generate3NPSMap } from
 import { getPitchColor } from '../data/pitchColors';
 import FretboardView from './FretboardView';
 
-function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlayMidi, startString = 5, rangeOctave = 0, cagedPosition = null, musicKey = 'C', scaleType = 'Major', showScaleGuide = false, displayMode = 'notes', toolbarExtra }) {
+function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlayMidi, startString = 5, rangeOctave = 0, cagedPosition = null, musicKey = 'C', scaleType = 'Major', scaleNotes = null, intervalScale = null, showScaleGuide = false, displayMode = 'notes', toolbarExtra }) {
     const visibleFrets = fretCount || 19;
     // ABC = 音名；123 = 音階級數（相對 root 的 interval，root 顯示 R）
     const intervalMode = displayMode === 'intervals';
     const labelFor = (noteName) => {
         if (!intervalMode) return noteName;
-        const iv = getIntervalForNote(noteName, musicKey, scaleType);
+        const iv = getIntervalForNote(noteName, musicKey, intervalScale || scaleType);
         return iv === '1' ? 'R' : (iv || noteName);
     };
 
@@ -41,11 +41,12 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlay
         return generate3NPSMap(startString, musicKey, scaleType);
     }, [startString, musicKey, scaleType, showScaleGuide, cagedPosition]);
 
-    // 所選調音階音名集合（判斷調外 ghost 音）
+    // 「在 scale/chord 內」的音名集合（判斷調外 ghost 音 + box 內 scale tone）。
+    // 由外部 scaleNotes 提供（Scale/Chord 選擇器算出）；未給則由 musicKey+scaleType 推。
     const scaleNoteSet = useMemo(() => {
-        const arr = getScaleNotes(musicKey, SCALE_TYPES[scaleType] || (scaleType || 'major').toLowerCase());
-        return new Set(arr);
-    }, [musicKey, scaleType]);
+        if (scaleNotes && scaleNotes.length) return new Set(scaleNotes);
+        return new Set(getScaleNotes(musicKey, SCALE_TYPES[scaleType] || (scaleType || 'major').toLowerCase()));
+    }, [scaleNotes, musicKey, scaleType]);
 
     // CAGED box 內背景：'scale'（半實心）或 'ghost'（樂譜用到的調外音，空心）
     const cagedBoxMap = useMemo(() => {

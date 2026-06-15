@@ -160,6 +160,8 @@ function ReadPopup({ view }) {
                     cagedPosition={state.cagedPosition ?? null}
                     musicKey={state.musicKey || 'C'}
                     scaleType={state.scaleType || 'Major'}
+                    scaleNotes={state.scaleNotes || null}
+                    intervalScale={state.intervalScale || null}
                     showScaleGuide={state.showScaleGuide ?? false}
                     displayMode={state.displayMode || 'notes'}
                 />

@@ -19,6 +19,9 @@ import { useLoopSection } from '../../hooks/useLoopSection.js';
 import { useMetronome } from '../../hooks/useMetronome.js';
 import { usePracticeTimer } from '../../hooks/usePracticeTimer.js';
 import ReadFretboard from '../ReadFretboard.jsx';
+import PlayItemCard from '../PlayItemCard.jsx';
+import { getScaleNotes } from '../../data/scaleData.js';
+import { getChordNotes } from '../../data/chordData.js';
 import ScoreDisplay from '../ScoreDisplay/index.jsx';
 import PracticeTools from '../PracticeTools/index.jsx';
 import PracticeStats from '../PracticeStats/index.jsx';
@@ -29,6 +32,29 @@ import FileActions from './FileActions.jsx';
 import YouTubePlayer from './YouTubePlayer.jsx';
 import { READ_SYNC_CHANNEL } from './ReadPopup.jsx';
 import './ReadMode.css';
+
+// Scale/Chord 選擇器：Read 只允許 7 音自然音階（保持簡譜音高正確）
+const READ_SCALE_OPTIONS = [
+    { value: 'major', label: 'Major (大調)' },
+    { value: 'aeolian', label: 'Minor (小調)' },
+    { value: 'dorian', label: 'Dorian' },
+    { value: 'phrygian', label: 'Phrygian' },
+    { value: 'lydian', label: 'Lydian' },
+    { value: 'mixolydian', label: 'Mixolydian' },
+    { value: 'locrian', label: 'Locrian' },
+    { value: 'harmonic-minor', label: 'Harmonic Minor' },
+    { value: 'melodic-minor', label: 'Melodic Minor' },
+];
+const SCALE_INTERNAL_TO_UI = {
+    major: 'Major', aeolian: 'Minor', dorian: 'Dorian', phrygian: 'Phrygian',
+    lydian: 'Lydian', mixolydian: 'Mixolydian', locrian: 'Locrian',
+    'harmonic-minor': 'HarmonicMinor', 'melodic-minor': 'MelodicMinor',
+};
+const SCALE_UI_TO_INTERNAL = {
+    Major: 'major', Minor: 'aeolian', Dorian: 'dorian', Phrygian: 'phrygian',
+    Lydian: 'lydian', Mixolydian: 'mixolydian', Locrian: 'locrian',
+    HarmonicMinor: 'harmonic-minor', MelodicMinor: 'melodic-minor',
+};
 
 const AUTOSAVE_KEY = 'guitar-mixer-readmode-autosave';
 
@@ -85,6 +111,58 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     // ===== 音樂設定 =====
     const [key, setKey] = useState('C');
     const [scaleType, setScaleType] = useState('Major');
+    // Scale/Chord 選擇器狀態：scale 模式以 key+scaleType 為來源；chordDisplay 非 null = 改顯示和弦（純指板疊加）
+    const [chordDisplay, setChordDisplay] = useState(null); // {root, quality, extension, enabledNotes} | null
+    const [scaleEnabled, setScaleEnabled] = useState(null); // scale 模式下啟用的音名（null = 全部 scale 音）
+    // —— Scale/Chord 選擇器（衍生自 key/scaleType/chordDisplay；不另存獨立來源）——
+    const pickerItem = chordDisplay
+        ? { type: 'chord', root: chordDisplay.root, quality: chordDisplay.quality, extension: chordDisplay.extension, enabledNotes: chordDisplay.enabledNotes }
+        : { type: 'scale', root: key, scale: SCALE_UI_TO_INTERNAL[scaleType] || 'major', enabledNotes: scaleEnabled };
+    // 指板要高亮的音名集合 + interval 用的音階（給 ReadFretboard）
+    const displayScaleNotes = chordDisplay
+        ? (chordDisplay.enabledNotes || getChordNotes(chordDisplay.root, chordDisplay.quality, chordDisplay.extension))
+        : (scaleEnabled || getScaleNotes(key, SCALE_UI_TO_INTERNAL[scaleType] || 'major'));
+    const intervalScale = chordDisplay ? 'chromatic' : (SCALE_UI_TO_INTERNAL[scaleType] || 'major');
+
+    const handleItemChange = (patch) => {
+        // 切換 Scale/Chord 類型
+        if (patch.type === 'scale') {
+            setChordDisplay(null);
+            setScaleEnabled(null);
+            if (patch.root) setKey(patch.root);
+            if (patch.scale) setScaleType(SCALE_INTERNAL_TO_UI[patch.scale] || 'Major');
+            return;
+        }
+        if (patch.type === 'chord') {
+            setChordDisplay({
+                root: patch.root || key,
+                quality: patch.quality || 'Major',
+                extension: patch.extension || '3',
+                enabledNotes: patch.enabledNotes || getChordNotes(patch.root || key, patch.quality || 'Major', patch.extension || '3'),
+            });
+            return;
+        }
+        // 同類型內的局部更新
+        if (chordDisplay) {
+            setChordDisplay(prev => ({ ...prev, ...patch }));
+        } else {
+            if (patch.root) setKey(patch.root);
+            if (patch.scale) setScaleType(SCALE_INTERNAL_TO_UI[patch.scale] || 'Major');
+            if ('enabledNotes' in patch) setScaleEnabled(patch.enabledNotes);
+        }
+    };
+    const handleToggleItemNote = (note) => {
+        if (chordDisplay) {
+            setChordDisplay(prev => {
+                const base = prev.enabledNotes || getChordNotes(prev.root, prev.quality, prev.extension);
+                const next = base.includes(note) ? base.filter(n => n !== note) : [...base, note];
+                return { ...prev, enabledNotes: next };
+            });
+        } else {
+            const base = scaleEnabled || getScaleNotes(key, SCALE_UI_TO_INTERNAL[scaleType] || 'major');
+            setScaleEnabled(base.includes(note) ? base.filter(n => n !== note) : [...base, note]);
+        }
+    };
     const [tempo, setTempo] = useState(120);
     const [timeSignature, setTimeSignature] = useState('4/4');
     const [startString, setStartString] = useState(5);
@@ -327,11 +405,13 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                 cagedPosition,
                 showScaleGuide,
                 displayMode,
+                scaleNotes: displayScaleNotes,
+                intervalScale,
                 fretCount,
                 instrument: guitarType,
             }
         });
-    }, [viewNotes, notePositions, currentNoteIndex, isPlaying, playTime, key, scaleType, tempo, timeSignature, startString, rangeOctave, cagedPosition, showScaleGuide, displayMode, fretCount, guitarType]);
+    }, [viewNotes, notePositions, currentNoteIndex, isPlaying, playTime, key, scaleType, tempo, timeSignature, startString, rangeOctave, cagedPosition, showScaleGuide, displayMode, displayScaleNotes, intervalScale, fretCount, guitarType]);
     publishStateRef.current = publishState;
     useEffect(() => { publishState(); }, [publishState]);
 
@@ -525,6 +605,16 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     }}
                 />
 
+                {/* Scale / Chord 選擇器（與 Compose 一致；單一來源）*/}
+                <PlayItemCard
+                    index={0}
+                    item={pickerItem}
+                    onChange={handleItemChange}
+                    onToggleNote={handleToggleItemNote}
+                    scaleOptions={READ_SCALE_OPTIONS}
+                    showGhostNotes={true}
+                />
+
                 {/* 設定區 */}
                 <SettingsPanel
                     musicKey={key}
@@ -662,6 +752,8 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     cagedPosition={cagedPosition}
                     musicKey={key}
                     scaleType={scaleType}
+                    scaleNotes={displayScaleNotes}
+                    intervalScale={intervalScale}
                     displayMode={displayMode}
                     showScaleGuide={showScaleGuide}
                     toolbarExtra={
