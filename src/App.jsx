@@ -45,8 +45,11 @@ const DEFAULT_PLAY_ITEMS = [
     enabledNotes: getChordNotes('C', 'Major', '7') },
   { type: 'chord', root: 'G', quality: 'Dominant', extension: '7',
     enabledNotes: getChordNotes('G', 'Dominant', '7') },
-  { type: 'scale', root: 'A', scale: 'natural-minor', enabledNotes: null },
+  { type: 'scale', root: 'A', scale: 'aeolian', enabledNotes: null },
 ];
+
+// 舊資料/別名修正：SCALES 沒有 'natural-minor'（自然小調是 'aeolian'）→ 會算不出音
+const SCALE_KEY_ALIASES = { 'natural-minor': 'aeolian' };
 
 const DEFAULT_STATE = {
   itemCount: 2,
@@ -70,7 +73,10 @@ function migrateLegacyState(state) {
   // 確保 playItems 至少 4 個（不足補預設）
   const items = Array.isArray(base.playItems) ? [...base.playItems] : [];
   while (items.length < 4) items.push(DEFAULT_PLAY_ITEMS[items.length] || DEFAULT_PLAY_ITEMS[0]);
-  base.playItems = items;
+  // 修正無效/別名的 scale key（如舊存檔的 'natural-minor'）
+  base.playItems = items.map(it => (it && it.scale && SCALE_KEY_ALIASES[it.scale])
+    ? { ...it, scale: SCALE_KEY_ALIASES[it.scale] }
+    : it);
   if (!base.itemCount) base.itemCount = 2;
   base.itemCount = Math.max(1, Math.min(4, base.itemCount));
   return base;
