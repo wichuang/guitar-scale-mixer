@@ -48,7 +48,8 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlay
         return new Set(getScaleNotes(musicKey, SCALE_TYPES[scaleType] || (scaleType || 'major').toLowerCase()));
     }, [scaleNotes, musicKey, scaleType]);
 
-    // CAGED box 內背景：'scale'（半實心）或 'ghost'（樂譜用到的調外音，空心）
+    // CAGED 模式背景：顯示「整個指板」的 scale（'scale'）/ 樂譜調外音（'ghost'），
+    // 把位外的格由 cells builder 以 dim 變虛化（與 Compose 一致）。
     const cagedBoxMap = useMemo(() => {
         if (!cagedPosition || !cagedRange) return null;
         const scoreNames = new Set();
@@ -60,7 +61,6 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlay
         const map = new Map();
         for (let s = 0; s < 6; s++) {
             for (let f = 0; f <= visibleFrets; f++) {
-                if (!isInCAGEDPosition(f, cagedRange.startFret, cagedRange.endFret)) continue;
                 const name = getNoteName(STRING_TUNINGS[s] + f);
                 if (scaleNoteSet.has(name)) map.set(`${s}-${f}`, 'scale');
                 else if (scoreNames.has(name)) map.set(`${s}-${f}`, 'ghost');
