@@ -19,12 +19,11 @@ import { useLoopSection } from '../../hooks/useLoopSection.js';
 import { useMetronome } from '../../hooks/useMetronome.js';
 import { usePracticeTimer } from '../../hooks/usePracticeTimer.js';
 import ReadFretboard from '../ReadFretboard.jsx';
+import FretboardControlsBar from './FretboardControlsBar.jsx';
 import PlayItemCard from '../PlayItemCard.jsx';
 import { getScaleNotes } from '../../data/scaleData.js';
 import { getChordNotes } from '../../data/chordData.js';
 import ScoreDisplay from '../ScoreDisplay/index.jsx';
-import PracticeTools from '../PracticeTools/index.jsx';
-import PracticeStats from '../PracticeStats/index.jsx';
 import UploadPanel from './UploadPanel.jsx';
 import SettingsPanel from './SettingsPanel.jsx';
 import NoteEditor from './NoteEditor.jsx';
@@ -184,8 +183,9 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     const [youtubeLayout, setYoutubeLayout] = useState({ x: 50, y: 50, width: 320, height: 180 });
 
     // ===== 顯示 / Popup 控制 =====
-    const [showInlineFretboard, setShowInlineFretboard] = useState(false); // 預設關閉指板（圖2）
+    const [showInlineFretboard, setShowInlineFretboard] = useState(true); // 新版：指板固定顯示於下方
     const [showInlineScore, setShowInlineScore] = useState(false); // 預設關閉 Score Preview（圖3）
+    const [fileModalOpen, setFileModalOpen] = useState(false); // 檔案/OCR/匯出 modal
     const fretboardWindowRef = useRef(null);
     const scoreWindowRef = useRef(null);
 
@@ -193,12 +193,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     const [editPlayOpen, setEditPlayOpen] = useState(false);
     const [editPlayInitialMode, setEditPlayInitialMode] = useState('edit'); // 'edit' | 'play'
 
-    // ===== Practice Tools 狀態 =====
-    const [showPracticeTools, setShowPracticeTools] = useState(false);
     const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-    const [showPracticeStats, setShowPracticeStats] = useState(false);
-    const [showSessionSummary, setShowSessionSummary] = useState(false);
-    const [lastSession, setLastSession] = useState(null);
 
     // ===== Hooks =====
     const { playNote, resumeAudio, isLoading: audioLoading } = useAudio(guitarType);
@@ -322,10 +317,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
 
     // Practice Timer Hook
     const practiceTimer = usePracticeTimer({
-        onSessionEnd: (session) => {
-            setLastSession(session);
-            setShowSessionSummary(true);
-        }
+        onSessionEnd: () => { /* Practice Stats UI 已移除，不顯示 session summary */ }
     });
 
     // 播放開始時啟動練習計時
@@ -583,39 +575,70 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
 
     return (
         <div className="read-mode">
+            {/* === 上方：檔案資料列 === */}
+            <div className="read-filebar">
+                <span className="read-filebar-title">
+                    {notes.length > 0
+                        ? `已載入 ${notes.filter(n => !n.isSeparator && !n.isSymbol).length} 個音符`
+                        : '尚無樂譜 — 開啟「檔案 / OCR」載入或匯入'}
+                </span>
+                <button className="read-filebar-btn" onClick={() => setFileModalOpen(true)}>
+                    📁 檔案 / OCR / 匯出
+                </button>
+            </div>
+
+            {/* 檔案 modal：OCR 辨識 / 匯入 / 存檔 / 匯出（呼叫才出現）*/}
+            {fileModalOpen && (
+                <div className="read-file-modal-overlay" onClick={() => setFileModalOpen(false)}>
+                    <div className="read-file-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="read-file-modal-head">
+                            <span>檔案 · 辨識 · 匯出</span>
+                            <button className="read-file-modal-close" onClick={() => setFileModalOpen(false)}>✕</button>
+                        </div>
+                        <UploadPanel
+                            musicKey={key}
+                            scaleType={scaleType}
+                            octaveOffset={octaveOffset}
+                            onNotesChange={setNotes}
+                            onTextChange={setEditableText}
+                            onRawTextChange={setRawText}
+                            onSourceImagesChange={setSourceImages}
+                            onImportNotes={(result) => {
+                                if (result.notes) {
+                                    setNotes(normalizeNotes(result.notes));
+                                }
+                                if (result.metadata) {
+                                    if (result.metadata.key) setKey(result.metadata.key);
+                                    if (result.metadata.tempo) setTempo(result.metadata.tempo);
+                                    if (result.metadata.timeSignature) setTimeSignature(result.metadata.timeSignature);
+                                }
+                            }}
+                        />
+                        <FileActions
+                            editableText={editableText}
+                            notes={notes}
+                            musicKey={key}
+                            scaleType={scaleType}
+                            tempo={tempo}
+                            timeSignature={timeSignature}
+                            startString={startString}
+                            cagedPosition={cagedPosition}
+                            octaveOffset={octaveOffset}
+                            youtubeUrl={youtubeUrl}
+                            showYoutube={showYoutube}
+                            youtubeLayout={youtubeLayout}
+                            viewMode={viewMode}
+                            instrument={guitarType}
+                            sourceImages={sourceImages}
+                            onLoadFile={handleLoadFile}
+                            fileName="guitar_score"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* === 中間：編輯區控制（Compose 式控制列 + Scale/Chord）=== */}
             <div className="read-controls">
-                {/* 上傳區 */}
-                <UploadPanel
-                    musicKey={key}
-                    scaleType={scaleType}
-                    octaveOffset={octaveOffset}
-                    onNotesChange={setNotes}
-                    onTextChange={setEditableText}
-                    onRawTextChange={setRawText}
-                    onSourceImagesChange={setSourceImages}
-                    onImportNotes={(result) => {
-                        if (result.notes) {
-                            setNotes(normalizeNotes(result.notes));
-                        }
-                        if (result.metadata) {
-                            if (result.metadata.key) setKey(result.metadata.key);
-                            if (result.metadata.tempo) setTempo(result.metadata.tempo);
-                            if (result.metadata.timeSignature) setTimeSignature(result.metadata.timeSignature);
-                        }
-                    }}
-                />
-
-                {/* Scale / Chord 選擇器（與 Compose 一致；單一來源）*/}
-                <PlayItemCard
-                    index={0}
-                    item={pickerItem}
-                    onChange={handleItemChange}
-                    onToggleNote={handleToggleItemNote}
-                    scaleOptions={READ_SCALE_OPTIONS}
-                    showGhostNotes={true}
-                />
-
-                {/* 設定區 */}
                 <SettingsPanel
                     musicKey={key}
                     scaleType={scaleType}
@@ -642,27 +665,13 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     onViewModeChange={setViewMode}
                     onInstrumentChange={setGuitarType}
                 />
-
-
-                {/* 檔案操作 (Save/Open/Copy/Export) */}
-                <FileActions
-                    editableText={editableText}
-                    notes={notes}
-                    musicKey={key}
-                    scaleType={scaleType}
-                    tempo={tempo}
-                    timeSignature={timeSignature}
-                    startString={startString}
-                    cagedPosition={cagedPosition}
-                    octaveOffset={octaveOffset}
-                    youtubeUrl={youtubeUrl}
-                    showYoutube={showYoutube}
-                    youtubeLayout={youtubeLayout}
-                    viewMode={viewMode}
-                    instrument={guitarType}
-                    sourceImages={sourceImages}
-                    onLoadFile={handleLoadFile}
-                    fileName="guitar_score"
+                <PlayItemCard
+                    index={0}
+                    item={pickerItem}
+                    onChange={handleItemChange}
+                    onToggleNote={handleToggleItemNote}
+                    scaleOptions={READ_SCALE_OPTIONS}
+                    showGhostNotes={true}
                 />
             </div>
 
@@ -679,26 +688,17 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                 onCountInPlay={startCountIn}
             />
 
-            {/* Edit/Play 入口卡（notes 已載入時顯示；預設不直接展開 NoteEditor） */}
-            {notes.length > 0 && !editPlayOpen && (
-                <div className="edit-play-entry">
-                    <div className="edit-play-entry-info">
-                        <span className="edit-play-entry-title">已載入 {notes.filter(n => !n.isSeparator && !n.isSymbol).length} 個音符</span>
-                        <span className="edit-play-entry-hint">點右側按鈕進入 Edit / Play 模式（可全螢幕編輯與播放）</span>
-                    </div>
-                    <div className="edit-play-entry-actions">
-                        <button
-                            className="edit-play-entry-btn primary"
-                            onClick={() => { setEditPlayInitialMode('edit'); setEditPlayOpen(true); }}
-                            title="進入全螢幕 Edit / Play 模式"
-                        >✏️ Edit / ▶ Play</button>
-                    </div>
+            {/* === 中間：編輯區（NoteEditor 內嵌；無樂譜時提示）=== */}
+            {notes.length === 0 && (
+                <div className="read-empty-hint">
+                    開啟「📁 檔案 / OCR」載入或匯入樂譜後，即可在此編輯與播放
                 </div>
             )}
 
-            {/* 音符編輯區 — 改為僅在 editPlayOpen=true 時以全螢幕渲染 */}
-            {editPlayOpen && notes.length > 0 && (
+            {/* 音符編輯區 — 內嵌於主畫面中間（inline） */}
+            {notes.length > 0 && (
                 <NoteEditor
+                    inline={true}
                     notes={notes}
                     notePositions={notePositions}
                     currentNoteIndex={currentNoteIndex}
@@ -757,48 +757,22 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     displayMode={displayMode}
                     showScaleGuide={showScaleGuide}
                     toolbarExtra={
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <PracticeTools
-                                tempo={tempo}
-                                timeSignature={timeSignature}
-                                totalNotes={notes.length}
-                                onTempoChange={setTempo}
-                                onTimeSignatureChange={setTimeSignature}
-                                isExpanded={showPracticeTools}
-                                onToggleExpand={() => setShowPracticeTools(prev => !prev)}
-                            />
-                            <PracticeStats
-                                showSessionSummary={showSessionSummary}
-                                lastSession={lastSession}
-                                onSessionSummaryClose={() => setShowSessionSummary(false)}
-                                isExpanded={showPracticeStats}
-                                onToggleExpand={() => setShowPracticeStats(prev => !prev)}
-                            />
-                        </div>
+                        <FretboardControlsBar
+                            displayMode={displayMode}
+                            musicKey={key}
+                            scaleType={scaleType}
+                            tempo={tempo}
+                            rangeOctave={rangeOctave}
+                            cagedPosition={cagedPosition}
+                            onDisplay={setDisplayMode}
+                            onKey={setKey}
+                            onScale={setScaleType}
+                            onTempo={setTempo}
+                            onOctave={setRangeOctave}
+                            onCaged={setCagedPosition}
+                        />
                     }
                 />
-            )}
-
-            {/* Practice Tools / Stats — 即使指板關閉時也要可用 */}
-            {!showInlineFretboard && (
-                <div style={{ padding: '8px 20px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <PracticeTools
-                        tempo={tempo}
-                        timeSignature={timeSignature}
-                        totalNotes={notes.length}
-                        onTempoChange={setTempo}
-                        onTimeSignatureChange={setTimeSignature}
-                        isExpanded={showPracticeTools}
-                        onToggleExpand={() => setShowPracticeTools(prev => !prev)}
-                    />
-                    <PracticeStats
-                        showSessionSummary={showSessionSummary}
-                        lastSession={lastSession}
-                        onSessionSummaryClose={() => setShowSessionSummary(false)}
-                        isExpanded={showPracticeStats}
-                        onToggleExpand={() => setShowPracticeStats(prev => !prev)}
-                    />
-                </div>
             )}
 
             {/* Score Display — 預設關閉，可由 NoteEditor 的 Score 鈕開新視窗或開 inline */}

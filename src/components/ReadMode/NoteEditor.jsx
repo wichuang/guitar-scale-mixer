@@ -694,7 +694,8 @@ function NoteEditor({
     onClose,
     initialPlayMode,
     instrument,
-    onInstrumentChange
+    onInstrumentChange,
+    inline = false
 }) {
     const [hoverInfo, setHoverInfo] = useState('');
     const [showChords, setShowChords] = useState(true);
@@ -1458,14 +1459,16 @@ function NoteEditor({
     ];
 
     return (
-        <div className={`note-editor-area edit-play-mode mode-${playMode} side-${editPanelSide}`}>
+        <div className={`note-editor-area edit-play-mode mode-${playMode} side-${editPanelSide} ${inline ? 'inline-mode' : ''}`}>
             {/* 頂部控制列 */}
             <div className="ep-top-bar">
-                <button
-                    className="ep-top-btn ep-close-btn"
-                    onClick={() => onClose && onClose()}
-                    title="關閉 Edit / Play 模式"
-                >✕</button>
+                {!inline && (
+                    <button
+                        className="ep-top-btn ep-close-btn"
+                        onClick={() => onClose && onClose()}
+                        title="關閉 Edit / Play 模式"
+                    >✕</button>
+                )}
                 <div className="ep-mode-switch" role="tablist" aria-label="Edit / Play 切換">
                     <button
                         className={`ep-mode-btn ${playMode === 'edit' ? 'active' : ''}`}
@@ -1487,8 +1490,8 @@ function NoteEditor({
                         title={`切換 Edit Panel 到${editPanelSide === 'left' ? '右側' : '左側'}`}
                     >{editPanelSide === 'left' ? '⇥' : '⇤'}</button>
                 )}
-                {/* 音色 */}
-                {onInstrumentChange && (
+                {/* 音色 — inline 模式由上方控制列提供，這裡不重複顯示 */}
+                {!inline && onInstrumentChange && (
                     <div className="ep-top-instrument" title="音色">
                         <span className="ep-top-instrument-label">🎵</span>
                         <InstrumentSelector
@@ -1867,7 +1870,8 @@ function NoteEditor({
                         </div>
                     </div>
                     <div className="ep-notes-header-right">
-                        {onTempoChange && (
+                        {/* 速度 — inline 模式由上方控制列/指板列提供，這裡不重複 */}
+                        {!inline && onTempoChange && (
                             <div className="ep-bpm">
                                 <input type="range" min="40" max="240" value={tempo || 120} onChange={(e) => onTempoChange(Number(e.target.value))} />
                                 <span className="ep-bpm-value">{tempo || 120} BPM</span>

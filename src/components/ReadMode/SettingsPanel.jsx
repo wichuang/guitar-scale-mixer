@@ -1,6 +1,6 @@
 /**
- * SettingsPanel - 設定面板元件
- * 調號、音階、拍子、速度、指法模式等設定
+ * SettingsPanel - Read 控制列（採 Compose 的橫向控制列 UI）
+ * Display / Position / Sound / 拍子 / 速度 / Ghost / Count-In / YouTube / 顯示模式
  */
 
 import React from 'react';
@@ -15,49 +15,53 @@ function SettingsPanel({
     displayMode,
     enableCountIn,
     showYoutube,
-    viewMode,
     instrument,
     onTimeSignatureChange,
     onTempoChange,
-    onStartStringChange,
     onCagedPositionChange,
     onShowScaleGuideChange,
     onDisplayModeChange,
     onEnableCountInChange,
     onShowYoutubeChange,
-    onViewModeChange,
     onInstrumentChange
 }) {
-    const dispBtn = (val, label) => (
-        <button
-            onClick={() => onDisplayModeChange && onDisplayModeChange(val)}
-            style={{
-                padding: '3px 12px', borderRadius: '4px', border: '1px solid #444',
-                background: (displayMode || 'notes') === val ? '#2196F3' : '#222',
-                color: '#fff', fontSize: '12px', cursor: 'pointer', fontWeight: 600
-            }}
-        >{label}</button>
-    );
+    const dispMode = displayMode || 'notes';
     return (
-        <div className="settings-section">
-            {onInstrumentChange && (
-                <div className="setting-row">
-                    <label>音色</label>
-                    <InstrumentSelector
-                        instrument={instrument}
-                        onInstrumentChange={onInstrumentChange}
-                    />
+        <div className="controls-card" style={{ display: 'flex', flexWrap: 'wrap', maxWidth: '100%', alignSelf: 'stretch' }}>
+            {/* Display ABC/123 */}
+            {onDisplayModeChange && (
+                <div className="control-section">
+                    <label className="section-label">Display</label>
+                    <div className="btn-group">
+                        <button className={`sm-btn ${dispMode === 'notes' ? 'active' : ''}`} onClick={() => onDisplayModeChange('notes')}>ABC</button>
+                        <button className={`sm-btn ${dispMode === 'intervals' ? 'active' : ''}`} onClick={() => onDisplayModeChange('intervals')}>123</button>
+                    </div>
                 </div>
             )}
 
-            {/* 調號 / 音階改由上方 Scale/Chord 選擇器（PlayItemCard）控制 */}
+            {/* Position (CAGED) */}
+            <div className="control-section">
+                <label className="section-label">Position</label>
+                <div className="btn-group">
+                    <button className={`sm-btn ${cagedPosition === null ? 'active' : ''}`} onClick={() => onCagedPositionChange && onCagedPositionChange(null)}>All</button>
+                    {CAGED_SHAPES.map(shape => (
+                        <button key={shape} className={`sm-btn ${cagedPosition === shape ? 'active' : ''}`} onClick={() => onCagedPositionChange && onCagedPositionChange(shape)}>{shape}</button>
+                    ))}
+                </div>
+            </div>
 
-            <div className="setting-row">
-                <label>拍子</label>
-                <select
-                    value={timeSignature}
-                    onChange={(e) => onTimeSignatureChange(e.target.value)}
-                >
+            {/* Sound */}
+            {onInstrumentChange && (
+                <div className="control-section">
+                    <label className="section-label">Sound</label>
+                    <InstrumentSelector instrument={instrument} onInstrumentChange={onInstrumentChange} />
+                </div>
+            )}
+
+            {/* 拍子 */}
+            <div className="control-section">
+                <label className="section-label">拍子</label>
+                <select className="sm-select" value={timeSignature} onChange={(e) => onTimeSignatureChange(e.target.value)}>
                     <option value="4/4">4/4</option>
                     <option value="3/4">3/4</option>
                     <option value="2/4">2/4</option>
@@ -66,138 +70,34 @@ function SettingsPanel({
                 </select>
             </div>
 
-            {onDisplayModeChange && (
-                <div className="setting-row mode-info">
-                    <label>Display</label>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                        {dispBtn('notes', 'ABC')}
-                        {dispBtn('intervals', '123')}
-                    </div>
-                </div>
-            )}
+            {/* 速度 */}
+            <div className="control-section">
+                <label className="section-label">速度</label>
+                <input type="range" min="40" max="200" value={tempo} onChange={(e) => onTempoChange(Number(e.target.value))} />
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', minWidth: '52px' }}>{tempo} BPM</span>
+            </div>
 
-            <div className="setting-row mode-info">
-                <label>Position</label>
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                    <button
-                        onClick={() => onCagedPositionChange && onCagedPositionChange(null)}
-                        style={{
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            border: '1px solid #444',
-                            background: cagedPosition === null ? '#2196F3' : '#222',
-                            color: '#fff',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                            minWidth: '32px'
-                        }}
-                    >All</button>
-                    {CAGED_SHAPES.map(shape => (
-                        <button
-                            key={shape}
-                            onClick={() => onCagedPositionChange && onCagedPositionChange(shape)}
-                            style={{
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                border: '1px solid #444',
-                                background: cagedPosition === shape ? '#2196F3' : '#222',
-                                color: '#fff',
-                                fontSize: '12px',
-                                cursor: 'pointer',
-                                minWidth: '28px',
-                                fontWeight: 600
-                            }}
-                        >{shape}</button>
-                    ))}
+            {/* Ghost Notes */}
+            <div className="control-section">
+                <label className="section-label">Ghost</label>
+                <div className="btn-group">
+                    <button className={`sm-btn ${showScaleGuide ? 'active' : ''}`} onClick={() => onShowScaleGuideChange(!showScaleGuide)}>{showScaleGuide ? 'On' : 'Off'}</button>
                 </div>
             </div>
 
-            <div className="setting-row">
-                <label>速度</label>
-                <input
-                    type="range"
-                    min="40"
-                    max="200"
-                    value={tempo}
-                    onChange={(e) => onTempoChange(Number(e.target.value))}
-                />
-                <span>{tempo} BPM</span>
+            {/* Count-In */}
+            <div className="control-section">
+                <label className="section-label">Count-In</label>
+                <div className="btn-group">
+                    <button className={`sm-btn ${enableCountIn ? 'active' : ''}`} onClick={() => onEnableCountInChange(!enableCountIn)}>{enableCountIn ? 'On' : 'Off'}</button>
+                </div>
             </div>
 
-            <div className="setting-row" style={{ marginTop: '5px' }}>
-                <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
-                    <input
-                        type="checkbox"
-                        checked={showScaleGuide}
-                        onChange={(e) => onShowScaleGuideChange(e.target.checked)}
-                        style={{ width: '16px', height: '16px' }}
-                    />
-                    <span>顯示背景音階 (Ghost Notes)</span>
-                </label>
-            </div>
-
-            <div className="setting-row" style={{ marginTop: '5px' }}>
-                <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
-                    <input
-                        type="checkbox"
-                        checked={enableCountIn}
-                        onChange={(e) => onEnableCountInChange(e.target.checked)}
-                        style={{ width: '16px', height: '16px' }}
-                    />
-                    <span>播放前倒數 (Count-In)</span>
-                </label>
-            </div>
-
-            <div className="setting-row" style={{ marginTop: '5px' }}>
-                <button
-                    onClick={() => onShowYoutubeChange(!showYoutube)}
-                    style={{
-                        background: showYoutube ? '#ff0000' : '#444',
-                        color: 'white',
-                        border: 'none',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px'
-                    }}
-                >
-                    {showYoutube ? 'Close YouTube' : 'Open YouTube'}
+            {/* YouTube */}
+            <div className="control-section">
+                <button className="sm-btn" onClick={() => onShowYoutubeChange(!showYoutube)} style={showYoutube ? { background: '#c00', color: '#fff' } : undefined}>
+                    {showYoutube ? 'Close YouTube' : 'YouTube'}
                 </button>
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="setting-row" style={{ marginTop: '10px', padding: '5px 0', borderTop: '1px solid #444' }}>
-                <span style={{ fontSize: '12px', color: '#ccc', marginBottom: '4px', display: 'block' }}>顯示模式</span>
-                <div style={{ display: 'flex', gap: '5px' }}>
-                    <button
-                        onClick={() => onViewModeChange('both')}
-                        style={{
-                            flex: 1, padding: '4px', fontSize: '12px', cursor: 'pointer',
-                            background: viewMode === 'both' ? '#2196F3' : '#444',
-                            color: 'white', border: 'none', borderRadius: '4px'
-                        }}
-                    >全部</button>
-                    <button
-                        onClick={() => onViewModeChange('text')}
-                        style={{
-                            flex: 1, padding: '4px', fontSize: '12px', cursor: 'pointer',
-                            background: viewMode === 'text' ? '#2196F3' : '#444',
-                            color: 'white', border: 'none', borderRadius: '4px'
-                        }}
-                    >簡譜</button>
-                    <button
-                        onClick={() => onViewModeChange('score')}
-                        style={{
-                            flex: 1, padding: '4px', fontSize: '12px', cursor: 'pointer',
-                            background: viewMode === 'score' ? '#2196F3' : '#444',
-                            color: 'white', border: 'none', borderRadius: '4px'
-                        }}
-                    >譜面</button>
-                </div>
             </div>
         </div>
     );
