@@ -61,6 +61,23 @@ function ReadPopup({ view }) {
             }}>
                 <strong>{title}</strong>
 
+                {/* Display ABC/123（雙向同步主視窗）*/}
+                {view === 'fretboard' && (
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <span style={{ color: '#888', fontSize: '11px' }}>Display</span>
+                        {['notes', 'intervals'].map(m => (
+                            <button key={m}
+                                onClick={() => send('set-display', m)}
+                                style={{
+                                    padding: '2px 8px', fontSize: '12px', fontWeight: 600,
+                                    background: (state.displayMode || 'notes') === m ? '#2196F3' : '#222',
+                                    color: '#fff', border: '1px solid #444', borderRadius: '4px', cursor: 'pointer'
+                                }}
+                            >{m === 'notes' ? 'ABC' : '123'}</button>
+                        ))}
+                    </div>
+                )}
+
                 {/* 調號 + 速度 + 整首移調（雙向同步主視窗）*/}
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <span style={{ color: '#888', fontSize: '11px' }}>Key</span>
@@ -144,6 +161,7 @@ function ReadPopup({ view }) {
                     musicKey={state.musicKey || 'C'}
                     scaleType={state.scaleType || 'Major'}
                     showScaleGuide={state.showScaleGuide ?? false}
+                    displayMode={state.displayMode || 'notes'}
                 />
             ) : (
                 <div style={{ padding: '8px' }}>

@@ -15,6 +15,7 @@ function SettingsPanel({
     startString,
     cagedPosition,
     showScaleGuide,
+    displayMode,
     enableCountIn,
     showYoutube,
     viewMode,
@@ -26,11 +27,22 @@ function SettingsPanel({
     onStartStringChange,
     onCagedPositionChange,
     onShowScaleGuideChange,
+    onDisplayModeChange,
     onEnableCountInChange,
     onShowYoutubeChange,
     onViewModeChange,
     onInstrumentChange
 }) {
+    const dispBtn = (val, label) => (
+        <button
+            onClick={() => onDisplayModeChange && onDisplayModeChange(val)}
+            style={{
+                padding: '3px 12px', borderRadius: '4px', border: '1px solid #444',
+                background: (displayMode || 'notes') === val ? '#2196F3' : '#222',
+                color: '#fff', fontSize: '12px', cursor: 'pointer', fontWeight: 600
+            }}
+        >{label}</button>
+    );
     return (
         <div className="settings-section">
             {onInstrumentChange && (
@@ -80,6 +92,16 @@ function SettingsPanel({
                     <option value="12/8">12/8</option>
                 </select>
             </div>
+
+            {onDisplayModeChange && (
+                <div className="setting-row mode-info">
+                    <label>Display</label>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                        {dispBtn('notes', 'ABC')}
+                        {dispBtn('intervals', '123')}
+                    </div>
+                </div>
+            )}
 
             <div className="setting-row mode-info">
                 <label>Position</label>

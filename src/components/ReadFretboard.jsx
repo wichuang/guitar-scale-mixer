@@ -5,13 +5,20 @@
  * 本檔只負責算出 normalized cells / arrow / activeKey 餵進 FretboardView。
  */
 import { useMemo } from 'react';
-import { STRING_TUNINGS, getNoteName, getCAGEDFretRange, isInCAGEDPosition, getScaleNotes, SCALE_TYPES } from '../data/scaleData';
+import { STRING_TUNINGS, getNoteName, getCAGEDFretRange, isInCAGEDPosition, getScaleNotes, SCALE_TYPES, getIntervalForNote } from '../data/scaleData';
 import { calculate3NPSPositions, calculateCAGEDPositions, generate3NPSMap } from '../parsers/JianpuParser';
 import { getPitchColor } from '../data/pitchColors';
 import FretboardView from './FretboardView';
 
-function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlayMidi, startString = 5, rangeOctave = 0, cagedPosition = null, musicKey = 'C', scaleType = 'Major', showScaleGuide = false, toolbarExtra }) {
+function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlayMidi, startString = 5, rangeOctave = 0, cagedPosition = null, musicKey = 'C', scaleType = 'Major', showScaleGuide = false, displayMode = 'notes', toolbarExtra }) {
     const visibleFrets = fretCount || 19;
+    // ABC = 音名；123 = 音階級數（相對 root 的 interval，root 顯示 R）
+    const intervalMode = displayMode === 'intervals';
+    const labelFor = (noteName) => {
+        if (!intervalMode) return noteName;
+        const iv = getIntervalForNote(noteName, musicKey, scaleType);
+        return iv === '1' ? 'R' : (iv || noteName);
+    };
 
     // CAGED 範圍（box 外變暗用）
     const cagedRange = useMemo(() => (
@@ -84,8 +91,8 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlay
                 const boxRole = cagedBoxMap ? cagedBoxMap.get(key) : null;
                 if (!scoreNote && !scaleNote && !boxRole) continue;
 
-                let label = noteName;
-                if (fret === 0 && stringIdx === 0 && label === 'E') label = 'e';
+                let label = labelFor(noteName);
+                if (!intervalMode && fret === 0 && stringIdx === 0 && label === 'E') label = 'e';
                 const dim = !isFretInCAGED(fret);
                 const pc = getPitchColor(noteName);
 
@@ -107,7 +114,7 @@ function ReadFretboard({ notes, currentNoteIndex, fretCount, onNoteClick, onPlay
             }
         });
         return map;
-    }, [notePositions, scaleMap, cagedBoxMap, scaleNoteSet, showScaleGuide, visibleFrets, cagedRange]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [notePositions, scaleMap, cagedBoxMap, scaleNoteSet, showScaleGuide, visibleFrets, cagedRange, displayMode, musicKey, scaleType]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <FretboardView

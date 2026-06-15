@@ -95,6 +95,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
     // ===== 顯示設定 =====
     const [viewMode, setViewMode] = useState('both');
     const [showScaleGuide, setShowScaleGuide] = useState(true);
+    const [displayMode, setDisplayMode] = useState('notes'); // 指板標示：'notes' (ABC) | 'intervals' (123)
 
     // ===== OCR 來源圖片（base64 data URL 陣列，存檔時一併儲存，最多 5 張） =====
     const [sourceImages, setSourceImages] = useState([]);
@@ -211,6 +212,8 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                 if (!Number.isNaN(t)) setTempo(t);
             } else if (msg.type === 'set-octave') {
                 setRangeOctave(msg.value || 0);
+            } else if (msg.type === 'set-display') {
+                setDisplayMode(msg.value === 'intervals' ? 'intervals' : 'notes');
             }
         };
         return () => { bc.close(); bcRef.current = null; };
@@ -323,11 +326,12 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                 rangeOctave,
                 cagedPosition,
                 showScaleGuide,
+                displayMode,
                 fretCount,
                 instrument: guitarType,
             }
         });
-    }, [viewNotes, notePositions, currentNoteIndex, isPlaying, playTime, key, scaleType, tempo, timeSignature, startString, rangeOctave, cagedPosition, showScaleGuide, fretCount, guitarType]);
+    }, [viewNotes, notePositions, currentNoteIndex, isPlaying, playTime, key, scaleType, tempo, timeSignature, startString, rangeOctave, cagedPosition, showScaleGuide, displayMode, fretCount, guitarType]);
     publishStateRef.current = publishState;
     useEffect(() => { publishState(); }, [publishState]);
 
@@ -530,6 +534,8 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     startString={startString}
                     cagedPosition={cagedPosition}
                     showScaleGuide={showScaleGuide}
+                    displayMode={displayMode}
+                    onDisplayModeChange={setDisplayMode}
                     enableCountIn={enableCountIn}
                     showYoutube={showYoutube}
                     viewMode={viewMode}
@@ -656,6 +662,7 @@ function ReadMode({ guitarType, setGuitarType, fretCount }) {
                     cagedPosition={cagedPosition}
                     musicKey={key}
                     scaleType={scaleType}
+                    displayMode={displayMode}
                     showScaleGuide={showScaleGuide}
                     toolbarExtra={
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
