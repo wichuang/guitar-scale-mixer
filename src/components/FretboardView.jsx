@@ -120,17 +120,22 @@ function FretboardView({
                                             return <div key={fret} className="fret-space" style={{ width: fretWidth }} />;
                                         }
 
-                                        const pc = (cell.bg || cell.fg || cell.border)
+                                        // 顏色：給了 bg 就直接用（如 disabled 的半透明）；否則取 12 音名色。
+                                        // 與 Compose 一致：passing/ghost = passing 變體底色 + 2.5px 邊框；chord tone = 實心 1.5px。
+                                        const pc = cell.bg
                                             ? { bg: cell.bg, fg: cell.fg, border: cell.border }
                                             : getPitchColor(cell.noteName, { passing: cell.role === 'ghost' });
-
-                                        const isGhost = cell.role === 'ghost';
-                                        const style = isGhost
-                                            ? { background: 'transparent', color: pc.fg, borderColor: pc.bg || pc.border, borderWidth: '2px', borderStyle: 'solid' }
-                                            : { background: pc.bg, color: pc.fg, borderColor: pc.border || 'transparent', borderWidth: '1.5px', borderStyle: 'solid' };
+                                        const style = {
+                                            background: pc.bg,
+                                            color: pc.fg,
+                                            borderColor: pc.border || 'transparent',
+                                            borderStyle: 'solid',
+                                            borderWidth: cell.role === 'ghost' ? '2.5px' : '1.5px',
+                                        };
 
                                         let cls = 'note-marker';
                                         if (cell.isRoot) cls += ' root';
+                                        if (cell.multiScale) cls += ' multi-scale';
                                         if (cell.dim) cls += ' caged-dim';
                                         if (activeKey === key) cls += ' active';
 
