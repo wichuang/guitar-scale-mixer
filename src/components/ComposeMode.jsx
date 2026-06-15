@@ -135,6 +135,8 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
   const [notes, setNotes] = useState([]);
   const [duration, setDuration] = useState('eighth');
   const [tempo, setTempo] = useState(60);
+  const [timeSignature, setTimeSignature] = useState('4/4');
+  const [showGhost, setShowGhost] = useState(true);
   const [displayMode, setDisplayMode] = useState('notes');
   const [cagedPosition, setCagedPosition] = useState(null);
   const [playingIndex, setPlayingIndex] = useState(-1);
@@ -427,7 +429,7 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
     if (!notes.length) return;
     const score = new Score({
       notes,
-      metadata: { name: 'Compose', tempo, key: item.root, viewMode: 'both' },
+      metadata: { name: 'Compose', tempo, timeSignature, key: item.root, viewMode: 'both' },
     });
     const blob = new Blob([JSON.stringify(score.toJSON(), null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -456,6 +458,7 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
         setSlidePending(null);
         setNotes(loaded);
         if (data.tempo) setTempo(data.tempo);
+        if (data.timeSignature) setTimeSignature(data.timeSignature);
         if (data.key) setItem(prev => ({ ...prev, root: data.key }));
       } catch (err) {
         alert('讀檔失敗：' + err.message);
@@ -491,6 +494,32 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
             {GUITAR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
         </div>
+        <div className="control-section">
+          <label className="section-label">拍子</label>
+          <select className="sm-select" value={timeSignature} onChange={(e) => setTimeSignature(e.target.value)}>
+            <option value="4/4">4/4</option>
+            <option value="3/4">3/4</option>
+            <option value="2/4">2/4</option>
+            <option value="6/8">6/8</option>
+            <option value="12/8">12/8</option>
+          </select>
+        </div>
+        <div className="control-section">
+          <label className="section-label">速度</label>
+          <input
+            type="number"
+            className="sm-select tempo-input"
+            min={30} max={300} value={tempo}
+            onChange={(e) => setTempo(Math.max(30, Math.min(300, Number(e.target.value) || 60)))}
+          />
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>BPM</span>
+        </div>
+        <div className="control-section">
+          <label className="section-label">Ghost</label>
+          <div className="btn-group">
+            <button className={`sm-btn ${showGhost ? 'active' : ''}`} onClick={() => setShowGhost(g => !g)}>{showGhost ? 'On' : 'Off'}</button>
+          </div>
+        </div>
       </div>
 
       {/* Scale / Chord 選擇器 */}
@@ -500,7 +529,7 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
           item={item}
           onChange={updateItem}
           onToggleNote={toggleItemNote}
-          showGhostNotes
+          showGhostNotes={showGhost}
         />
       </div>
 
@@ -563,13 +592,6 @@ function ComposeMode({ guitarType, setGuitarType, fretCount }) {
             <button className="sm-btn" onClick={clearAll} disabled={notes.length === 0} title="清空">✕ 清空</button>
           </div>
           <div className="compose-tool-group">
-            <label className="section-label">速度</label>
-            <input
-              type="number"
-              className="sm-select tempo-input"
-              min={30} max={300} value={tempo}
-              onChange={(e) => setTempo(Math.max(30, Math.min(300, Number(e.target.value) || 60)))}
-            />
             <button className="sm-btn play-btn" onClick={play} disabled={notes.length === 0} title="播放">▶ 播放</button>
             <button className="sm-btn" onClick={stop} title="停止">⏹ 停止</button>
             <button className="sm-btn" onClick={saveScore} disabled={notes.length === 0} title="存檔（可在 Read 模式開啟）">💾 存檔</button>
