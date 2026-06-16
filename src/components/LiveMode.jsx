@@ -31,7 +31,7 @@ function extractVideoId(url) {
 
 function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fretCount, guitarType, setGuitarType }) {
     const {
-        isListening, devices, selectedDevice, setSelectedDevice,
+        isListening, isRecording, setRecording, devices, selectedDevice, setSelectedDevice,
         detectedNote, detectedOctave, detectedFrequency, centsDeviation, volume, noteHistory,
         inputSource, setInputSource,
         startListening, startListeningFromTab, stopListening, refreshDevices, clearHistory
@@ -326,12 +326,20 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
 
                     <button className="ref-btn" onClick={refreshDevices} disabled={isListening}>↻</button>
 
-                    <button
-                        className={`listen-btn ${isListening ? 'active' : ''}`}
-                        onClick={isListening ? stopListening : startListening}
-                    >
-                        {isListening ? '⏹ Stop' : '▶ Listen'}
-                    </button>
+                    {!isListening ? (
+                        <>
+                            <button className="listen-btn" onClick={startListening}>▶ Listen</button>
+                            <button className="record-btn" onClick={() => { startListening(); setRecording(true); }}>⏺ Record</button>
+                        </>
+                    ) : (
+                        <>
+                            <button className="listen-btn active" onClick={stopListening}>⏹ Stop</button>
+                            <button
+                                className={`record-btn ${isRecording ? 'recording' : ''}`}
+                                onClick={() => setRecording(!isRecording)}
+                            >{isRecording ? '⏺ 錄音中…' : '⏺ Record'}</button>
+                        </>
+                    )}
 
                     {noteHistory.length > 0 && (
                         <>
@@ -371,6 +379,12 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
                         >
                             {isListening ? '⏹ Stop' : '🎧 擷取分頁聲音並辨識'}
                         </button>
+                        {isListening && (
+                            <button
+                                className={`record-btn ${isRecording ? 'recording' : ''}`}
+                                onClick={() => setRecording(!isRecording)}
+                            >{isRecording ? '⏺ 錄音中…' : '⏺ Record'}</button>
+                        )}
                         {noteHistory.length > 0 && (
                             <>
                                 <button className="save-btn" onClick={saveHistory}>💾 存檔</button>

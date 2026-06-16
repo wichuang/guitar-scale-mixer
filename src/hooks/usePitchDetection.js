@@ -112,6 +112,8 @@ function detectPitchAC(buffer, sampleRate) {
 
 export function usePitchDetection() {
     const [isListening, setIsListening] = useState(false);
+    const [isRecording, setIsRecording] = useState(false); // true 才寫入 noteHistory（Record）；false 只顯示（Listen）
+    const isRecordingRef = useRef(false);
     const [devices, setDevices] = useState([]);
     const [selectedDevice, setSelectedDevice] = useState('');
     const [detectedNote, setDetectedNote] = useState(null);
@@ -255,7 +257,8 @@ export function usePitchDetection() {
                     // 放開讓訊號掉到靜音門檻後，lastNoteRef 會被清空，
                     // 因此重新彈同一個音仍會記成新的一筆。
                     const now = Date.now();
-                    if (pendingCountRef.current >= HISTORY_STABLE
+                    if (isRecordingRef.current   // 只有 Record 模式才寫入歷史；Listen 只顯示
+                        && pendingCountRef.current >= HISTORY_STABLE
                         && noteWithOctave !== lastNoteRef.current
                         && now - lastNoteTimeRef.current >= MIN_NOTE_GAP_MS) {
                         lastNoteRef.current = noteWithOctave;
@@ -383,6 +386,8 @@ export function usePitchDetection() {
         lastNoteRef.current = null;
         pendingNoteRef.current = null;
         pendingCountRef.current = 0;
+        isRecordingRef.current = false;
+        setIsRecording(false);
         setIsListening(false);
         setDetectedNote(null);
         setDetectedOctave(null);
@@ -407,8 +412,16 @@ export function usePitchDetection() {
         setNoteHistory([]);
     }, []);
 
+    // Record 開關（同步更新 ref 讓 detectPitch 立即生效）
+    const setRecording = useCallback((on) => {
+        isRecordingRef.current = !!on;
+        setIsRecording(!!on);
+    }, []);
+
     return {
         isListening,
+        isRecording,
+        setRecording,
         devices,
         selectedDevice,
         setSelectedDevice,
