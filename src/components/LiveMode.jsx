@@ -1,18 +1,24 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import YouTube from 'react-youtube';
 import {
     STRING_TUNINGS,
-    NUM_FRETS,
     getNoteName,
     NOTES,
+    getScaleNotes,
+    getCAGEDFretRange,
+    isInCAGEDPosition,
+    CAGED_SHAPES,
 } from '../data/scaleData';
 import { Note } from '../core/models/Note';
 import { Score } from '../core/models/Score';
-import { useAudio } from '../hooks/useAudio';
+import { useAudio, GUITAR_INSTRUMENTS } from '../hooks/useAudio';
+import { getPitchColor } from '../data/pitchColors';
 import PlayItemCard from './PlayItemCard';
-import { getScaleNotes } from '../data/scaleData';
+import FretboardView from './FretboardView';
 import { getChordNotes } from '../data/chordData';
 import './LiveMode.css';
+
+const GUITAR_OPTIONS = Object.entries(GUITAR_INSTRUMENTS).map(([value, label]) => ({ value, label }));
 
 // 從各種 YouTube 連結格式抽出 11 碼 video id（也接受直接貼 id）
 function extractVideoId(url) {
@@ -23,7 +29,7 @@ function extractVideoId(url) {
     return (m && m[7] && m[7].length === 11) ? m[7] : '';
 }
 
-function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fretCount, guitarType }) {
+function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fretCount, guitarType, setGuitarType }) {
     const {
         isListening, devices, selectedDevice, setSelectedDevice,
         detectedNote, detectedOctave, detectedFrequency, centsDeviation, volume, noteHistory,
@@ -32,7 +38,6 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
     } = pitchDetection;
 
     const containerRef = useRef(null);
-    const [fretWidth, setFretWidth] = useState(45);
     // Scale/Chord 選擇器（與 Compose/Read 一致）；root 供 jianpu/interval 用
     const [item, setItem] = useState({
         type: 'scale',
@@ -41,6 +46,16 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
         enabledNotes: null,
     });
     const liveRoot = item.root;
+    const [cagedPosition, setCagedPosition] = useState(null);  // Position（CAGED 把位）
+    const [showGhost, setShowGhost] = useState(true);          // 在指板顯示所選 scale/chord 背景音
+    // 所選 scale/chord 的音名集合（顯示在指板上）
+    const scaleNoteSet = useMemo(() => {
+        const arr = item.type === 'chord'
+            ? (item.enabledNotes || getChordNotes(item.root, item.quality, item.extension))
+            : (item.enabledNotes || getScaleNotes(item.root, item.scale));
+        return new Set(arr);
+    }, [item]);
+    const cagedRange = cagedPosition ? getCAGEDFretRange(item.root, cagedPosition) : null;
     const updateItem = (patch) => setItem(prev => ({ ...prev, ...patch }));
     const toggleItemNote = (note) => setItem(prev => {
         const base = prev.type === 'chord'
@@ -181,22 +196,6 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
         setCaptureMsg(`已存檔 ${notes.length} 個音符（含節奏，${tempo} BPM）！可到 Compose / Read 模式用「開啟」載入。`);
     };
 
-    useEffect(() => {
-        const updateFretWidth = () => {
-            if (containerRef.current) {
-                const containerWidth = containerRef.current.offsetWidth - 24;
-                const count = Math.max(12, fretCount || 15);
-                const width = Math.max(32, Math.floor(containerWidth / (count + 0.5)));
-                setFretWidth(width);
-            }
-        };
-        updateFretWidth();
-        window.addEventListener('resize', updateFretWidth);
-        return () => window.removeEventListener('resize', updateFretWidth);
-    }, [fretCount]);
-
-    const fretMarkers = [3, 5, 7, 9, 12, 15, 17, 19, 21];
-    const doubleDotFrets = [12];
     // 用「音名+八度」(如 E3) 比對，讓指板只亮起偵測到的那個八度，而非所有同名音
     const recentNotes = noteHistory.slice(0, 5).map(h => h.fullNote || `${h.note}${h.octave}`);
     const detectedFull = (detectedNote && detectedOctave != null) ? `${detectedNote}${detectedOctave}` : null;
@@ -214,15 +213,70 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
         return interval === '1' ? 'R' : interval;
     };
 
+    // 指板 cells：所選 scale/chord 背景音（與 Compose 一致）+ 偵測音(亮) + Recent 殘影
+    const fbCells = useMemo(() => {
+        const visible = fretCount || 15;
+        const map = new Map();
+        STRING_TUNINGS.forEach((openMidi, stringIdx) => {
+            for (let fret = 0; fret <= visible; fret++) {
+                const midiNote = openMidi + fret;
+                const noteName = getNoteName(midiNote);
+                const cellOctave = Math.floor(midiNote / 12) - 1;
+                const cellFull = `${noteName}${cellOctave}`;
+                const isDetected = detectedFull === cellFull;
+                const trailIdx = recentNotes.indexOf(cellFull);
+                const inScale = scaleNoteSet.has(noteName);
+                const dim = cagedRange && !isInCAGEDPosition(fret, cagedRange.startFret, cagedRange.endFret);
+                const label = displayMode === 'intervals' ? getInterval(noteName) : noteName;
+                const isRoot = noteName === item.root;
+                const pc = getPitchColor(noteName);
+                let cell = null;
+                if (isDetected) {
+                    cell = { label, noteName, isRoot, role: 'solid', bg: '#ffd54a', fg: '#000', border: 'transparent' };
+                } else if (trailIdx > 0) {
+                    const a = Math.max(40, Math.round((1 - trailIdx * 0.18) * 255)).toString(16).padStart(2, '0');
+                    cell = { label, noteName, isRoot, dim, role: 'solid', bg: `${pc.bg}${a}`, fg: pc.fg, border: pc.bg };
+                } else if (inScale && showGhost) {
+                    cell = { label, noteName, isRoot, dim, role: 'solid', bg: `${pc.bg}99`, fg: pc.fg, border: pc.bg };
+                }
+                if (cell) map.set(`${stringIdx}-${fret}`, cell);
+            }
+        });
+        return map;
+    }, [fretCount, detectedFull, recentNotes, scaleNoteSet, cagedRange, displayMode, showGhost, item.root]); // eslint-disable-line react-hooks/exhaustive-deps
+
     return (
         <div className="live-mode" ref={containerRef}>
-            {/* Display + Scale/Chord 選擇器 — 按 Listen 前就可先選 */}
+            {/* Display / Position / Sound / Ghost — 按 Listen 前就可先選 */}
             <div className="live-top-controls">
                 <div className="fb-control-group">
                     <label className="fb-label">Display:</label>
                     <div className="display-toggle">
                         <button className={`dt-btn ${displayMode === 'notes' ? 'active' : ''}`} onClick={() => onDisplayModeChange('notes')}>ABC</button>
                         <button className={`dt-btn ${displayMode === 'intervals' ? 'active' : ''}`} onClick={() => onDisplayModeChange('intervals')}>123</button>
+                    </div>
+                </div>
+                <div className="fb-control-group">
+                    <label className="fb-label">Position:</label>
+                    <div className="display-toggle">
+                        <button className={`dt-btn ${cagedPosition === null ? 'active' : ''}`} onClick={() => setCagedPosition(null)}>All</button>
+                        {CAGED_SHAPES.map(s => (
+                            <button key={s} className={`dt-btn ${cagedPosition === s ? 'active' : ''}`} onClick={() => setCagedPosition(s)}>{s}</button>
+                        ))}
+                    </div>
+                </div>
+                {setGuitarType && (
+                    <div className="fb-control-group">
+                        <label className="fb-label">Sound:</label>
+                        <select className="root-select" value={guitarType} onChange={(e) => setGuitarType(e.target.value)}>
+                            {GUITAR_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                    </div>
+                )}
+                <div className="fb-control-group">
+                    <label className="fb-label">Ghost:</label>
+                    <div className="display-toggle">
+                        <button className={`dt-btn ${showGhost ? 'active' : ''}`} onClick={() => setShowGhost(g => !g)}>{showGhost ? 'On' : 'Off'}</button>
                     </div>
                 </div>
             </div>
@@ -399,69 +453,14 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
                 )}
             </div>
 
-            {/* Fretboard Section with its own controls */}
-            {isListening && (
-                <div className="fretboard-section">
-
-                    {/* Live Fretboard */}
-                    <div className="live-fretboard">
-                        {/* Fret numbers */}
-                        <div className="lf-numbers">
-                            {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
-                                <div key={fret} className="lf-num" style={{ width: fretWidth }}>
-                                    <span className={fretMarkers.includes(fret) ? 'marked' : ''}>{fret}</span>
-                                    {fretMarkers.includes(fret) && !doubleDotFrets.includes(fret) && <div className="dot" />}
-                                    {doubleDotFrets.includes(fret) && <div className="dots"><div className="dot" /><div className="dot" /></div>}
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Strings */}
-                        {STRING_TUNINGS.map((openMidi, stringIdx) => {
-                            const thickness = 1 + (5 - stringIdx) * 0.3;
-                            return (
-                                <div key={stringIdx} className="lf-string">
-                                    <div className="string-line" style={{ height: thickness }} />
-                                    {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => {
-                                        const midiNote = openMidi + fret;
-                                        const noteName = getNoteName(midiNote);
-                                        const cellOctave = Math.floor(midiNote / 12) - 1;
-                                        const cellFull = `${noteName}${cellOctave}`;
-                                        const isDetected = detectedFull === cellFull;
-                                        const trailIdx = recentNotes.indexOf(cellFull);
-                                        const isTrail = trailIdx > 0;
-
-                                        if (!isDetected && !isTrail) {
-                                            return <div key={fret} className="lf-cell" style={{ width: fretWidth }} />;
-                                        }
-
-                                        const displayText = displayMode === 'intervals' ? getInterval(noteName) : noteName;
-                                        const isRoot = displayText === 'R';
-
-                                        return (
-                                            <div key={fret} className="lf-cell" style={{ width: fretWidth }}>
-                                                <div
-                                                    className={`lf-marker ${isDetected ? 'detected' : 'trail'} ${isRoot ? 'is-root' : ''}`}
-                                                    style={{ opacity: isDetected ? 1 : (1 - trailIdx * 0.2) }}
-                                                >
-                                                    {displayText}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })}
-
-                        {/* Fret lines */}
-                        <div className="lf-lines">
-                            {Array.from({ length: (fretCount || 15) + 1 }, (_, fret) => (
-                                <div key={fret} className={`lf-line ${fret === 0 ? 'nut' : ''}`} style={{ width: fretWidth }} />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* 指板（常駐）：顯示所選 scale/chord（與 Compose 一致）+ 偵測音/殘影 */}
+            <div className="fretboard-section">
+                <FretboardView
+                    fretCount={fretCount || 15}
+                    cells={fbCells}
+                    onPlayMidi={(midi) => { resumeAudio?.(); playNote(midi, 2); }}
+                />
+            </div>
         </div>
     );
 }

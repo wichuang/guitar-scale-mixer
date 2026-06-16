@@ -426,6 +426,7 @@ function MainContent() {
         {mode === 'live' && (
           <LiveMode
             guitarType={guitarType}
+            setGuitarType={setGuitarType}
             scales={activeScaleItems.length > 0 ? activeScaleItems : [DEFAULT_PLAY_ITEMS[0]]}
             fretCount={fretCount}
             pitchDetection={pitchDetection}
