@@ -33,7 +33,8 @@ function median(arr) {
 const FFT_SIZE = 8192;
 const FREQ_WINDOW = 5;        // 頻率中位數視窗（幀數）
 const MIN_STABLE = 2;         // 視窗至少這麼多筆才開始輸出（低音衰減快，門檻放低才來得及顯示）
-const HISTORY_STABLE = 3;     // 同一個音要連續穩定這麼多幀才寫入歷史（濾掉撥弦瞬間的鄰近音誤判）
+const HISTORY_STABLE = 5;     // 同一個音要連續穩定這麼多幀才寫入歷史（越大越能濾掉多餘/瞬間的音）
+const MIN_NOTE_GAP_MS = 110;  // 兩筆紀錄至少間隔這麼久（擋掉半音邊界來回跳造成的重複/多餘音）
 // 低音粗弦的基頻常被麥克風高通衰減，RMS 偏低；門檻太高會把它整個擋掉。
 // NSDF 的 CLARITY_GATE 才是真正的「是否有穩定音高」判斷，RMS 只擋全靜音。
 const RMS_GATE = 0.004;       // 訊號門檻（放低讓較弱的低音弦也能進入辨識）
@@ -128,6 +129,7 @@ export function usePitchDetection() {
     const streamRef = useRef(null);
     const rafIdRef = useRef(null);
     const lastNoteRef = useRef(null);
+    const lastNoteTimeRef = useRef(0);
     // 寫入歷史的「待確認音」與其連續穩定幀數（過濾撥弦攻擊瞬間的誤判）
     const pendingNoteRef = useRef(null);
     const pendingCountRef = useRef(0);
@@ -252,13 +254,17 @@ export function usePitchDetection() {
                     // 只有「音改變且已穩定」才記錄一筆；持續按住同一個音不會重複塞滿。
                     // 放開讓訊號掉到靜音門檻後，lastNoteRef 會被清空，
                     // 因此重新彈同一個音仍會記成新的一筆。
-                    if (pendingCountRef.current >= HISTORY_STABLE && noteWithOctave !== lastNoteRef.current) {
+                    const now = Date.now();
+                    if (pendingCountRef.current >= HISTORY_STABLE
+                        && noteWithOctave !== lastNoteRef.current
+                        && now - lastNoteTimeRef.current >= MIN_NOTE_GAP_MS) {
                         lastNoteRef.current = noteWithOctave;
+                        lastNoteTimeRef.current = now;
                         setNoteHistory(prev => [{
                             note: noteName,
                             octave,
                             fullNote: noteWithOctave,
-                            time: Date.now(),
+                            time: now,
                             freq: Math.round(medFreq)
                         }, ...prev].slice(0, 20));
                     }
