@@ -57,25 +57,34 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
         setIsPlayingRecent(false);
         setPlayingRecentIdx(-1);
     };
-    // 依錄到的順序（最新在前 → 反轉成演奏順序）播放 Recent
+    // 依「實際彈奏時間」播放 Recent（用錄製的 time 還原節奏；夾住極短/極長間隔）
     const playRecent = () => {
         stopRecent();
         if (noteHistory.length === 0) return;
         resumeAudio?.();
-        const chrono = [...noteHistory].reverse();
-        const step = 420; // ms / 音
+        const chrono = [...noteHistory].reverse(); // 舊→新
+        const delays = [];
+        let acc = 0;
+        chrono.forEach((h, i) => {
+            if (i > 0) {
+                let gap = (h.time ?? 0) - (chrono[i - 1].time ?? 0);
+                gap = Math.min(Math.max(gap > 0 ? gap : 120, 70), 1800); // 70ms~1.8s
+                acc += gap;
+            }
+            delays.push(acc);
+        });
         setIsPlayingRecent(true);
         chrono.forEach((h, i) => {
             const midi = midiOf(h);
             playTimersRef.current.push(setTimeout(() => {
                 setPlayingRecentIdx(i);            // 高亮放大目前音；下一個音時自然換到下一格
                 if (midi != null) playNote(midi, 2);
-            }, i * step));
+            }, delays[i]));
         });
         playTimersRef.current.push(setTimeout(() => {
             setIsPlayingRecent(false);
             setPlayingRecentIdx(-1);
-        }, chrono.length * step + 200));
+        }, acc + 600));
     };
     useEffect(() => () => playTimersRef.current.forEach(clearTimeout), []);
 
@@ -110,16 +119,39 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
     const saveHistory = () => {
         if (noteHistory.length === 0) return;
         const chrono = [...noteHistory].reverse();
+
+        // —— 由錄製的 time 還原節奏 ——
+        // 每個音的時值 ≈ 到下一個音的間隔（最後一個音用中位數補）。
+        const gaps = chrono.map((h, i) =>
+            i < chrono.length - 1 ? Math.max(60, (chrono[i + 1].time ?? 0) - (h.time ?? 0)) : null
+        );
+        const known = gaps.filter(g => g != null).sort((a, b) => a - b);
+        const medGap = known.length ? known[Math.floor(known.length / 2)] : 500;
+        for (let i = 0; i < gaps.length; i++) if (gaps[i] == null) gaps[i] = medGap;
+        // tempo：讓「中位數間隔 ≈ 一拍（四分音符）」，夾在 40~240 BPM
+        const tempo = Math.max(40, Math.min(240, Math.round(60000 / medGap)));
+        const secPerBeat = 60 / tempo;
+        const BUCKETS = [['eighth', 0.5], ['quarter', 1], ['half', 2], ['whole', 4]];
+        const durationFor = (gapMs) => {
+            const beats = (gapMs / 1000) / secPerBeat;
+            let best = 'quarter', bestD = Infinity;
+            for (const [name, b] of BUCKETS) {
+                const d = Math.abs(Math.log(b / beats));
+                if (d < bestD) { bestD = d; best = name; }
+            }
+            return best;
+        };
+
         const notes = chrono.map((h, idx) => {
             const noteIndex = NOTES.indexOf(h.note);
             // 由偵測到的音名 + 八度還原真實發聲音高（C4 = MIDI 60）
             const midi = (h.octave + 1) * 12 + (noteIndex < 0 ? 0 : noteIndex);
             // displayOctaveShift: 1 → 與 Compose 一致（吉他記譜比實音高八度）
-            return Note.fromMidi(midi, { index: idx, duration: 'quarter', displayOctaveShift: 1 });
+            return Note.fromMidi(midi, { index: idx, duration: durationFor(gaps[idx]), displayOctaveShift: 1 });
         });
         const score = new Score({
             notes,
-            metadata: { name: 'Live', key: liveRoot, viewMode: 'both' },
+            metadata: { name: 'Live', key: liveRoot, tempo, viewMode: 'both' },
         });
         const blob = new Blob([JSON.stringify(score.toJSON(), null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -129,7 +161,7 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
         a.download = `Live_${today}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        setCaptureMsg(`已存檔 ${notes.length} 個音符！可到 Compose / Read 模式用「開啟」載入。`);
+        setCaptureMsg(`已存檔 ${notes.length} 個音符（含節奏，${tempo} BPM）！可到 Compose / Read 模式用「開啟」載入。`);
     };
 
     useEffect(() => {
