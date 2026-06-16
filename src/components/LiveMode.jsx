@@ -9,6 +9,9 @@ import {
 import { Note } from '../core/models/Note';
 import { Score } from '../core/models/Score';
 import { useAudio } from '../hooks/useAudio';
+import PlayItemCard from './PlayItemCard';
+import { getScaleNotes } from '../data/scaleData';
+import { getChordNotes } from '../data/chordData';
 import './LiveMode.css';
 
 // 從各種 YouTube 連結格式抽出 11 碼 video id（也接受直接貼 id）
@@ -30,7 +33,21 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
 
     const containerRef = useRef(null);
     const [fretWidth, setFretWidth] = useState(45);
-    const [liveRoot, setLiveRoot] = useState(scales.length > 0 ? scales[0].root : 'A');
+    // Scale/Chord 選擇器（與 Compose/Read 一致）；root 供 jianpu/interval 用
+    const [item, setItem] = useState({
+        type: 'scale',
+        root: scales.length > 0 ? scales[0].root : 'A',
+        scale: 'minor-pentatonic',
+        enabledNotes: null,
+    });
+    const liveRoot = item.root;
+    const updateItem = (patch) => setItem(prev => ({ ...prev, ...patch }));
+    const toggleItemNote = (note) => setItem(prev => {
+        const base = prev.type === 'chord'
+            ? (prev.enabledNotes || getChordNotes(prev.root, prev.quality, prev.extension))
+            : (prev.enabledNotes || getScaleNotes(prev.root, prev.scale));
+        return { ...prev, enabledNotes: base.includes(note) ? base.filter(n => n !== note) : [...base, note] };
+    });
 
     // 播放 Recent 音符用
     const { playNote, resumeAudio } = useAudio(guitarType);
@@ -199,6 +216,26 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
 
     return (
         <div className="live-mode" ref={containerRef}>
+            {/* Display + Scale/Chord 選擇器 — 按 Listen 前就可先選 */}
+            <div className="live-top-controls">
+                <div className="fb-control-group">
+                    <label className="fb-label">Display:</label>
+                    <div className="display-toggle">
+                        <button className={`dt-btn ${displayMode === 'notes' ? 'active' : ''}`} onClick={() => onDisplayModeChange('notes')}>ABC</button>
+                        <button className={`dt-btn ${displayMode === 'intervals' ? 'active' : ''}`} onClick={() => onDisplayModeChange('intervals')}>123</button>
+                    </div>
+                </div>
+            </div>
+            <div className="live-scale-picker">
+                <PlayItemCard
+                    index={0}
+                    item={item}
+                    onChange={updateItem}
+                    onToggleNote={toggleItemNote}
+                    showGhostNotes={true}
+                />
+            </div>
+
             {/* 輸入來源切換：麥克風 / YouTube */}
             <div className="source-toggle">
                 <button
@@ -365,33 +402,6 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
             {/* Fretboard Section with its own controls */}
             {isListening && (
                 <div className="fretboard-section">
-                    {/* Fretboard Controls - Root and Display Mode */}
-                    <div className="fretboard-controls">
-                        <div className="fb-control-group">
-                            <label className="fb-label">Root:</label>
-                            <select
-                                className="root-select"
-                                value={liveRoot}
-                                onChange={(e) => setLiveRoot(e.target.value)}
-                            >
-                                {NOTES.map(n => <option key={n} value={n}>{n}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="fb-control-group">
-                            <label className="fb-label">Display:</label>
-                            <div className="display-toggle">
-                                <button
-                                    className={`dt-btn ${displayMode === 'notes' ? 'active' : ''}`}
-                                    onClick={() => onDisplayModeChange('notes')}
-                                >ABC</button>
-                                <button
-                                    className={`dt-btn ${displayMode === 'intervals' ? 'active' : ''}`}
-                                    onClick={() => onDisplayModeChange('intervals')}
-                                >123</button>
-                            </div>
-                        </div>
-                    </div>
 
                     {/* Live Fretboard */}
                     <div className="live-fretboard">

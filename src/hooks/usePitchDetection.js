@@ -266,7 +266,7 @@ export function usePitchDetection() {
                             fullNote: noteWithOctave,
                             time: now,
                             freq: Math.round(medFreq)
-                        }, ...prev].slice(0, 20));
+                        }, ...prev].slice(0, 1000));   // Recent 上限 1000 音符
                     }
                 }
             }

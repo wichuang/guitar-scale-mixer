@@ -299,6 +299,24 @@
 }
 
 /* History Row */
+/* Scale/Chord 選擇器（按 Listen 前就可用）*/
+.live-mode .live-scale-picker {
+    align-self: stretch;
+}
+
+/* Display 控制列（按 Listen 前就可用）*/
+.live-mode .live-top-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 10px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    align-self: flex-start;
+}
+
 .live-mode .history-row {
     display: flex;
     align-items: center;
