@@ -8,6 +8,7 @@ import {
 } from '../data/scaleData';
 import { Note } from '../core/models/Note';
 import { Score } from '../core/models/Score';
+import { useAudio } from '../hooks/useAudio';
 import './LiveMode.css';
 
 // 從各種 YouTube 連結格式抽出 11 碼 video id（也接受直接貼 id）
@@ -19,7 +20,7 @@ function extractVideoId(url) {
     return (m && m[7] && m[7].length === 11) ? m[7] : '';
 }
 
-function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fretCount }) {
+function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fretCount, guitarType }) {
     const {
         isListening, devices, selectedDevice, setSelectedDevice,
         detectedNote, detectedOctave, detectedFrequency, centsDeviation, volume, noteHistory,
@@ -30,6 +31,53 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
     const containerRef = useRef(null);
     const [fretWidth, setFretWidth] = useState(45);
     const [liveRoot, setLiveRoot] = useState(scales.length > 0 ? scales[0].root : 'A');
+
+    // 播放 Recent 音符用
+    const { playNote, resumeAudio } = useAudio(guitarType);
+    const playTimersRef = useRef([]);
+    const [isPlayingRecent, setIsPlayingRecent] = useState(false);
+    const [playingRecentIdx, setPlayingRecentIdx] = useState(-1); // 正在播放的 Recent 索引（chrono 順序）
+
+    // 把 Recent 一筆轉成 MIDI（C4=60，依偵測到的音名+八度）
+    const midiOf = (h) => {
+        const idx = NOTES.indexOf(h.note);
+        return (idx < 0 || h.octave == null) ? null : (h.octave + 1) * 12 + idx;
+    };
+    // 簡譜數字（相對 liveRoot 的音階級數，含升降號）
+    const jianpuOf = (h) => {
+        const midi = midiOf(h);
+        if (midi == null) return '';
+        const n = Note.fromMidi(midi, { key: liveRoot });
+        return n.jianpu != null ? `${n.jianpu}${n.accidentalStr || ''}` : '';
+    };
+
+    const stopRecent = () => {
+        playTimersRef.current.forEach(clearTimeout);
+        playTimersRef.current = [];
+        setIsPlayingRecent(false);
+        setPlayingRecentIdx(-1);
+    };
+    // 依錄到的順序（最新在前 → 反轉成演奏順序）播放 Recent
+    const playRecent = () => {
+        stopRecent();
+        if (noteHistory.length === 0) return;
+        resumeAudio?.();
+        const chrono = [...noteHistory].reverse();
+        const step = 420; // ms / 音
+        setIsPlayingRecent(true);
+        chrono.forEach((h, i) => {
+            const midi = midiOf(h);
+            playTimersRef.current.push(setTimeout(() => {
+                setPlayingRecentIdx(i);            // 高亮放大目前音；下一個音時自然換到下一格
+                if (midi != null) playNote(midi, 2);
+            }, i * step));
+        });
+        playTimersRef.current.push(setTimeout(() => {
+            setIsPlayingRecent(false);
+            setPlayingRecentIdx(-1);
+        }, chrono.length * step + 200));
+    };
+    useEffect(() => () => playTimersRef.current.forEach(clearTimeout), []);
 
     // YouTube 來源
     const [ytUrl, setYtUrl] = useState('');
@@ -259,14 +307,22 @@ function LiveMode({ pitchDetection, displayMode, onDisplayModeChange, scales, fr
             {/* Note History - Always visible to prevent layout jump */}
             <div className="history-row">
                 <span className="hist-label">Recent:</span>
+                {noteHistory.length > 0 && (
+                    <button
+                        className="hist-play-btn"
+                        onClick={isPlayingRecent ? stopRecent : playRecent}
+                        title="播放最近偵測到的音符"
+                    >{isPlayingRecent ? '⏹ Stop' : '▶ Play'}</button>
+                )}
                 {noteHistory.length > 0 ? (
-                    noteHistory.slice(0, 12).map((h, i) => (
+                    // 依「錄製順序」由舊到新（左→右），最新的在最右並標為 latest
+                    [...noteHistory].reverse().map((h, i, arr) => (
                         <span
                             key={h.time}
-                            className={`hist-note ${i === 0 ? 'latest' : ''}`}
-                            style={{ opacity: 1 - i * 0.06 }}
+                            className={`hist-note ${i === arr.length - 1 ? 'latest' : ''} ${i === playingRecentIdx ? 'playing' : ''}`}
                         >
-                            {h.fullNote || h.note}
+                            <span className="hist-jianpu">{jianpuOf(h) || '·'}</span>
+                            <span className="hist-name">{h.fullNote || `${h.note}${h.octave}`}</span>
                         </span>
                     ))
                 ) : (
